@@ -101,7 +101,7 @@ def calculate_local_crc32(folder, conn):
     local_crc32s = set()
     c = conn.cursor()
     print("Calculating local CRC32 hashes (this may take a while on first run)...")
-    for root, dirs, files in os.walk(folder):
+    for root, dirs, files in os.walk(os.path.basename(folder)):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in VIDEO_EXTENSIONS:
@@ -113,11 +113,6 @@ def calculate_local_crc32(folder, conn):
                 row = c.fetchone()
                 if row:
                     crc32 = row[0]
-                    if crc32 in local_crc32s:
-                        print(
-                            f"Duplicate CRC32 {crc32} for file {file_path}, skipping."
-                        )
-                        continue
                     local_crc32s.add(crc32)
                     continue
 
@@ -127,9 +122,6 @@ def calculate_local_crc32(folder, conn):
                     while chunk := f.read(8192):
                         crc = zlib.crc32(chunk, crc)
                     crc32 = f"{crc & 0xFFFFFFFF:08X}"
-                if crc32 in local_crc32s:
-                    print(f"Duplicate CRC32 {crc32} for file {file_path}, skipping.")
-                    continue
                 local_crc32s.add(crc32)
                 c.execute(
                     "INSERT OR REPLACE INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
@@ -145,7 +137,7 @@ def main():
     )
     parser.add_argument(
         "--url",
-        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+720p",
+        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p",
         help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace+s=asc' ",
     )
     parser.add_argument(
@@ -156,6 +148,8 @@ def main():
     print(f"Using URL: {args.url}")
 
     conn = init_db()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_run", now_str)
     last_run = get_metadata(conn, "last_run")
     if last_run:
         print(f"Last run was on: {last_run}")
@@ -177,8 +171,6 @@ def main():
     for link in missing:
         print(link)
 
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    set_metadata(conn, "last_run", now_str)
     set_metadata(conn, "last_checked_page", str(last_checked_page))
 
 
