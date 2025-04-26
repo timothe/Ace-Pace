@@ -6,6 +6,7 @@ import argparse
 import re
 import sqlite3
 from datetime import datetime
+import csv
 
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
@@ -211,12 +212,16 @@ def main():
         f"\nSummary: {len(missing)} missing files out of {len(crc32_to_link)} total CRC32 entries found on the website.\n"
     )
 
-    print("Missing files:")
-    with open("missing.txt", "w", encoding="utf-8") as f:
+    with open("Ace-Pace_Missing.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+        writer.writerow(["Title", "Page Link", "Magnet Link"])
         for crc32 in missing:
-            entry = f"{crc32_to_text[crc32]} - {crc32_to_magnet.get(crc32, '')} - {crc32_to_link[crc32]}"
-            print(entry)
-            f.write(entry + "\n")
+            title = crc32_to_text[crc32]
+            page_link = crc32_to_link[crc32]
+            magnet = crc32_to_magnet.get(crc32, "")
+            writer.writerow([title, magnet, page_link])
+
+    print("Missing files list saved to Ace-Pace_Missing.csv")
 
     set_metadata(conn, "last_checked_page", str(last_checked_page))
 
