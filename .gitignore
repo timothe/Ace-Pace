@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+.venv/
+env/
+venv/
+
+# Environment variables / config
+*.env
+*.env.*
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# Requirements artifacts
+pip-log.txt
+
+# Local user settings (e.g. VSCode, PyCharm)
+.vscode/
+.idea/
+
+# Optional: Ignore generated output
+*.log
+output.txt
+missing_links.txt
