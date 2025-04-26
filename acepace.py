@@ -4,17 +4,60 @@ import os
 import zlib
 import argparse
 import re
+import sqlite3
+from datetime import datetime
 
-# Define regex to extract CRC32 from title (commonly in [xxxxx])
+# Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 
 # Video file extensions we care about
-VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi", ".mov", ".flv"}
+VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
+
+DB_NAME = "crc32_files.db"
+
+
+def init_db():
+    conn = sqlite3.connect(DB_NAME)
+    c = conn.cursor()
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS crc32_cache (
+            file_path TEXT PRIMARY KEY,
+            crc32 TEXT UNIQUE
+        )
+    """
+    )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+    """
+    )
+    conn.commit()
+    return conn
+
+
+def get_metadata(conn, key):
+    c = conn.cursor()
+    c.execute("SELECT value FROM metadata WHERE key = ?", (key,))
+    row = c.fetchone()
+    return row[0] if row else None
+
+
+def set_metadata(conn, key, value):
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)", (key, value)
+    )
+    conn.commit()
 
 
 def fetch_crc32_links(base_url):
     crc32_to_link = {}
     page = 1
+    last_checked_page = 0
     while True:
         print(f"Fetching page {page}...")
         resp = requests.get(f"{base_url}&p={page}")
@@ -35,11 +78,11 @@ def fetch_crc32_links(base_url):
 
         found_in_page = False
         for row in rows:
-            title_cell = row.find("a", href=True, title=True)
-            if title_cell:
-                title = title_cell["title"]
-                link = "https://nyaa.si" + title_cell["href"]
-                match = CRC32_REGEX.search(title)
+            links = row.find_all("a", href=True)
+            if len(links) >= 2:
+                filename_text = links[1].text
+                link = "https://nyaa.si" + links[0]["href"]
+                match = CRC32_REGEX.search(filename_text)
                 if match:
                     crc32 = match.group(1).upper()
                     crc32_to_link[crc32] = link
@@ -48,23 +91,51 @@ def fetch_crc32_links(base_url):
         if not found_in_page:
             break  # No more entries found
 
+        last_checked_page = page
         page += 1
 
-    return crc32_to_link
+    return crc32_to_link, last_checked_page
 
 
-def calculate_local_crc32(folder):
+def calculate_local_crc32(folder, conn):
     local_crc32s = set()
+    c = conn.cursor()
+    print("Calculating local CRC32 hashes (this may take a while on first run)...")
     for root, dirs, files in os.walk(folder):
         for file in files:
-            if os.path.splitext(file)[1].lower() in VIDEO_EXTENSIONS:
+            ext = os.path.splitext(file)[1].lower()
+            if ext in VIDEO_EXTENSIONS:
                 file_path = os.path.join(root, file)
+                # Check if file_path already in DB
+                c.execute(
+                    "SELECT crc32 FROM crc32_cache WHERE file_path = ?", (file_path,)
+                )
+                row = c.fetchone()
+                if row:
+                    crc32 = row[0]
+                    if crc32 in local_crc32s:
+                        print(
+                            f"Duplicate CRC32 {crc32} for file {file_path}, skipping."
+                        )
+                        continue
+                    local_crc32s.add(crc32)
+                    continue
+
                 print(f"Calculating CRC32 for {file_path}...")
                 with open(file_path, "rb") as f:
                     crc = 0
                     while chunk := f.read(8192):
                         crc = zlib.crc32(chunk, crc)
-                    local_crc32s.add(f"{crc & 0xFFFFFFFF:08X}")
+                    crc32 = f"{crc & 0xFFFFFFFF:08X}"
+                if crc32 in local_crc32s:
+                    print(f"Duplicate CRC32 {crc32} for file {file_path}, skipping.")
+                    continue
+                local_crc32s.add(crc32)
+                c.execute(
+                    "INSERT OR REPLACE INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
+                    (file_path, crc32),
+                )
+                conn.commit()
     return local_crc32s
 
 
@@ -74,18 +145,28 @@ def main():
     )
     parser.add_argument(
         "--url",
-        required=True,
-        help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace&s=id&o=asc' ",
+        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+720p",
+        help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace+s=asc' ",
     )
     parser.add_argument(
         "--folder", required=True, help="Folder containing local video files."
     )
     args = parser.parse_args()
 
-    crc32_to_link = fetch_crc32_links(args.url)
+    print(f"Using URL: {args.url}")
+
+    conn = init_db()
+    last_run = get_metadata(conn, "last_run")
+    if last_run:
+        print(f"Last run was on: {last_run}")
+    else:
+        print("No previous run data found.")
+
+    crc32_to_link, last_checked_page = fetch_crc32_links(args.url)
+
     print(f"Found {len(crc32_to_link)} CRC32 entries from site.")
 
-    local_crc32s = calculate_local_crc32(args.folder)
+    local_crc32s = calculate_local_crc32(args.folder, conn)
     print(f"Found {len(local_crc32s)} local CRC32 hashes.")
 
     missing = [
@@ -95,6 +176,10 @@ def main():
     print("\nMissing files:")
     for link in missing:
         print(link)
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_run", now_str)
+    set_metadata(conn, "last_checked_page", str(last_checked_page))
 
 
 if __name__ == "__main__":
