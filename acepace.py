@@ -57,6 +57,7 @@ def set_metadata(conn, key, value):
 def fetch_crc32_links(base_url):
     crc32_to_link = {}
     crc32_to_text = {}
+    crc32_to_magnet = {}
     page = 1
     last_checked_page = 0
     while True:
@@ -83,11 +84,22 @@ def fetch_crc32_links(base_url):
             if len(links) >= 2:
                 filename_text = links[1].text
                 link = "https://nyaa.si" + links[1]["href"]
+                # Find magnet link in the row
+                magnet_link = None
+                for a in links:
+                    href = a.get("href", "")
+                    if href.startswith("magnet:"):
+                        magnet_link = href
+                        break
                 match = CRC32_REGEX.search(filename_text)
                 if match:
                     crc32 = match.group(1).upper()
                     crc32_to_link[crc32] = link
                     crc32_to_text[crc32] = filename_text
+                    if magnet_link:
+                        crc32_to_magnet[crc32] = magnet_link
+                    else:
+                        crc32_to_magnet[crc32] = ""
                     found_in_page = True
 
         if not found_in_page:
@@ -96,7 +108,7 @@ def fetch_crc32_links(base_url):
         last_checked_page = page
         page += 1
 
-    return crc32_to_link, crc32_to_text, last_checked_page
+    return crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page
 
 
 def calculate_local_crc32(folder, conn):
@@ -136,12 +148,12 @@ def calculate_local_crc32(folder, conn):
 def main():
 
     parser = argparse.ArgumentParser(
-        description="Find missing CRC32 links from Nyaa.si."
+        description="Find missing episodes from your personal One Pace library."
     )
     parser.add_argument(
         "--url",
-        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p",
-        help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace+s=asc' ",
+        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc",
+        help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
     parser.add_argument(
         "--folder", required=True, help="Folder containing local video files."
@@ -177,7 +189,9 @@ def main():
     print(f"Total video files detected: {total_files}")
     print(f"Video files already recorded in DB: {recorded_files}")
 
-    crc32_to_link, crc32_to_text, last_checked_page = fetch_crc32_links(args.url)
+    crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
+        fetch_crc32_links(args.url)
+    )
 
     print(f"Found {len(crc32_to_link)} CRC32 entries from site.")
 
@@ -200,7 +214,7 @@ def main():
     print("Missing files:")
     with open("missing.txt", "w", encoding="utf-8") as f:
         for crc32 in missing:
-            entry = f"{crc32_to_text[crc32]}\n{crc32_to_link[crc32]}"
+            entry = f"{crc32_to_text[crc32]} - {crc32_to_magnet.get(crc32, '')} - {crc32_to_link[crc32]}"
             print(entry)
             f.write(entry + "\n")
 
