@@ -56,6 +56,7 @@ def set_metadata(conn, key, value):
 
 def fetch_crc32_links(base_url):
     crc32_to_link = {}
+    crc32_to_text = {}
     page = 1
     last_checked_page = 0
     while True:
@@ -86,6 +87,7 @@ def fetch_crc32_links(base_url):
                 if match:
                     crc32 = match.group(1).upper()
                     crc32_to_link[crc32] = link
+                    crc32_to_text[crc32] = filename_text
                     found_in_page = True
 
         if not found_in_page:
@@ -94,13 +96,12 @@ def fetch_crc32_links(base_url):
         last_checked_page = page
         page += 1
 
-    return crc32_to_link, last_checked_page
+    return crc32_to_link, crc32_to_text, last_checked_page
 
 
 def calculate_local_crc32(folder, conn):
     local_crc32s = set()
     c = conn.cursor()
-    print("Calculating local CRC32 hashes (this may take a while on first run)...")
     for root, dirs, files in os.walk(folder):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
@@ -116,7 +117,8 @@ def calculate_local_crc32(folder, conn):
                     local_crc32s.add(crc32)
                     continue
 
-                print(f"Calculating CRC32 for {file_path}...")
+                parent_folder = os.path.basename(root)
+                print(f"Calculating CRC32 for {parent_folder}/{file}...")
                 with open(file_path, "rb") as f:
                     crc = 0
                     while chunk := f.read(8192):
@@ -162,35 +164,45 @@ def main():
                 if c.fetchone():
                     recorded_files += 1
 
-    print(f"Total video files detected: {total_files}")
-    print(f"Video files already recorded in DB: {recorded_files}")
-
-    print(f"Using URL: {args.url}")
-
     last_run = get_metadata(conn, "last_run")
 
     if last_run:
         print(f"Last run was on: {last_run}")
-    else:
-        print("No previous run data found.")
 
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_run", now_str)
 
-    crc32_to_link, last_checked_page = fetch_crc32_links(args.url)
+    print(f"Using URL: {args.url}")
+
+    print(f"Total video files detected: {total_files}")
+    print(f"Video files already recorded in DB: {recorded_files}")
+
+    crc32_to_link, crc32_to_text, last_checked_page = fetch_crc32_links(args.url)
 
     print(f"Found {len(crc32_to_link)} CRC32 entries from site.")
+
+    if last_run:
+        print("Calculating (new) local CRC32 hashes...")
+    else:
+        print(
+            "Calculating local CRC32 hashes - this will take a while on first run!..."
+        )
 
     local_crc32s = calculate_local_crc32(args.folder, conn)
     print(f"Found {len(local_crc32s)} local CRC32 hashes.")
 
-    missing = [
-        link for crc32, link in crc32_to_link.items() if crc32 not in local_crc32s
-    ]
+    missing = [crc32 for crc32 in crc32_to_link if crc32 not in local_crc32s]
 
-    print("\nMissing files:")
-    for link in missing:
-        print(link)
+    print(
+        f"\nSummary: {len(missing)} missing files out of {len(crc32_to_link)} total CRC32 entries found on the website.\n"
+    )
+
+    print("Missing files:")
+    with open("missing.txt", "w", encoding="utf-8") as f:
+        for crc32 in missing:
+            entry = f"{crc32_to_text[crc32]}\n{crc32_to_link[crc32]}"
+            print(entry)
+            f.write(entry + "\n")
 
     set_metadata(conn, "last_checked_page", str(last_checked_page))
 
