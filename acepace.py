@@ -81,7 +81,7 @@ def fetch_crc32_links(base_url):
             links = row.find_all("a", href=True)
             if len(links) >= 2:
                 filename_text = links[1].text
-                link = "https://nyaa.si" + links[0]["href"]
+                link = "https://nyaa.si" + links[1]["href"]
                 match = CRC32_REGEX.search(filename_text)
                 if match:
                     crc32 = match.group(1).upper()
@@ -101,7 +101,7 @@ def calculate_local_crc32(folder, conn):
     local_crc32s = set()
     c = conn.cursor()
     print("Calculating local CRC32 hashes (this may take a while on first run)...")
-    for root, dirs, files in os.walk(os.path.basename(folder)):
+    for root, dirs, files in os.walk(folder):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in VIDEO_EXTENSIONS:
@@ -132,6 +132,7 @@ def calculate_local_crc32(folder, conn):
 
 
 def main():
+
     parser = argparse.ArgumentParser(
         description="Find missing CRC32 links from Nyaa.si."
     )
@@ -145,16 +146,36 @@ def main():
     )
     args = parser.parse_args()
 
+    conn = init_db()
+
+    # Count total video files and files already recorded in DB
+    total_files = 0
+    recorded_files = 0
+    c = conn.cursor()
+    for root, dirs, files in os.walk(args.folder):
+        for file in files:
+            ext = os.path.splitext(file)[1].lower()
+            if ext in VIDEO_EXTENSIONS:
+                total_files += 1
+                file_path = os.path.join(root, file)
+                c.execute("SELECT 1 FROM crc32_cache WHERE file_path = ?", (file_path,))
+                if c.fetchone():
+                    recorded_files += 1
+
+    print(f"Total video files detected: {total_files}")
+    print(f"Video files already recorded in DB: {recorded_files}")
+
     print(f"Using URL: {args.url}")
 
-    conn = init_db()
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    set_metadata(conn, "last_run", now_str)
     last_run = get_metadata(conn, "last_run")
+
     if last_run:
         print(f"Last run was on: {last_run}")
     else:
         print("No previous run data found.")
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_run", now_str)
 
     crc32_to_link, last_checked_page = fetch_crc32_links(args.url)
 
