@@ -18,6 +18,7 @@ DB_NAME = "crc32_files.db"
 
 
 def init_db():
+    exists = os.path.exists(DB_NAME)
     conn = sqlite3.connect(DB_NAME)
     c = conn.cursor()
     c.execute(
@@ -37,6 +38,8 @@ def init_db():
     """
     )
     conn.commit()
+    if exists:
+        print("Database already exists. You can export it using the --db option.")
     return conn
 
 
@@ -92,9 +95,9 @@ def fetch_crc32_links(base_url):
                     if href.startswith("magnet:"):
                         magnet_link = href
                         break
-                match = CRC32_REGEX.search(filename_text)
-                if match:
-                    crc32 = match.group(1).upper()
+                matches = CRC32_REGEX.findall(filename_text)
+                if matches:
+                    crc32 = matches[-1].upper()
                     crc32_to_link[crc32] = link
                     crc32_to_text[crc32] = filename_text
                     if magnet_link:
@@ -156,6 +159,8 @@ def export_db_to_csv(conn):
         for row in rows:
             writer.writerow(row)
     print("Database exported to Ace-Pace_DB.csv")
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_db_export", now_str)
 
 
 def main():
@@ -177,6 +182,10 @@ def main():
     args = parser.parse_args()
 
     conn = init_db()
+
+    last_missing_export = get_metadata(conn, "last_missing_export")
+    if last_missing_export:
+        print(f"Last missing files list generated on: {last_missing_export}")
 
     if args.db:
         export_db_to_csv(conn)
@@ -231,6 +240,28 @@ def main():
         f"\nSummary: {len(missing)} missing files out of {len(crc32_to_link)} total CRC32 entries found on the website.\n"
     )
 
+    # Check for new CRC32 in missing compared to old file if exists
+    old_missing_crc32s = set()
+    if os.path.exists("Ace-Pace_Missing.csv"):
+        with open("Ace-Pace_Missing.csv", "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None)  # skip header
+            for row in reader:
+                if len(row) >= 1:
+                    title = row[0]
+                    # Extract CRC32 from title if possible
+                    matches = CRC32_REGEX.findall(title)
+                    if matches:
+                        old_missing_crc32s.add(matches[-1].upper())
+        new_crc32s = set(missing) - old_missing_crc32s
+        if new_crc32s:
+            print(
+                f"New missing CRC32 entries detected since last export: {len(new_crc32s)}"
+            )
+            for crc32 in new_crc32s:
+                title = crc32_to_text.get(crc32, "(Unknown Title)")
+                print(f"Missing: {title}")
+
     with open("Ace-Pace_Missing.csv", "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(["Title", "Page Link", "Magnet Link"])
@@ -243,6 +274,8 @@ def main():
     print("Missing files list saved to Ace-Pace_Missing.csv")
 
     set_metadata(conn, "last_checked_page", str(last_checked_page))
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_missing_export", now_str)
 
 
 if __name__ == "__main__":
