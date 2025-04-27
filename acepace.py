@@ -104,6 +104,7 @@ def fetch_crc32_links(base_url):
                         crc32_to_magnet[crc32] = magnet_link
                     else:
                         crc32_to_magnet[crc32] = ""
+                    print(f"Found CRC32 for {filename_text} : {crc32}")
                     found_in_page = True
 
         if not found_in_page:
@@ -237,7 +238,7 @@ def main():
     missing = [crc32 for crc32 in crc32_to_link if crc32 not in local_crc32s]
 
     print(
-        f"\nSummary: {len(missing)} missing files out of {len(crc32_to_link)} total CRC32 entries found on the website.\n"
+        f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
     )
 
     # Check for new CRC32 in missing compared to old file if exists
