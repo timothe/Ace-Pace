@@ -85,27 +85,27 @@ def fetch_crc32_links(base_url):
         found_in_page = False
         for row in rows:
             links = row.find_all("a", href=True)
-            if len(links) >= 2:
-                filename_text = links[1].text
-                link = "https://nyaa.si" + links[1]["href"]
-                # Find magnet link in the row
-                magnet_link = None
-                for a in links:
-                    href = a.get("href", "")
-                    if href.startswith("magnet:"):
-                        magnet_link = href
-                        break
-                matches = CRC32_REGEX.findall(filename_text)
-                if matches:
-                    crc32 = matches[-1].upper()
-                    crc32_to_link[crc32] = link
-                    crc32_to_text[crc32] = filename_text
-                    if magnet_link:
-                        crc32_to_magnet[crc32] = magnet_link
-                    else:
-                        crc32_to_magnet[crc32] = ""
-                    print(f"Found CRC32 for {filename_text} : {crc32}")
-                    found_in_page = True
+            title_link = None
+            magnet_link = ""
+            for a in links:
+                if a.has_attr("title"):
+                    title_link = a
+                href = a.get("href", "")
+                if href.startswith("magnet:"):
+                    magnet_link = href
+            if not title_link:
+                continue  # Skip rows without a valid title link
+            filename_text = title_link.text
+            link = "https://nyaa.si" + title_link["href"]
+            matches = CRC32_REGEX.findall(filename_text)
+            if matches:
+                crc32 = matches[-1].upper()
+                crc32_to_link[crc32] = link
+                crc32_to_text[crc32] = filename_text
+                crc32_to_magnet[crc32] = magnet_link
+                found_in_page = True
+            else:
+                print(f"Warning: No CRC32 found in title '{filename_text}'")
 
         if not found_in_page:
             break  # No more entries found
