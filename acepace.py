@@ -146,6 +146,18 @@ def calculate_local_crc32(folder, conn):
     return local_crc32s
 
 
+def export_db_to_csv(conn):
+    c = conn.cursor()
+    c.execute("SELECT file_path, crc32 FROM crc32_cache")
+    rows = c.fetchall()
+    with open("Ace-Pace_DB.csv", "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+        writer.writerow(["File Path", "CRC32"])
+        for row in rows:
+            writer.writerow(row)
+    print("Database exported to Ace-Pace_DB.csv")
+
+
 def main():
 
     parser = argparse.ArgumentParser(
@@ -159,9 +171,16 @@ def main():
     parser.add_argument(
         "--folder", required=True, help="Folder containing local video files."
     )
+    parser.add_argument(
+        "--db", action="store_true", help="Export database to CSV and exit."
+    )
     args = parser.parse_args()
 
     conn = init_db()
+
+    if args.db:
+        export_db_to_csv(conn)
+        return
 
     # Count total video files and files already recorded in DB
     total_files = 0
@@ -219,7 +238,7 @@ def main():
             title = crc32_to_text[crc32]
             page_link = crc32_to_link[crc32]
             magnet = crc32_to_magnet.get(crc32, "")
-            writer.writerow([title, magnet, page_link])
+            writer.writerow([title, page_link, magnet])
 
     print("Missing files list saved to Ace-Pace_Missing.csv")
 
