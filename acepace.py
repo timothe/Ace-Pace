@@ -290,6 +290,13 @@ def main():
     )
     args = parser.parse_args()
 
+    # Check if the URL points to Nyaa
+    if not args.url.startswith("https://nyaa.si"):
+        print(
+            "Error: The --url argument must point to the Nyaa website (https://nyaa.si)."
+        )
+        return
+
     if args.download:
         download_missing_to_client(args.download)
         return

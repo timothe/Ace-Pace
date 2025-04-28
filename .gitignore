@@ -23,7 +23,7 @@ pip-log.txt
 .vscode/
 .idea/
 
-# Optional: Ignore generated output
+# Ignore generated output
 *.log
-output.txt
-missing_links.txt
+Ace-Pace_DB.csv
+Ace-Pace_Missing.csv
