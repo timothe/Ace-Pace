@@ -8,6 +8,7 @@ import sqlite3
 from datetime import datetime
 import csv
 import time
+import getpass
 
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
@@ -203,7 +204,9 @@ def download_with_transmission():
     else:
         port = 9091
     rpc_username = input("Enter Transmission username (leave blank if none): ").strip()
-    rpc_password = input("Enter Transmission password (leave blank if none): ").strip()
+    rpc_password = getpass.getpass(
+        "Enter Transmission password (leave blank if none): "
+    ).strip()
 
     try:
         tc = transmission_rpc.Client(
