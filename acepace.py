@@ -224,11 +224,11 @@ def download_with_transmission():
         print(f"Failed to connect to Transmission RPC: {e}")
         return
 
-    input("Connection to Transmission successful!")
+    print("Connection to Transmission successful!")
 
     # Suggest default download directory to user
     if default_download_dir:
-        prompt_text = f"Enter target folder for downloads (leave blank for default: {default_download_dir}): "
+        prompt_text = f"Enter target folder for downloads (current default: {default_download_dir}): "
     else:
         prompt_text = "Enter target folder for downloads (leave blank for default): "
     target_folder = input(prompt_text).strip()
