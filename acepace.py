@@ -208,12 +208,17 @@ def download_with_transmission():
         tc = transmission_rpc.Client(
             host=host,
             port=port,
-            user=rpc_username if rpc_username else None,
+            username=rpc_username if rpc_username else None,
             password=rpc_password if rpc_password else None,
             timeout=10,
         )
         # Test connection
         tc.session_stats()
+        # Fetch current default download directory
+        session_info = tc.get_session()
+        default_download_dir = (
+            session_info.download_dir if hasattr(session_info, "download_dir") else ""
+        )
     except Exception as e:
         print(f"Failed to connect to Transmission RPC: {e}")
         return
@@ -227,9 +232,12 @@ def download_with_transmission():
         print("Abort! Abort!")
         return
 
-    target_folder = input(
-        "Enter target folder for downloads (leave blank for default): "
-    ).strip()
+    # Suggest default download directory to user
+    if default_download_dir:
+        prompt_text = f"Enter target folder for downloads (leave blank for default: {default_download_dir}): "
+    else:
+        prompt_text = "Enter target folder for downloads (leave blank for default): "
+    target_folder = input(prompt_text).strip()
     added_count = 0
     for magnet in magnets:
         try:
