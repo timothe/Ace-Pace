@@ -167,13 +167,6 @@ def export_db_to_csv(conn):
 
 
 def download_with_transmission():
-    try:
-        import transmission_rpc
-    except ImportError:
-        print("The 'transmission-rpc' library is required for --download option.")
-        print("Run pip install -r requirements.txt to install it.")
-        return
-
     if not os.path.exists("Ace-Pace_Missing.csv"):
         print("Missing file 'Ace-Pace_Missing.csv' not found. Run the script first!")
         return
@@ -208,21 +201,26 @@ def download_with_transmission():
         "Enter Transmission password (leave blank if none): "
     ).strip()
 
+    base_url = f"http://{host}:{port}/transmission/rpc"
+    session_id = None
+    session = requests.Session()
+    auth = (rpc_username, rpc_password) if rpc_username else None
+
+    # Test connection and get session ID
     try:
-        tc = transmission_rpc.Client(
-            host=host,
-            port=port,
-            username=rpc_username if rpc_username else None,
-            password=rpc_password if rpc_password else None,
-            timeout=10,
+        headers = {}
+        if session_id:
+            headers["X-Transmission-Session-Id"] = session_id
+        resp = session.post(
+            base_url, auth=auth, headers=headers, json={"method": "session-get"}
         )
-        # Test connection
-        tc.session_stats()
-        # Fetch current default download directory
-        session_info = tc.get_session()
-        default_download_dir = (
-            session_info.download_dir if hasattr(session_info, "download_dir") else ""
-        )
+        if resp.status_code == 409:
+            session_id = resp.headers.get("X-Transmission-Session-Id")
+            headers["X-Transmission-Session-Id"] = session_id
+            resp = session.post(
+                base_url, auth=auth, headers=headers, json={"method": "session-get"}
+            )
+        resp.raise_for_status()
     except Exception as e:
         print(f"Failed to connect to Transmission RPC: {e}")
         return
@@ -230,6 +228,14 @@ def download_with_transmission():
     print("Connection to Transmission successful!")
 
     # Suggest default download directory to user
+    try:
+        session_info = resp.json()
+        default_download_dir = ""
+        if "arguments" in session_info and "download-dir" in session_info["arguments"]:
+            default_download_dir = session_info["arguments"]["download-dir"]
+    except Exception:
+        default_download_dir = ""
+
     if default_download_dir:
         prompt_text = f"Enter target folder for downloads (current default: {default_download_dir}): "
     else:
@@ -248,15 +254,26 @@ def download_with_transmission():
     added_count = 0
     total = len(magnets)
     for idx, magnet in enumerate(magnets, 1):
-        # Truncate magnet for display (first 50 chars)
         truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
         print(f"Adding {idx}/{total}: {truncated}")
+        payload = {"method": "torrent-add", "arguments": {"filename": magnet}}
+        if target_folder:
+            payload["arguments"]["download-dir"] = target_folder
         try:
-            if target_folder:
-                tc.add_torrent(magnet, download_dir=target_folder)
+            headers = {"X-Transmission-Session-Id": session_id} if session_id else {}
+            resp = session.post(base_url, auth=auth, headers=headers, json=payload)
+            if resp.status_code == 409:
+                session_id = resp.headers.get("X-Transmission-Session-Id")
+                headers["X-Transmission-Session-Id"] = session_id
+                resp = session.post(base_url, auth=auth, headers=headers, json=payload)
+            resp.raise_for_status()
+            result = resp.json()
+            if result.get("result") == "success":
+                added_count += 1
             else:
-                tc.add_torrent(magnet)
-            added_count += 1
+                print(
+                    f"Failed to add torrent: {truncated} Error: {result.get('result')}"
+                )
             time.sleep(0.1)
         except Exception as e:
             print(f"Failed to add torrent: {truncated} Error: {e}")
