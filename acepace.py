@@ -7,6 +7,7 @@ import re
 import sqlite3
 from datetime import datetime
 import csv
+import time
 
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
@@ -223,6 +224,15 @@ def download_with_transmission():
         print(f"Failed to connect to Transmission RPC: {e}")
         return
 
+    input("Connection to Transmission successful!")
+
+    # Suggest default download directory to user
+    if default_download_dir:
+        prompt_text = f"Enter target folder for downloads (leave blank for default: {default_download_dir}): "
+    else:
+        prompt_text = "Enter target folder for downloads (leave blank for default): "
+    target_folder = input(prompt_text).strip()
+
     confirm = (
         input(f"Do you want to add {len(magnets)} torrents to Transmission? (y/n): ")
         .strip()
@@ -232,22 +242,21 @@ def download_with_transmission():
         print("Abort! Abort!")
         return
 
-    # Suggest default download directory to user
-    if default_download_dir:
-        prompt_text = f"Enter target folder for downloads (leave blank for default: {default_download_dir}): "
-    else:
-        prompt_text = "Enter target folder for downloads (leave blank for default): "
-    target_folder = input(prompt_text).strip()
     added_count = 0
-    for magnet in magnets:
+    total = len(magnets)
+    for idx, magnet in enumerate(magnets, 1):
+        # Truncate magnet for display (first 50 chars)
+        truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
+        print(f"Adding {idx}/{total}: {truncated}")
         try:
             if target_folder:
                 tc.add_torrent(magnet, download_dir=target_folder)
             else:
                 tc.add_torrent(magnet)
             added_count += 1
+            time.sleep(0.1)
         except Exception as e:
-            print(f"Failed to add torrent: {magnet[:60]}... Error: {e}")
+            print(f"Failed to add torrent: {truncated} Error: {e}")
 
     print(f"Added {added_count} torrents to Transmission.")
 
