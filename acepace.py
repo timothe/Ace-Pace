@@ -189,15 +189,25 @@ def download_with_transmission():
         return
 
     print("The details below are not stored.")
-    rpc_url = input(
-        "Enter Transmission RPC URL (e.g. http://localhost:9091/transmission/rpc): "
-    ).strip()
+    host = input("Enter Transmission host (default: localhost): ").strip()
+    if not host:
+        host = "localhost"
+    port_input = input("Enter Transmission port (default: 9091): ").strip()
+    if port_input:
+        try:
+            port = int(port_input)
+        except ValueError:
+            print("Invalid port number. Using default 9091.")
+            port = 9091
+    else:
+        port = 9091
     rpc_username = input("Enter Transmission username (leave blank if none): ").strip()
     rpc_password = input("Enter Transmission password (leave blank if none): ").strip()
 
     try:
         tc = transmission_rpc.Client(
-            address=rpc_url,
+            host=host,
+            port=port,
             user=rpc_username if rpc_username else None,
             password=rpc_password if rpc_password else None,
             timeout=10,
