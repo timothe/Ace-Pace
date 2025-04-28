@@ -164,6 +164,84 @@ def export_db_to_csv(conn):
     set_metadata(conn, "last_db_export", now_str)
 
 
+def download_with_transmission():
+    try:
+        import transmission_rpc
+    except ImportError:
+        print("The 'transmission-rpc' library is required for --download option.")
+        print("Run pip install -r requirements.txt to install it.")
+        return
+
+    if not os.path.exists("Ace-Pace_Missing.csv"):
+        print("Missing file 'Ace-Pace_Missing.csv' not found. Run the script first!")
+        return
+
+    magnets = []
+    with open("Ace-Pace_Missing.csv", "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            magnet_link = row.get("Magnet Link", "").strip()
+            if magnet_link.startswith("magnet:"):
+                magnets.append(magnet_link)
+
+    if not magnets:
+        print("No magnet links found in 'Ace-Pace_Missing.csv'.")
+        return
+
+    print("The details below are not stored.")
+    rpc_url = input(
+        "Enter Transmission RPC URL (e.g. http://localhost:9091/transmission/rpc): "
+    ).strip()
+    rpc_username = input("Enter Transmission username (leave blank if none): ").strip()
+    rpc_password = input("Enter Transmission password (leave blank if none): ").strip()
+
+    try:
+        tc = transmission_rpc.Client(
+            address=rpc_url,
+            user=rpc_username if rpc_username else None,
+            password=rpc_password if rpc_password else None,
+            timeout=10,
+        )
+        # Test connection
+        tc.session_stats()
+    except Exception as e:
+        print(f"Failed to connect to Transmission RPC: {e}")
+        return
+
+    confirm = (
+        input(f"Do you want to add {len(magnets)} torrents to Transmission? (y/n): ")
+        .strip()
+        .lower()
+    )
+    if confirm != "y":
+        print("Abort! Abort!")
+        return
+
+    target_folder = input(
+        "Enter target folder for downloads (leave blank for default): "
+    ).strip()
+    added_count = 0
+    for magnet in magnets:
+        try:
+            if target_folder:
+                tc.add_torrent(magnet, download_dir=target_folder)
+            else:
+                tc.add_torrent(magnet)
+            added_count += 1
+        except Exception as e:
+            print(f"Failed to add torrent: {magnet[:60]}... Error: {e}")
+
+    print(f"Added {added_count} torrents to Transmission.")
+
+
+def download_missing_to_client(client_type):
+    client_type = client_type.lower()
+    if client_type == "transmission":
+        download_with_transmission()
+    else:
+        print(f"Download client '{client_type}' not supported.")
+
+
 def main():
 
     parser = argparse.ArgumentParser(
@@ -174,13 +252,24 @@ def main():
         default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc",
         help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
-    parser.add_argument(
-        "--folder", required=True, help="Folder containing local video files."
-    )
+    parser.add_argument("--folder", help="Folder containing local video files.")
     parser.add_argument(
         "--db", action="store_true", help="Export database to CSV and exit."
     )
+    parser.add_argument(
+        "--download",
+        metavar="CLIENT",
+        help="Import magnet links from missing CSV and add to specified BitTorrent client (e.g. transmission).",
+    )
     args = parser.parse_args()
+
+    if args.download:
+        download_missing_to_client(args.download)
+        return
+
+    if not args.folder:
+        print("Error: --folder argument is required unless using --download.")
+        return
 
     conn = init_db()
 
@@ -217,16 +306,16 @@ def main():
     print(f"Using URL: {args.url}")
 
     print(f"Total video files detected: {total_files}")
-    print(f"Video files already recorded in DB: {recorded_files}")
+    print(f"Episodes already recorded in DB: {recorded_files}")
 
     crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
         fetch_crc32_links(args.url)
     )
 
-    print(f"Found {len(crc32_to_link)} CRC32 entries from site.")
+    print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
 
     if last_run:
-        print("Calculating (new) local CRC32 hashes...")
+        print("Calculating new local CRC32 hashes...")
     else:
         print(
             "Calculating local CRC32 hashes - this will take a while on first run!..."
@@ -256,9 +345,7 @@ def main():
                         old_missing_crc32s.add(matches[-1].upper())
         new_crc32s = set(missing) - old_missing_crc32s
         if new_crc32s:
-            print(
-                f"New missing CRC32 entries detected since last export: {len(new_crc32s)}"
-            )
+            print(f"New missing episodes detected since last export: {len(new_crc32s)}")
             for crc32 in new_crc32s:
                 title = crc32_to_text.get(crc32, "(Unknown Title)")
                 print(f"Missing: {title}")
@@ -277,6 +364,25 @@ def main():
     set_metadata(conn, "last_checked_page", str(last_checked_page))
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_missing_export", now_str)
+
+    if missing:
+        prompt = (
+            input(
+                "Do you want to add missing episodes to a BitTorrent client now? (y/n): "
+            )
+            .strip()
+            .lower()
+        )
+        if prompt == "y":
+            client = (
+                input("Enter client name (currently supported: transmission): ")
+                .strip()
+                .lower()
+            )
+            if client:
+                download_missing_to_client(client)
+            else:
+                print("No client specified. Skipping download.")
 
 
 if __name__ == "__main__":
