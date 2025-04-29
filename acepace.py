@@ -118,6 +118,42 @@ def fetch_crc32_links(base_url):
     return crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page
 
 
+def fetch_title_by_crc32(crc32):
+    # Search on Nyaa for the given CRC32
+    search_url = f"https://nyaa.si/?f=0&c=0_0&q={crc32}&o=asc"
+    resp = requests.get(search_url)
+    if resp.status_code != 200:
+        print(f"Failed to fetch search results for CRC32 {crc32}")
+        return None
+    soup = BeautifulSoup(resp.text, "html.parser")
+    table = soup.find("table", class_="torrent-list")
+    if not table:
+        return None
+    rows = table.find_all("tr")
+    matched_titles = []
+    for row in rows:
+        links = row.find_all("a", href=True)
+        title_link = None
+        for a in links:
+            if a.has_attr("title"):
+                title_link = a
+                break
+        if not title_link:
+            continue
+        filename_text = title_link.text
+        matches = CRC32_REGEX.findall(filename_text)
+        if matches and matches[-1].upper() == crc32:
+            matched_titles.append(filename_text)
+    if len(matched_titles) == 1:
+        return matched_titles[0]
+    elif len(matched_titles) == 0:
+        print(f"Warning: No title found for CRC32 {crc32}")
+        return None
+    else:
+        print(f"Warning: Multiple titles found for CRC32 {crc32}: {matched_titles}")
+        return None
+
+
 def calculate_local_crc32(folder, conn):
     local_crc32s = set()
     c = conn.cursor()
@@ -150,6 +186,59 @@ def calculate_local_crc32(folder, conn):
                 )
                 conn.commit()
     return local_crc32s
+
+
+def rename_local_files(conn, folder):
+    c = conn.cursor()
+    c.execute("SELECT file_path, crc32 FROM crc32_cache")
+    entries = c.fetchall()
+    if not entries:
+        print("No entries found in local CRC32 database.")
+        return
+
+    rename_plan = []
+    for file_path, crc32 in entries:
+        title = fetch_title_by_crc32(crc32)
+        if not title:
+            continue  # No match found on Nyaa, skip
+
+        dir_name = os.path.dirname(file_path)
+        ext = os.path.splitext(file_path)[1]
+        # Sanitize title for filename (remove problematic characters)
+        sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
+        new_filename = f"{sanitized_title}{ext}"
+        new_path = os.path.join(dir_name, new_filename)
+
+        if os.path.abspath(file_path) != os.path.abspath(new_path):
+            rename_plan.append((file_path, new_path))
+
+    if not rename_plan:
+        print("No files to rename.")
+        return
+
+    print("Rename plan:")
+    for old, new in rename_plan:
+        print(f"{old} -> {new}")
+
+    confirm = input("Proceed with renaming? (y/n): ").strip().lower()
+    if confirm != "y":
+        print("Renaming aborted.")
+        return
+
+    for old, new in rename_plan:
+        try:
+            if os.path.exists(new):
+                print(f"Cannot rename {old} to {new}: target file already exists.")
+                continue
+            os.rename(old, new)
+            print(f"Renamed {old} to {new}")
+            # Update DB with new file path
+            c.execute(
+                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (new, old)
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Failed to rename {old} to {new}: {e}")
 
 
 def export_db_to_csv(conn):
@@ -308,6 +397,11 @@ def main():
         metavar="CLIENT",
         help="Import magnet links from missing CSV and add to specified BitTorrent client (e.g. transmission).",
     )
+    parser.add_argument(
+        "--rename",
+        action="store_true",
+        help="Rename local files based on CRC32 matching titles from Nyaa.",
+    )
     args = parser.parse_args()
 
     # Check if the URL points to Nyaa
@@ -321,8 +415,18 @@ def main():
         download_missing_to_client(args.download)
         return
 
+    if args.rename:
+        if not args.folder:
+            print("Error: --folder argument is required for renaming.")
+            return
+        conn = init_db()
+        rename_local_files(conn, args.folder)
+        return
+
     if not args.folder:
-        print("Error: --folder argument is required unless using --download.")
+        print(
+            "Error: --folder argument is required unless using --download or --rename."
+        )
         return
 
     conn = init_db()
