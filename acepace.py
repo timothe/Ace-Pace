@@ -411,25 +411,47 @@ def main():
         )
         return
 
+    conn = init_db()
+
+    # Folder selection logic
+    folder = args.folder
+    if not folder and not args.download and not args.rename:
+        # Try to load last_folder from metadata
+        last_folder = get_metadata(conn, "last_folder")
+        if last_folder:
+            print(f"Previously used folder: {last_folder}")
+            user_input = input(
+                "Press Enter to use this folder, or enter a new path: "
+            ).strip()
+            if user_input:
+                folder = user_input
+            else:
+                folder = last_folder
+        else:
+            folder = input("Enter the folder containing local video files: ").strip()
+        if not folder:
+            print("Error: No folder specified.")
+            return
+        set_metadata(conn, "last_folder", folder)
+    elif folder:
+        set_metadata(conn, "last_folder", folder)
+
     if args.download:
         download_missing_to_client(args.download)
         return
 
     if args.rename:
-        if not args.folder:
+        if not folder:
             print("Error: --folder argument is required for renaming.")
             return
-        conn = init_db()
-        rename_local_files(conn, args.folder)
+        rename_local_files(conn, folder)
         return
 
-    if not args.folder:
+    if not folder:
         print(
             "Error: --folder argument is required unless using --download or --rename."
         )
         return
-
-    conn = init_db()
 
     last_missing_export = get_metadata(conn, "last_missing_export")
     if last_missing_export:
@@ -443,7 +465,7 @@ def main():
     total_files = 0
     recorded_files = 0
     c = conn.cursor()
-    for root, dirs, files in os.walk(args.folder):
+    for root, dirs, files in os.walk(folder):
         for file in files:
             ext = os.path.splitext(file)[1].lower()
             if ext in VIDEO_EXTENSIONS:
@@ -479,7 +501,7 @@ def main():
             "Calculating local CRC32 hashes - this will take a while on first run!..."
         )
 
-    local_crc32s = calculate_local_crc32(args.folder, conn)
+    local_crc32s = calculate_local_crc32(folder, conn)
     print(f"Found {len(local_crc32s)} local CRC32 hashes.")
 
     missing = [crc32 for crc32 in crc32_to_link if crc32 not in local_crc32s]
