@@ -214,7 +214,8 @@ def rename_local_files(conn, folder):
 
     print("Rename plan:")
     for old, new in rename_plan:
-        print(f"{old} -> {new}")
+        print(f"{os.path.basename(old)} -> {os.path.basename(new)}")
+    print(f"{len(rename_plan)} file(s) will be renamed.")
 
     confirm = input("Proceed with renaming? (y/n): ").strip().lower()
     if confirm != "y":
