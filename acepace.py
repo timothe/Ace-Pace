@@ -424,7 +424,7 @@ def rename_local_files(conn, folder):
         ext = os.path.splitext(file_path)[1]
         # Sanitize title for filename (remove problematic characters)
         sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
-        new_filename = f"{sanitized_title}{ext}"
+        new_filename = f"{sanitized_title}"
         new_path = os.path.join(dir_name, new_filename)
         if os.path.abspath(file_path) != os.path.abspath(new_path):
             rename_plan.append((file_path, new_path))
@@ -687,21 +687,20 @@ def main():
         episodes_db_conn.close()
         if not last_ep_update:
             print("WARNING: Episodes metadata database has not been updated yet.")
+        elif last_ep_update:
+            prompt = (
+                input(
+                    f"Update episodes metadata database before renaming? (last update: {last_ep_update}) (y/n): "
+                )
+                .strip()
+                .lower()
+            )
         else:
-            try:
-                last_dt = datetime.strptime(last_ep_update, "%Y-%m-%d %H:%M:%S")
-                # If older than 7 days, warn
-                if (datetime.now() - last_dt).days > 7:
-                    print(
-                        f"WARNING: Episodes metadata database is over 7 days old ({last_ep_update})."
-                    )
-            except Exception:
-                print(f"WARNING: Unable to parse last update time: {last_ep_update}")
-        prompt = (
-            input("Update episodes metadata database before renaming? (y/n): ")
-            .strip()
-            .lower()
-        )
+            prompt = (
+                input("Update episodes metadata database before renaming? (y/n): ")
+                .strip()
+                .lower()
+            )
         if prompt == "y":
             update_episodes_index_db()
         print(
