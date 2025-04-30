@@ -17,6 +17,7 @@ CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 
 DB_NAME = "crc32_files.db"
+EPISODES_DB_NAME = "episodes_index.db"
 
 
 def init_db():
@@ -43,6 +44,219 @@ def init_db():
     if exists:
         print("Database already exists. You can export it using the --db option.")
     return conn
+
+
+# --- New: Episodes metadata DB ---
+def init_episodes_db():
+    exists = os.path.exists(EPISODES_DB_NAME)
+    conn = sqlite3.connect(EPISODES_DB_NAME)
+    c = conn.cursor()
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS episodes_index (
+            crc32 TEXT PRIMARY KEY,
+            title TEXT,
+            page_link TEXT
+        )
+        """
+    )
+    c.execute(
+        """
+        CREATE TABLE IF NOT EXISTS metadata (
+            key TEXT PRIMARY KEY,
+            value TEXT
+        )
+        """
+    )
+    conn.commit()
+    return conn
+
+
+def get_episodes_metadata(conn, key):
+    c = conn.cursor()
+    c.execute("SELECT value FROM metadata WHERE key = ?", (key,))
+    row = c.fetchone()
+    return row[0] if row else None
+
+
+def set_episodes_metadata(conn, key, value):
+    c = conn.cursor()
+    c.execute(
+        "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)", (key, value)
+    )
+    conn.commit()
+
+
+# --- New: Fetch and update episodes_index table ---
+def fetch_episodes_metadata():
+    """
+    Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
+    If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
+    Returns: List of (crc32, title, page_link)
+    """
+
+    def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
+        """Helper to extract CRC32 from fname_text and store if valid and unique."""
+        m = CRC32_REGEX.findall(fname_text)
+        found = False
+        if m and "[One Pace]" in fname_text:
+            crc32 = m[-1].upper()
+            if crc32 not in seen_crc32:
+                # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
+                episodes.append((crc32, fname_text, page_link))
+                seen_crc32.add(crc32)
+                found = True
+        return found
+
+    base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
+    episodes = []
+    seen_crc32 = set()
+    page = 1
+    print(f"Browsing {base_url}...")
+
+    # --- Get total number of pages by parsing first page's pagination controls ---
+    resp = requests.get(f"{base_url}&p=1")
+    if resp.status_code != 200:
+        print(f"Failed to fetch page 1, status code: {resp.status_code}")
+        return episodes
+    soup = BeautifulSoup(resp.text, "html.parser")
+    # Find pagination links and determine max page number
+    total_pages = 1
+    pagination = soup.find("ul", class_="pagination")
+    if pagination:
+        page_links = pagination.find_all("a", href=True)
+        page_numbers = []
+        for a in page_links:
+            text = a.text.strip()
+            if text.isdigit():
+                try:
+                    page_numbers.append(int(text))
+                except Exception:
+                    pass
+        if page_numbers:
+            total_pages = max(page_numbers)
+
+    # Now loop from page 1 to total_pages
+    while page <= total_pages:
+        print(f"Fetching page {page}/{total_pages}...")
+        if page == 1:
+            # We've already fetched page 1 above
+            page_soup = soup
+        else:
+            resp = requests.get(f"{base_url}&p={page}")
+            if resp.status_code != 200:
+                print(f"Failed to fetch page {page}, status code: {resp.status_code}")
+                break
+            page_soup = BeautifulSoup(resp.text, "html.parser")
+        table = page_soup.find("table", class_="torrent-list")
+        if not table:
+            break
+        rows = table.find_all("tr")
+        page_has_matches = False
+        for row in rows:
+            links = row.find_all("a", href=True)
+            title_link = None
+            for a in links:
+                href = a.get("href", "")
+                if href.startswith("/view/") and a.has_attr("title"):
+                    title_link = a
+                    break
+            if not title_link:
+                continue
+            title = title_link.text.strip()
+            page_link = "https://nyaa.si" + title_link["href"]
+            matches = CRC32_REGEX.findall(title)
+            found_in_this_row = False
+            if matches:
+                found_in_this_row = _process_fname_entry(
+                    title, seen_crc32, episodes, page_link
+                )
+            else:
+                try:
+                    # print(f"Fetching page {page_link}...")
+                    torrent_resp = requests.get(page_link)
+                    if torrent_resp.status_code != 200:
+                        print(f"Failed to fetch torrent page {page_link}")
+                        continue
+                    t_soup = BeautifulSoup(torrent_resp.text, "html.parser")
+                    filelist_div = t_soup.find("div", class_="torrent-file-list")
+                    if not filelist_div:
+                        continue
+                    has_folder = bool(filelist_div.find("a", class_="folder"))
+                    filenames = []
+                    if has_folder:
+                        # print("Has folder")
+                        all_uls = filelist_div.find_all("ul")
+                        leaf_filenames = []
+                        for ul in all_uls:
+                            for file_li in ul.find_all("li"):
+                                if not file_li.find("ul"):
+                                    direct_texts = [
+                                        t
+                                        for t in file_li.contents
+                                        if isinstance(t, str)
+                                    ]
+                                    fname_text = "".join(direct_texts).strip()
+                                    if fname_text:
+                                        leaf_filenames.append(fname_text)
+                        for fname in leaf_filenames:
+                            fname = str(fname)
+                            if _process_fname_entry(
+                                fname, seen_crc32, episodes, page_link
+                            ):
+                                found_in_this_row = True
+                    else:
+                        # print("No folder")
+                        li = filelist_div.find("li")
+                        direct_texts = [t for t in li.contents if isinstance(t, str)]
+                        fname_text = "".join(direct_texts).strip()
+                        # print(f"Direct text: {fname_text}")
+                        if fname_text:
+                            if _process_fname_entry(
+                                fname_text, seen_crc32, episodes, page_link
+                            ):
+                                found_in_this_row = True
+                except Exception:
+                    print(
+                        f"Error occurred while processing file list for {title} ({page_link})"
+                    )
+            if found_in_this_row:
+                page_has_matches = True
+        # If no matches on this page, break (may be redundant now that we know total_pages)
+        # if not page_has_matches:
+        #     break
+        page += 1
+        time.sleep(0.2)
+    print(f"Fetched {len(episodes)} unique episodes with CRC32s.")
+    return episodes
+
+
+def update_episodes_index_db():
+    conn = init_episodes_db()
+    episodes = fetch_episodes_metadata()
+    c = conn.cursor()
+    count = 0
+    for crc32, title, page_link in episodes:
+        c.execute(
+            "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link) VALUES (?, ?, ?)",
+            (crc32, title, page_link),
+        )
+        count += 1
+    conn.commit()
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_episodes_metadata(conn, "episodes_db_last_update", now_str)
+    print(f"Episodes index updated with {count} entries.")
+    print(f"Last update: {now_str}")
+    conn.close()
+
+
+def load_crc32_to_title_from_index():
+    conn = init_episodes_db()
+    c = conn.cursor()
+    c.execute("SELECT crc32, title FROM episodes_index")
+    d = dict(c.fetchall())
+    conn.close()
+    return d
 
 
 def get_metadata(conn, key):
@@ -134,7 +348,8 @@ def fetch_title_by_crc32(crc32):
     for row in rows:
         links = row.find_all("a", href=True)
         for a in links:
-            if a.has_attr("title"):
+            href = a.get("href", "")
+            if href.startswith("/view/") and a.has_attr("title"):
                 filename_text = a.text
                 matches = CRC32_REGEX.findall(filename_text)
                 if matches and matches[-1].upper() == crc32:
@@ -192,30 +407,38 @@ def rename_local_files(conn, folder):
         print("No entries found in local CRC32 database.")
         return
 
+    # Load CRC32 → title from episodes_index.db
+    crc32_to_title = load_crc32_to_title_from_index()
+    local_crc32s = set()
+    for _, crc32 in entries:
+        local_crc32s.add(crc32)
+
+    matched = 0
+    total = len(local_crc32s)
     rename_plan = []
     for file_path, crc32 in entries:
-        title = fetch_title_by_crc32(crc32)
+        title = crc32_to_title.get(crc32)
         if not title:
-            continue  # No match found on Nyaa, skip
-
+            continue  # No match found in index, skip
         dir_name = os.path.dirname(file_path)
         ext = os.path.splitext(file_path)[1]
         # Sanitize title for filename (remove problematic characters)
         sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
-        new_filename = f"{sanitized_title}"
+        new_filename = f"{sanitized_title}{ext}"
         new_path = os.path.join(dir_name, new_filename)
-
         if os.path.abspath(file_path) != os.path.abspath(new_path):
             rename_plan.append((file_path, new_path))
+            matched += 1
 
     if not rename_plan:
         print("No files to rename.")
+        print(f"0/{total} files matched in index.")
         return
 
     print("Rename plan:")
     for old, new in rename_plan:
         print(f"{os.path.basename(old)} -> {os.path.basename(new)}")
-    print(f"{len(rename_plan)} file(s) will be renamed.")
+    print(f"{len(rename_plan)}/{total} files will be renamed.")
 
     confirm = input("Proceed with renaming? (y/n): ").strip().lower()
     if confirm != "y":
@@ -376,7 +599,6 @@ def download_missing_to_client(client_type):
 
 
 def main():
-
     parser = argparse.ArgumentParser(
         description="Find missing episodes from your personal One Pace library."
     )
@@ -399,13 +621,31 @@ def main():
         action="store_true",
         help="Rename local files based on CRC32 matching titles from Nyaa.",
     )
+    parser.add_argument(
+        "--episodes_update",
+        action="store_true",
+        help="Update episodes metadata database from Nyaa.",
+    )
     args = parser.parse_args()
 
-    # Check if the URL points to Nyaa
-    if not args.url.startswith("https://nyaa.si"):
+    # Check if the URL points to a valid Nyaa domain
+    if not args.url.startswith(("https://nyaa.si", "https://nyaa.land")):
         print(
-            "Error: The --url argument must point to the Nyaa website (https://nyaa.si)."
+            "Error: The --url argument must point to a valid Nyaa website (https://nyaa.si or https://nyaa.land)."
         )
+        return
+
+    # --- Show last episodes metadata update ---
+    episodes_db_conn = init_episodes_db()
+    last_ep_update = get_episodes_metadata(episodes_db_conn, "episodes_db_last_update")
+    if last_ep_update:
+        print(f"Episodes metadata last updated: {last_ep_update}")
+    else:
+        print("Episodes metadata database not yet updated.")
+    episodes_db_conn.close()
+
+    if args.episodes_update:
+        update_episodes_index_db()
         return
 
     conn = init_db()
@@ -439,7 +679,34 @@ def main():
         return
 
     if args.rename:
-        print("Renaming local files based on matching titles from Nyaa...")
+        # Prompt to update episodes_index DB if it's old
+        episodes_db_conn = init_episodes_db()
+        last_ep_update = get_episodes_metadata(
+            episodes_db_conn, "episodes_db_last_update"
+        )
+        episodes_db_conn.close()
+        if not last_ep_update:
+            print("WARNING: Episodes metadata database has not been updated yet.")
+        else:
+            try:
+                last_dt = datetime.strptime(last_ep_update, "%Y-%m-%d %H:%M:%S")
+                # If older than 7 days, warn
+                if (datetime.now() - last_dt).days > 7:
+                    print(
+                        f"WARNING: Episodes metadata database is over 7 days old ({last_ep_update})."
+                    )
+            except Exception:
+                print(f"WARNING: Unable to parse last update time: {last_ep_update}")
+        prompt = (
+            input("Update episodes metadata database before renaming? (y/n): ")
+            .strip()
+            .lower()
+        )
+        if prompt == "y":
+            update_episodes_index_db()
+        print(
+            "Renaming local files based on matching titles from One Pace episodes index..."
+        )
         rename_local_files(conn, folder)
         return
 
@@ -470,7 +737,6 @@ def main():
                     recorded_files += 1
 
     last_run = get_metadata(conn, "last_run")
-
     if last_run:
         print(f"Last run was on: {last_run}")
 
@@ -478,7 +744,6 @@ def main():
     set_metadata(conn, "last_run", now_str)
 
     print(f"Using URL: {args.url}")
-
     print(f"Total video files detected: {total_files}")
     print(f"Episodes already recorded in DB: {recorded_files}")
 
