@@ -133,17 +133,12 @@ def fetch_title_by_crc32(crc32):
     matched_titles = []
     for row in rows:
         links = row.find_all("a", href=True)
-        title_link = None
         for a in links:
             if a.has_attr("title"):
-                title_link = a
-                break
-        if not title_link:
-            continue
-        filename_text = title_link.text
-        matches = CRC32_REGEX.findall(filename_text)
-        if matches and matches[-1].upper() == crc32:
-            matched_titles.append(filename_text)
+                filename_text = a.text
+                matches = CRC32_REGEX.findall(filename_text)
+                if matches and matches[-1].upper() == crc32:
+                    matched_titles.append(filename_text)
     if len(matched_titles) == 1:
         return matched_titles[0]
     elif len(matched_titles) == 0:
