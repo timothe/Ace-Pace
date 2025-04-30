@@ -413,9 +413,10 @@ def main():
 
     conn = init_db()
 
-    # Folder selection logic
+    # Folder selection logic: Always prompt if folder is required but not given
     folder = args.folder
-    if not folder and not args.download and not args.rename:
+    needs_folder = not args.download  # All commands except --download need folder
+    if needs_folder and not folder:
         # Try to load last_folder from metadata
         last_folder = get_metadata(conn, "last_folder")
         if last_folder:
@@ -441,16 +442,12 @@ def main():
         return
 
     if args.rename:
-        if not folder:
-            print("Error: --folder argument is required for renaming.")
-            return
+        # Folder will have been resolved above if required.
         rename_local_files(conn, folder)
         return
 
     if not folder:
-        print(
-            "Error: --folder argument is required unless using --download or --rename."
-        )
+        print("Error: --folder argument is required.")
         return
 
     last_missing_export = get_metadata(conn, "last_missing_export")
