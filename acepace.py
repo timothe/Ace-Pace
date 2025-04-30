@@ -140,9 +140,10 @@ def fetch_title_by_crc32(crc32):
                 if matches and matches[-1].upper() == crc32:
                     matched_titles.append(filename_text)
     if len(matched_titles) == 1:
+        print(f"Found {crc32} on Nyaa!")
         return matched_titles[0]
     elif len(matched_titles) == 0:
-        print(f"Warning: No title found for CRC32 {crc32}")
+        print(f"Warning: No title found for {crc32}")
         return None
     else:
         print(f"Warning: Multiple titles found for CRC32 {crc32}: {matched_titles}")
@@ -201,7 +202,7 @@ def rename_local_files(conn, folder):
         ext = os.path.splitext(file_path)[1]
         # Sanitize title for filename (remove problematic characters)
         sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
-        new_filename = f"{sanitized_title}{ext}"
+        new_filename = f"{sanitized_title}"
         new_path = os.path.join(dir_name, new_filename)
 
         if os.path.abspath(file_path) != os.path.abspath(new_path):
@@ -437,7 +438,7 @@ def main():
         return
 
     if args.rename:
-        # Folder will have been resolved above if required.
+        print("Renaming local files based on matching titles from Nyaa...")
         rename_local_files(conn, folder)
         return
 
