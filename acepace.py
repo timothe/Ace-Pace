@@ -10,6 +10,9 @@ import csv
 import time
 import getpass
 
+# Check if running in Docker (non-interactive mode)
+IS_DOCKER = "RUN_DOCKER" in os.environ
+
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 
@@ -440,7 +443,10 @@ def rename_local_files(conn, folder):
         print(f"{os.path.basename(old)} -> {os.path.basename(new)}")
     print(f"{len(rename_plan)}/{total} files will be renamed.")
 
-    confirm = input("Proceed with renaming? (y/n): ").strip().lower()
+    if IS_DOCKER:
+        confirm = "y"
+    else:
+        confirm = input("Proceed with renaming? (y/n): ").strip().lower()
     if confirm != "y":
         print("Renaming aborted.")
         return
@@ -492,23 +498,30 @@ def download_with_transmission():
         print("No magnet links found in 'Ace-Pace_Missing.csv'.")
         return
 
-    print("The details below are not stored.")
-    host = input("Enter Transmission host (default: localhost): ").strip()
-    if not host:
-        host = "localhost"
-    port_input = input("Enter Transmission port (default: 9091): ").strip()
-    if port_input:
-        try:
-            port = int(port_input)
-        except ValueError:
-            print("Invalid port number. Using default 9091.")
-            port = 9091
+    if IS_DOCKER:
+        print("Running in Docker mode - using environment variables for Transmission config.")
+        host = os.getenv("TRANSMISSION_HOST", "localhost")
+        port = int(os.getenv("TRANSMISSION_PORT", "9091"))
+        rpc_username = os.getenv("TRANSMISSION_USER", "")
+        rpc_password = os.getenv("TRANSMISSION_PASS", "")
     else:
-        port = 9091
-    rpc_username = input("Enter Transmission username (leave blank if none): ").strip()
-    rpc_password = getpass.getpass(
-        "Enter Transmission password (leave blank if none): "
-    ).strip()
+        print("The details below are not stored.")
+        host = input("Enter Transmission host (default: localhost): ").strip()
+        if not host:
+            host = "localhost"
+        port_input = input("Enter Transmission port (default: 9091): ").strip()
+        if port_input:
+            try:
+                port = int(port_input)
+            except ValueError:
+                print("Invalid port number. Using default 9091.")
+                port = 9091
+        else:
+            port = 9091
+        rpc_username = input("Enter Transmission username (leave blank if none): ").strip()
+        rpc_password = getpass.getpass(
+            "Enter Transmission password (leave blank if none): "
+        ).strip()
 
     base_url = f"http://{host}:{port}/transmission/rpc"
     session_id = None
@@ -545,17 +558,23 @@ def download_with_transmission():
     except Exception:
         default_download_dir = ""
 
-    if default_download_dir:
-        prompt_text = f"Enter target folder for downloads (current default: {default_download_dir}): "
+    if IS_DOCKER:
+        target_folder = os.getenv("TRANSMISSION_DOWNLOAD_DIR", default_download_dir)
     else:
-        prompt_text = "Enter target folder for downloads (leave blank for default): "
-    target_folder = input(prompt_text).strip()
+        if default_download_dir:
+            prompt_text = f"Enter target folder for downloads (current default: {default_download_dir}): "
+        else:
+            prompt_text = "Enter target folder for downloads (leave blank for default): "
+        target_folder = input(prompt_text).strip()
 
-    confirm = (
-        input(f"Do you want to add {len(magnets)} torrents to Transmission? (y/n): ")
-        .strip()
-        .lower()
-    )
+    if IS_DOCKER:
+        confirm = "y"
+    else:
+        confirm = (
+            input(f"Do you want to add {len(magnets)} torrents to Transmission? (y/n): ")
+            .strip()
+            .lower()
+        )
     if confirm != "y":
         print("Abort! Abort!")
         return
@@ -628,6 +647,9 @@ def main():
     )
     args = parser.parse_args()
 
+    if IS_DOCKER:
+        print("Running in Docker mode (non-interactive)")
+
     # Check if the URL points to a valid Nyaa domain
     if not args.url.startswith(("https://nyaa.si", "https://nyaa.land")):
         print(
@@ -653,7 +675,10 @@ def main():
     # Folder selection logic: Always prompt if folder is required but not given
     folder = args.folder
     needs_folder = not args.download  # All commands except --download need folder
-    if needs_folder and not folder:
+    if IS_DOCKER:
+        last_folder="/media"
+        folder="/media"
+    elif needs_folder and not folder:
         # Try to load last_folder from metadata
         last_folder = get_metadata(conn, "last_folder")
         if last_folder:
@@ -804,24 +829,28 @@ def main():
     set_metadata(conn, "last_missing_export", now_str)
 
     if missing:
-        prompt = (
-            input(
-                "Do you want to add missing episodes to a BitTorrent client now? (y/n): "
-            )
-            .strip()
-            .lower()
-        )
-        if prompt == "y":
-            client = (
-                input("Enter client name (currently supported: transmission): ")
+        if IS_DOCKER:
+            prompt = "y"
+            client = os.getenv("ACEPACE_DOWNLOAD", "transmission")
+        else:
+            prompt = (
+                input(
+                    "Do you want to add missing episodes to a BitTorrent client now? (y/n): "
+                )
                 .strip()
                 .lower()
             )
+        if prompt == "y":
+            if not IS_DOCKER:
+                client = (
+                    input("Enter client name (currently supported: transmission): ")
+                    .strip()
+                    .lower()
+                )
             if client:
                 download_missing_to_client(client)
             else:
                 print("No client specified. Skipping download.")
-
 
 if __name__ == "__main__":
     main()
