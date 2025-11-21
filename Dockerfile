@@ -21,7 +21,7 @@ ENV PYTHONUNBUFFERED=1 \
     TRANSMISSION_PASS="" \
 
 # outwit interactive questions in acepace.py - this is a dirty workaround and definitely needs to be changed, e.g., by adding an interactive_flag in acepace.py to only take default values and/or the environment variables from docker files
-CMD /bin/sh -c 'printf "y\n${ACEPACE_DOWNLOAD:-transmission}\n${TRANSMISSION_HOST}\n${TRANSMISSION_PORT}\n${TRANSMISSION_USER}\n${TRANSMISSION_PA>
+CMD /bin/sh -c 'printf "y\n${ACEPACE_DOWNLOAD:-transmission}\n${TRANSMISSION_HOST}\n${TRANSMISSION_PORT}\n${TRANSMISSION_USER}\n${TRANSMISSION_PASS}\n" | python /app/acepace.py \
     --folder "/media" \
     ${ACEPACE_URL:+--url "$ACEPACE_URL"} \
     ${ACEPACE_DB:+--db} \
