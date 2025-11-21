@@ -500,10 +500,10 @@ def download_with_transmission():
 
     if IS_DOCKER:
         print("Running in Docker mode - using environment variables for Transmission config.")
-        host = os.getenv("TRANSMISSION_HOST", "localhost")
-        port = int(os.getenv("TRANSMISSION_PORT", "9091"))
-        rpc_username = os.getenv("TRANSMISSION_USER", "")
-        rpc_password = os.getenv("TRANSMISSION_PASS", "")
+        host = os.getenv("TORRENT_HOST", "localhost")
+        port = int(os.getenv("TORREN_PORT", "9091"))
+        rpc_username = os.getenv("TORRENT_USER", "")
+        rpc_password = os.getenv("TORRENT_PASSWORD", "")
     else:
         print("The details below are not stored.")
         host = input("Enter Transmission host (default: localhost): ").strip()
@@ -831,7 +831,7 @@ def main():
     if missing:
         if IS_DOCKER:
             prompt = "y"
-            client = os.getenv("ACEPACE_DOWNLOAD", "transmission")
+            client = os.getenv("TORRENT_CLIENT", "transmission")
         else:
             prompt = (
                 input(
