@@ -5,7 +5,7 @@ LABEL description="Ace-Pace - One Pace Library Manager"
 COPY . /app
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends git \
+RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && touch /app/Ace-Pace_Missing.csv
 
