@@ -6,12 +6,10 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/* \
-    && git clone https://github.com/timothe/Ace-Pace.git .
-
+    && git clone https://github.com/timothe/Ace-Pace.git . \
+    && touch /app/Ace-Pace_Missing.csv
+    
 RUN pip install --no-cache-dir -r requirements.txt
-
-RUN mkdir -p /data && touch /data/Ace-Pace_Missing.csv
-WORKDIR /data
 
 ENV PYTHONUNBUFFERED=1
 ENV ACEPACE_URL=""
