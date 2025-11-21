@@ -8,13 +8,13 @@ services:
     networks:
       - "proxy"
     environment:
-      - TRANSMISSION_HOST=192.168.178.45
-      - TRANSMISSION_PORT=9091
-      - ACEPACE_DOWNLOAD=transmission
-      #- ACEPACE_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
-      #- ACEPACE_DB=true
-      #- TRANSMISSION_USER=admin
-      #- TRANSMISSION_PASS=password
+      - TORRENT_HOST=192.168.178.45
+      - TORRENT_PORT=9091
+      - TORRENT_CLIENT=transmission
+      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
+      #- DB=true
+      #- TORRENT_USER=admin
+      #- TORRENT_PASSWORD=password
 networks:
   proxy:
     driver: bridge
