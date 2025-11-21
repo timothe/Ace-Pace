@@ -1,12 +1,16 @@
 services:
   ace-pace:
     build: .
+    image: ace-pace
     container_name: ace-pace
-    
     volumes:
-      - /volume42/media/One Pace:/media:rw
-    
-    environment:
-      # - ACEPACE_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
-      # - ACEPACE_DB=true
-      # - ACEPACE_DOWNLOAD=transmission
+      - /path/to/OnePaceLibrary:/media:ro
+    networks:
+      - "proxy"
+    # environment:
+    #   - ACEPACE_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
+    #   - ACEPACE_DB=true
+    #   - ACEPACE_DOWNLOAD=transmission
+networks:
+  proxy:
+    driver: bridge
