@@ -1,0 +1,12 @@
+services:
+  ace-pace:
+    build: .
+    container_name: ace-pace
+    
+    volumes:
+      - /volume42/media/One Pace:/media:rw
+    
+    environment:
+      # - ACEPACE_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
+      # - ACEPACE_DB=true
+      # - ACEPACE_DOWNLOAD=transmission
