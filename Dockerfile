@@ -12,15 +12,15 @@ RUN apt-get update \
 
 ENV RUN_DOCKER="true" \
     PYTHONUNBUFFERED=1 \
-    ACEPACE_URL="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc" \
-    ACEPACE_DB="true" \
-    ACEPACE_DOWNLOAD="transmission" \
-    TRANSMISSION_HOST="localhost" \
-    TRANSMISSION_PORT="9091" \
-    TRANSMISSION_USER="" \
-    TRANSMISSION_PASS=""
+    NYAA_URL="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc" \
+    DB="true" \
+    TORRENT_CLIENT="transmission" \
+    TORRENT_HOST="localhost" \
+    TORRENT_PORT="9091" \
+    TORRENT_USER="" \
+    TORRENT_PASSWORD=""
 
 CMD python /app/acepace.py \
-    ${ACEPACE_URL:+--url "$ACEPACE_URL"} \
-    ${ACEPACE_DB:+--db} \
-    ${ACEPACE_DOWNLOAD:+--download "$ACEPACE_DOWNLOAD"}
+    ${NYAA_URL:+--url "$NYAA_URL"} \
+    ${DB:+--db} \
+    ${TORRENT_CLIENT:+--download "$TORRENT_CLIENT"}
