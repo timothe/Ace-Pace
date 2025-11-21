@@ -10,7 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 RUN pip install --no-cache-dir -r requirements.txt
 
-RUN mkdir -p /data
+RUN mkdir -p /data && touch /data/Ace-Pace_Missing.csv
 WORKDIR /data
 
 ENV PYTHONUNBUFFERED=1
