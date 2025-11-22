@@ -559,7 +559,7 @@ def download_with_transmission():
         default_download_dir = ""
 
     if IS_DOCKER:
-        target_folder = os.getenv("TRANSMISSION_DOWNLOAD_DIR", default_download_dir)
+        target_folder = "/media"
     else:
         if default_download_dir:
             prompt_text = f"Enter target folder for downloads (current default: {default_download_dir}): "
