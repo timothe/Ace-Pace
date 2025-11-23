@@ -12,9 +12,10 @@ services:
       - TORRENT_PORT=9091
       - TORRENT_CLIENT=transmission
       #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
-      #- DB=true
       #- TORRENT_USER=admin
       #- TORRENT_PASSWORD=password
+      - DB=true
+      - EPISODES_UPDATE=true
 networks:
   proxy:
     driver: bridge
