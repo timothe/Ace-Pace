@@ -8,6 +8,7 @@ WORKDIR /app
 RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r /app/requirements.txt \
+    && chmod +x /app/entrypoint.sh \
     && touch /app/Ace-Pace_Missing.csv
 
 ENV RUN_DOCKER="true" \
