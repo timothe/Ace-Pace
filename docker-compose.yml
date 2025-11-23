@@ -8,7 +8,7 @@ services:
     networks:
       - "proxy"
     environment:
-      - TORRENT_HOST=192.168.178.45
+      - TORRENT_HOST=127.0.0.1
       - TORRENT_PORT=9091
       - TORRENT_CLIENT=transmission
       #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
