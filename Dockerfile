@@ -13,14 +13,12 @@ RUN apt-get update \
 ENV RUN_DOCKER="true" \
     PYTHONUNBUFFERED=1 \
     NYAA_URL="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc" \
-    DB="true" \
     TORRENT_CLIENT="transmission" \
     TORRENT_HOST="localhost" \
     TORRENT_PORT="9091" \
     TORRENT_USER="" \
-    TORRENT_PASSWORD=""
+    TORRENT_PASSWORD="" \
+    DB="true" \
+    EPISODES_UPDATE="true"
 
-CMD python /app/acepace.py \
-    ${NYAA_URL:+--url "$NYAA_URL"} \
-    ${DB:+--db} \
-    ${TORRENT_CLIENT:+--download "$TORRENT_CLIENT"}
+CMD ["/app/entrypoint.sh"]
