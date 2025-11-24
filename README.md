@@ -59,3 +59,68 @@ python acepace.py --db
 ## Credits
 
 Ace-Pace is proudly inspired by and built to support the incredible work of the [One-Pace](http://onepace.net/) team. Their dedication to crafting a seamless and engaging One Piece viewing experience has allowed me to discover and share this legendary series. I salute their passion, creativity, and commitment.
+
+## Docker Usage
+
+The easiest way to run Ace Pace is using Docker.
+
+1.  **Configure `docker-compose.yml`**:
+    *   Set `TORRENT_HOST`, `TORRENT_PORT`, `TORRENT_USER`, `TORRENT_PASSWORD` for your Transmission instance.
+    *   Set `EXT_PREF=true` (default) to prefer extended episodes, or `false` for normal versions.
+    *   Map your downloads folder to `/media`.
+
+2.  **Run the container**:
+    ```bash
+    docker-compose up -d
+    ```
+
+    On the first run, it will automatically fetch episode metadata. Subsequent runs will check for new episodes and missing files.
+
+    The missing episodes list is automatically exported to `data/Ace-Pace_Missing.csv`.
+
+## Environment Variables
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `TORRENT_HOST` | `localhost` | Transmission host IP/Hostname |
+| `TORRENT_PORT` | `9091` | Transmission port |
+| `TORRENT_USER` | | Transmission username |
+| `TORRENT_PASSWORD` | | Transmission password |
+| `TORRENT_CLIENT` | `transmission` | Torrent client to use |
+| `EXT_PREF` | `true` | Prefer "Extended" episodes if available |
+| `EPISODES_UPDATE` | `false` | Force update of episode metadata on start |
+| `NYAA_URL` | `https://nyaa.si...` | Nyaa URL for fetching episodes |
+| `DB` | `false` | If `true`, export database to CSV and exit |
+| `RENAME` | `false` | If `true`, rename local files based on CRC32 matches |
+| `TZ` | `Europe/London` | Timezone for the container |
+
+## Docker Run (One-time)
+
+If you prefer to run Ace-Pace as a one-off command without Docker Compose, you can use `docker run`.
+
+**Example: Standard Run**
+```bash
+docker run --rm \
+  -v "/path/to/your/media:/media" \
+  -v "$(pwd)/data:/data" \
+  -e TZ="Europe/London" \
+  ace-pace
+```
+
+**Example: Force Metadata Update**
+```bash
+docker run --rm \
+  -v "/path/to/your/media:/media" \
+  -v "$(pwd)/data:/data" \
+  -e EPISODES_UPDATE="true" \
+  ace-pace
+```
+
+**Example: Rename Local Files**
+```bash
+docker run --rm \
+  -v "/path/to/your/media:/media" \
+  -v "$(pwd)/data:/data" \
+  -e RENAME="true" \
+  ace-pace
+```

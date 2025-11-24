@@ -13,6 +13,21 @@ import getpass
 # Check if running in Docker (non-interactive mode)
 IS_DOCKER = "RUN_DOCKER" in os.environ
 
+# Define Data Directory
+if IS_DOCKER:
+    DATA_DIR = "/data"
+else:
+    DATA_DIR = "./data"
+
+# Ensure DATA_DIR exists
+if not os.path.exists(DATA_DIR):
+    os.makedirs(DATA_DIR)
+
+# File Paths
+DB_FILE = os.path.join(DATA_DIR, "episodes_index.db")
+CRC_DB_FILE = os.path.join(DATA_DIR, "crc32_files.db")
+CSV_FILE = os.path.join(DATA_DIR, "Ace-Pace_Missing.csv")
+
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 
@@ -24,8 +39,8 @@ EPISODES_DB_NAME = "episodes_index.db"
 
 
 def init_db():
-    exists = os.path.exists(DB_NAME)
-    conn = sqlite3.connect(DB_NAME)
+    """Initialize the database."""
+    conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
     c.execute(
         """
@@ -44,22 +59,24 @@ def init_db():
     """
     )
     conn.commit()
-    if exists:
-        print("Database already exists. You can export it using the --db option.")
     return conn
 
 
 # --- New: Episodes metadata DB ---
 def init_episodes_db():
-    exists = os.path.exists(EPISODES_DB_NAME)
-    conn = sqlite3.connect(EPISODES_DB_NAME)
+    conn = sqlite3.connect(DB_FILE) # This should be DB_FILE as per the instruction's implied consolidation
     c = conn.cursor()
     c.execute(
         """
-        CREATE TABLE IF NOT EXISTS episodes_index (
-            crc32 TEXT PRIMARY KEY,
+        CREATE TABLE IF NOT EXISTS episodes (
             title TEXT,
-            page_link TEXT
+            clean_title TEXT,
+            crc32 TEXT PRIMARY KEY,
+            magnet TEXT,
+            crc32 TEXT PRIMARY KEY,
+            magnet TEXT,
+            timestamp INTEGER,
+            is_extended BOOLEAN
         )
         """
     )
@@ -106,7 +123,23 @@ def fetch_episodes_metadata():
             crc32 = m[-1].upper()
             if crc32 not in seen_crc32:
                 # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
-                episodes.append((crc32, fname_text, page_link))
+                # Extract timestamp
+                # This part of the code is for processing filenames from torrent pages,
+                # not the main Nyaa listing. Timestamp, magnet, size, extended flag
+                # are not directly available here.
+                # We'll just store the basic info and fill others later if needed,
+                # or rely on the main loop's processing for full metadata.
+                episodes.append(
+                    {
+                        "title": fname_text,
+                        "clean_title": re.sub(r"\[.*?\]", "", fname_text).strip(),
+                        "crc32": crc32,
+                        "magnet": "",  # Not available here
+                        "magnet": "",  # Not available here
+                        "timestamp": 0,  # Not available here
+                        "is_extended": "extended" in fname_text.lower(),
+                    }
+                )
                 seen_crc32.add(crc32)
                 found = True
         return found
@@ -159,21 +192,50 @@ def fetch_episodes_metadata():
         for row in rows:
             links = row.find_all("a", href=True)
             title_link = None
+            magnet_link = ""
             for a in links:
                 href = a.get("href", "")
                 if href.startswith("/view/") and a.has_attr("title"):
                     title_link = a
-                    break
+                if href.startswith("magnet:"):
+                    magnet_link = href
             if not title_link:
                 continue
             title = title_link.text.strip()
             page_link = "https://nyaa.si" + title_link["href"]
+
+            # Extract timestamp
+            timestamp_td = row.find("td", attrs={"data-timestamp": True})
+            timestamp = 0
+            if timestamp_td:
+                timestamp = int(timestamp_td["data-timestamp"])
+            
+            # Clean title: remove [brackets] and strip
+            clean_title = re.sub(r"\[.*?\]", "", title).strip()
+            # Also remove file extension if present in title (rare but possible in Nyaa titles)
+            if clean_title.lower().endswith(".mkv"):
+                clean_title = clean_title[:-4].strip()
+
+            # Extract extended flag and clean title
+            is_extended = "extended" in clean_title.lower()
+
             matches = CRC32_REGEX.findall(title)
             found_in_this_row = False
             if matches:
-                found_in_this_row = _process_fname_entry(
-                    title, seen_crc32, episodes, page_link
-                )
+                crc32 = matches[-1].upper()
+                if crc32 not in seen_crc32:
+                    episodes.append(
+                        {
+                            "title": title,
+                            "clean_title": clean_title,
+                            "crc32": crc32,
+                            "magnet": magnet_link,
+                            "timestamp": timestamp,
+                            "is_extended": is_extended,
+                        }
+                    )
+                    seen_crc32.add(crc32)
+                    found_in_this_row = True
             else:
                 try:
                     # print(f"Fetching page {page_link}...")
@@ -239,10 +301,10 @@ def update_episodes_index_db():
     episodes = fetch_episodes_metadata()
     c = conn.cursor()
     count = 0
-    for crc32, title, page_link in episodes:
+    for ep in episodes:
         c.execute(
-            "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link) VALUES (?, ?, ?)",
-            (crc32, title, page_link),
+            "INSERT OR REPLACE INTO episodes (title, clean_title, crc32, magnet, timestamp, is_extended) VALUES (?, ?, ?, ?, ?, ?)",
+            (ep["title"], ep["clean_title"], ep["crc32"], ep["magnet"], ep["timestamp"], ep["is_extended"]),
         )
         count += 1
     conn.commit()
@@ -617,7 +679,103 @@ def download_missing_to_client(client_type):
         print(f"Download client '{client_type}' not supported.")
 
 
+def get_local_crcs(conn):
+    """
+    Get a set of all CRC32s present in the local file database.
+    """
+    c = conn.cursor()
+    c.execute("SELECT crc32 FROM crc32_cache")
+    return {row[0] for row in c.fetchall()}
+
+
+def get_missing_episodes(conn):
+    """
+    Identify missing episodes based on local files and user preferences.
+    """
+    c = conn.cursor()
+    
+    # Get all episodes from DB
+    c.execute("SELECT title, clean_title, crc32, magnet, timestamp, is_extended FROM episodes")
+    all_episodes = c.fetchall()
+    
+    # Get local files CRC32s
+    local_crcs = get_local_crcs(conn)
+    
+    # User preference for extended versions
+    ext_pref = os.getenv("EXT_PREF", "true").lower() == "true"
+    
+    # Group by clean_title
+    grouped_episodes = {}
+    for ep in all_episodes:
+        title, clean_title, crc32, magnet, timestamp, is_extended = ep
+        if clean_title not in grouped_episodes:
+            grouped_episodes[clean_title] = []
+        grouped_episodes[clean_title].append({
+            "title": title,
+            "clean_title": clean_title,
+            "crc32": crc32,
+            "magnet": magnet,
+            "timestamp": timestamp,
+            "is_extended": is_extended
+        })
+        
+    missing_episodes = []
+    
+    for clean_title, eps in grouped_episodes.items():
+        # Sort by timestamp descending (latest first)
+        eps.sort(key=lambda x: x["timestamp"], reverse=True)
+        
+        selected_ep = None
+        
+        # Filter based on preference
+        if ext_pref:
+            # Prefer extended if available
+            extended_eps = [e for e in eps if e["is_extended"]]
+            if extended_eps:
+                selected_ep = extended_eps[0] # Latest extended
+            else:
+                selected_ep = eps[0] # Fallback to latest normal
+        else:
+            # Prefer normal (non-extended)
+            normal_eps = [e for e in eps if not e["is_extended"]]
+            if normal_eps:
+                selected_ep = normal_eps[0] # Latest normal
+            else:
+                selected_ep = eps[0] # Fallback to latest extended (if only option)
+                
+        # Check if we have this episode locally
+        if selected_ep["crc32"] not in local_crcs:
+            missing_episodes.append(selected_ep)
+            
+    return missing_episodes
+
+
+def export_missing_to_csv(missing_episodes):
+    """Export missing episodes to CSV."""
+    if not missing_episodes:
+        print("No missing episodes to export.")
+        # Create empty file or clear existing
+        with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["Title", "CRC32", "Magnet"])
+        return
+
+    print(f"Exporting {len(missing_episodes)} missing episodes to {CSV_FILE}...")
+    with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["Title", "CRC32", "Magnet"])
+        for ep in missing_episodes:
+            writer.writerow([ep["title"], ep["crc32"], ep["magnet"]])
+    print("Export complete.")
+
+
 def main():
+    # First Launch Detection
+    setup_marker = os.path.join(DATA_DIR, ".setup_completed")
+    first_launch = not os.path.exists(setup_marker)
+
+    conn = init_db()
+
     parser = argparse.ArgumentParser(
         description="Find missing episodes from your personal One Pace library."
     )
@@ -626,7 +784,9 @@ def main():
         default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc",
         help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
-    parser.add_argument("--folder", help="Folder containing local video files.")
+    parser.add_argument(
+        "--folder", help="Folder containing local video files."
+    )
     parser.add_argument(
         "--db", action="store_true", help="Export database to CSV and exit."
     )
@@ -828,6 +988,13 @@ def main():
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_missing_export", now_str)
 
+
+
+    # Always check for missing episodes and export CSV
+    print("Checking for missing episodes...")
+    missing = get_missing_episodes(conn)
+    export_missing_to_csv(missing)
+
     if missing:
         if IS_DOCKER:
             prompt = "y"
@@ -848,9 +1015,22 @@ def main():
                     .lower()
                 )
             if client:
-                download_missing_to_client(client)
+                # Extract magnets for download
+                magnets = [ep["magnet"] for ep in missing if ep["magnet"]]
+                if magnets:
+                    if client == "transmission":
+                         download_with_transmission(magnets)
+                    else:
+                        print(f"Client '{client}' not supported yet.")
+                else:
+                    print("No magnet links found for missing episodes.")
             else:
                 print("No client specified. Skipping download.")
+
+    # Create setup marker if it doesn't exist
+    if not os.path.exists(setup_marker):
+        with open(setup_marker, "w") as f:
+            f.write(datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
 if __name__ == "__main__":
     main()
