@@ -533,23 +533,24 @@ def export_db_to_csv(conn):
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
     rows = c.fetchall()
-    with open("Ace-Pace_DB.csv", "w", encoding="utf-8", newline="") as f:
+    csv_path = os.path.join(DATA_DIR, "Ace-Pace_DB.csv")
+    with open(csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(["File Path", "CRC32"])
         for row in rows:
             writer.writerow(row)
-    print("Database exported to Ace-Pace_DB.csv")
+    print(f"Database exported to {csv_path}")
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_db_export", now_str)
 
 
 def download_with_transmission():
-    if not os.path.exists("Ace-Pace_Missing.csv"):
-        print("Missing file 'Ace-Pace_Missing.csv' not found. Run the script first!")
+    if not os.path.exists(CSV_FILE):
+        print(f"Missing file '{CSV_FILE}' not found. Run the script first!")
         return
 
     magnets = []
-    with open("Ace-Pace_Missing.csv", "r", encoding="utf-8") as f:
+    with open(CSV_FILE, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             magnet_link = row.get("Magnet Link", "").strip()
@@ -557,7 +558,7 @@ def download_with_transmission():
                 magnets.append(magnet_link)
 
     if not magnets:
-        print("No magnet links found in 'Ace-Pace_Missing.csv'.")
+        print(f"No magnet links found in '{CSV_FILE}'.")
         return
 
     if IS_DOCKER:
@@ -955,8 +956,8 @@ def main():
 
     # Check for new CRC32 in missing compared to old file if exists
     old_missing_crc32s = set()
-    if os.path.exists("Ace-Pace_Missing.csv"):
-        with open("Ace-Pace_Missing.csv", "r", encoding="utf-8") as f:
+    if os.path.exists(CSV_FILE):
+        with open(CSV_FILE, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             next(reader, None)  # skip header
             for row in reader:
@@ -973,7 +974,7 @@ def main():
                 title = crc32_to_text.get(crc32, "(Unknown Title)")
                 print(f"Missing: {title}")
 
-    with open("Ace-Pace_Missing.csv", "w", encoding="utf-8", newline="") as f:
+    with open(CSV_FILE, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(["Title", "Page Link", "Magnet Link"])
         for crc32 in missing:
@@ -982,7 +983,7 @@ def main():
             magnet = crc32_to_magnet.get(crc32, "")
             writer.writerow([title, page_link, magnet])
 
-    print("Missing files list saved to Ace-Pace_Missing.csv")
+    print(f"Missing files list saved to {CSV_FILE}")
 
     set_metadata(conn, "last_checked_page", str(last_checked_page))
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
