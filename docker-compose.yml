@@ -13,7 +13,7 @@ services:
       - EXT_PREF=true # Prefer "Extended" episodes if available
       - EPISODES_UPDATE=false # Force update of episode metadata on start
       #- TORRENT_CLIENT=transmission # Torrent client to use (only transmission supported)
-      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc # Nyaa URL for fetching episodes
+      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc # Nyaa URL for fetching episodes
       #- TORRENT_USER=admin # Transmission username
       #- TORRENT_PASSWORD=password # Transmission password
       #- DB=true # If true, export database to CSV and exit

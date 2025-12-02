@@ -780,7 +780,7 @@ def main():
     )
     parser.add_argument(
         "--url",
-        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc",
+        default=os.getenv("NYAA_URL", "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"),
         help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
     parser.add_argument(
