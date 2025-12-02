@@ -995,11 +995,18 @@ def main():
     c.execute("SELECT COUNT(*) FROM episodes")
     ep_count = c.fetchone()[0]
     
+    if ep_count == 0:
+        print("Episodes database is empty. Performing initial update...")
+        update_episodes_index_db()
+        # Re-check count
+        c.execute("SELECT COUNT(*) FROM episodes")
+        ep_count = c.fetchone()[0]
+
     if ep_count > 0:
         missing = get_missing_episodes(conn)
         export_missing_to_csv(missing)
     else:
-        print("Episodes database is empty. Skipping advanced missing episode check.")
+        print("Episodes database is still empty after update. Skipping advanced missing episode check.")
 
     if missing:
         if IS_DOCKER:
