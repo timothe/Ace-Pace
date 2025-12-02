@@ -762,7 +762,7 @@ def export_missing_to_csv(missing_episodes):
     print(f"Exporting {len(missing_episodes)} missing episodes to {CSV_FILE}...")
     with open(CSV_FILE, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["Title", "CRC32", "Magnet"])
+        writer.writerow(["Title", "CRC32", "Magnet Link"])
         for ep in missing_episodes:
             writer.writerow([ep["title"], ep["crc32"], ep["magnet"]])
     print("Export complete.")
@@ -991,8 +991,15 @@ def main():
 
     # Always check for missing episodes and export CSV
     print("Checking for missing episodes...")
-    missing = get_missing_episodes(conn)
-    export_missing_to_csv(missing)
+    c = conn.cursor()
+    c.execute("SELECT COUNT(*) FROM episodes")
+    ep_count = c.fetchone()[0]
+    
+    if ep_count > 0:
+        missing = get_missing_episodes(conn)
+        export_missing_to_csv(missing)
+    else:
+        print("Episodes database is empty. Skipping advanced missing episode check.")
 
     if missing:
         if IS_DOCKER:
