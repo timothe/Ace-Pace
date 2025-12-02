@@ -145,10 +145,13 @@ def fetch_episodes_metadata(base_url):
     episodes = []
     seen_crc32 = set()
     page = 1
+    print(f"DEBUG: fetch_episodes_metadata called with base_url: '{base_url}'")
     print(f"Browsing {base_url}...")
 
     # --- Get total number of pages by parsing first page's pagination controls ---
-    resp = requests.get(f"{base_url}&p=1")
+    first_page_url = f"{base_url}&p=1"
+    print(f"DEBUG: Fetching first page: {first_page_url}")
+    resp = requests.get(first_page_url)
     if resp.status_code != 200:
         print(f"Failed to fetch page 1, status code: {resp.status_code}")
         return episodes
@@ -351,8 +354,9 @@ def fetch_crc32_links(base_url):
     page = 1
     last_checked_page = 0
     while True:
-        print(f"Fetching page {page}...")
-        resp = requests.get(f"{base_url}&p={page}")
+        page_url = f"{base_url}&p={page}"
+        print(f"DEBUG: Fetching page {page}: {page_url}")
+        resp = requests.get(page_url)
         if resp.status_code != 200:
             print(f"Failed to fetch page {page}, status code: {resp.status_code}")
             break
