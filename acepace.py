@@ -106,7 +106,7 @@ def set_episodes_metadata(conn, key, value):
 
 
 # --- New: Fetch and update episodes_index table ---
-def fetch_episodes_metadata():
+def fetch_episodes_metadata(base_url):
     """
     Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
     If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
@@ -142,7 +142,6 @@ def fetch_episodes_metadata():
                 found = True
         return found
 
-    base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
     episodes = []
     seen_crc32 = set()
     page = 1
@@ -294,9 +293,9 @@ def fetch_episodes_metadata():
     return episodes
 
 
-def update_episodes_index_db():
+def update_episodes_index_db(base_url):
     conn = init_episodes_db()
-    episodes = fetch_episodes_metadata()
+    episodes = fetch_episodes_metadata(base_url)
     c = conn.cursor()
     count = 0
     for ep in episodes:
@@ -826,7 +825,7 @@ def main():
     episodes_db_conn.close()
 
     if args.episodes_update:
-        update_episodes_index_db()
+        update_episodes_index_db(args.url)
         return
 
     conn = init_db()
@@ -997,7 +996,7 @@ def main():
     
     if ep_count == 0:
         print("Episodes database is empty. Performing initial update...")
-        update_episodes_index_db()
+        update_episodes_index_db(args.url)
         # Re-check count
         c.execute("SELECT COUNT(*) FROM episodes")
         ep_count = c.fetchone()[0]
