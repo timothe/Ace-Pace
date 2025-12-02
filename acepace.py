@@ -296,7 +296,15 @@ def fetch_episodes_metadata(base_url):
 def update_episodes_index_db(base_url):
     conn = init_episodes_db()
     episodes = fetch_episodes_metadata(base_url)
+    if not episodes:
+        print("No episodes found. Aborting database update to preserve existing data.")
+        conn.close()
+        return
+
     c = conn.cursor()
+    # Clear existing data to ensure DB matches the current scrape (e.g. resolution changes)
+    c.execute("DELETE FROM episodes")
+    
     count = 0
     for ep in episodes:
         c.execute(
