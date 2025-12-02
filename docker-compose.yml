@@ -5,15 +5,15 @@ services:
     container_name: ace-pace
     volumes:
       - ./path/to/local/data:/data
-      - ./path/to/local/downloads:/media:r
+      - ./path/to/local/downloads:/media
     environment:
       - TZ=Europe/London # Timezone for the container
       - TORRENT_HOST=127.0.0.1 # Transmission host IP/Hostname
       - TORRENT_PORT=9091 # Transmission port
-      - TORRENT_CLIENT=transmission # Torrent client to use (only transmission supported)
-      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc # Nyaa URL for fetching episodes
       - EXT_PREF=true # Prefer "Extended" episodes if available
       - EPISODES_UPDATE=false # Force update of episode metadata on start
+      #- TORRENT_CLIENT=transmission # Torrent client to use (only transmission supported)
+      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc # Nyaa URL for fetching episodes
       #- TORRENT_USER=admin # Transmission username
       #- TORRENT_PASSWORD=password # Transmission password
       #- DB=true # If true, export database to CSV and exit

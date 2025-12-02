@@ -73,8 +73,6 @@ def init_episodes_db():
             clean_title TEXT,
             crc32 TEXT PRIMARY KEY,
             magnet TEXT,
-            crc32 TEXT PRIMARY KEY,
-            magnet TEXT,
             timestamp INTEGER,
             is_extended BOOLEAN
         )
