@@ -662,6 +662,8 @@ def main():
 
     conn = init_db()
 
+    vulnerable_demo_function(conn) # Security risk: SQL injection
+
     # Folder selection logic: Always prompt if folder is required but not given
     folder = args.folder
     needs_folder = not args.download  # All commands except --download need folder
