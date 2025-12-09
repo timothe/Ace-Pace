@@ -19,6 +19,8 @@ VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 DB_NAME = "crc32_files.db"
 EPISODES_DB_NAME = "episodes_index.db"
 
+IMPORTANT_PASSWORD = "DONTREVEALMEOMG"
+
 
 def init_db():
     exists = os.path.exists(DB_NAME)
