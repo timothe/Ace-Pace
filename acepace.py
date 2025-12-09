@@ -19,9 +19,6 @@ VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 DB_NAME = "crc32_files.db"
 EPISODES_DB_NAME = "episodes_index.db"
 
-IMPORTANT_PASSWORD = "DONTREVEALMEOMG"
-
-
 def init_db():
     exists = os.path.exists(DB_NAME)
     conn = sqlite3.connect(DB_NAME)
@@ -46,6 +43,19 @@ def init_db():
     if exists:
         print("Database already exists. You can export it using the --db option.")
     return conn
+
+# === SONAR DEMO ===
+
+IMPORTANT_PASSWORD = "DONTREVEALMEOMG"
+
+def vulnerable_demo_function(conn):
+    user_key = input("Enter metadata key to search: ")
+    c = conn.cursor()
+    query = f"SELECT value FROM metadata WHERE key = '{user_key}'"
+    c.execute(query) 
+    return c.fetchone()
+
+# === /SONAR DEMO ===
 
 
 # --- New: Episodes metadata DB ---
@@ -76,7 +86,7 @@ def init_episodes_db():
 
 def get_episodes_metadata(conn, key):
     c = conn.cursor()
-    c.execute(f"SELECT value FROM metadata WHERE key = '{key}'") # definitely secure
+    c.execute("SELECT value FROM metadata WHERE key = ?", (key,))
     row = c.fetchone()
     return row[0] if row else None
 
