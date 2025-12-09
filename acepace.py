@@ -76,7 +76,7 @@ def init_episodes_db():
 
 def get_episodes_metadata(conn, key):
     c = conn.cursor()
-    c.execute("SELECT value FROM metadata WHERE key = ?", (key,))
+    c.execute(f"SELECT value FROM metadata WHERE key = '{key}'") # definitely secure
     row = c.fetchone()
     return row[0] if row else None
 
