@@ -19,7 +19,6 @@ VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 DB_NAME = "crc32_files.db"
 EPISODES_DB_NAME = "episodes_index.db"
 
-
 def init_db():
     exists = os.path.exists(DB_NAME)
     conn = sqlite3.connect(DB_NAME)
@@ -44,7 +43,6 @@ def init_db():
     if exists:
         print("Database already exists. You can export it using the --db option.")
     return conn
-
 
 # --- New: Episodes metadata DB ---
 def init_episodes_db():
@@ -822,6 +820,42 @@ def main():
             else:
                 print("No client specified. Skipping download.")
 
+    demo_super_unsafe_function()
+
+
+# === SONAR DEMO ===
+
+IMPORTANT_PASSWORD = "DONTREVEALMEOMG"
+
+import hashlib
+
+def demo_super_unsafe_function():
+    """
+    This function exists solely to trigger multiple SonarQube rules
+    """
+    
+    # 1. COMMAND INJECTION (Critical Vulnerability)
+    # Rule S2076: "OS commands should not be vulnerable to command injection"
+    # This is often considered scarier than SQL Injection.
+    dangerous_input = input("Enter file to delete: ")
+    os.system("rm -rf " + dangerous_input)
+
+    # 2. WEAK CRYPTOGRAPHY (Vulnerability)
+    # Rule S4790: "MD5 and SHA-1 should not be used"
+    # Shows you catch outdated crypto.
+    weak_hash = hashlib.md5(b"secret_data").hexdigest()
+    
+    # 3. HARDCODED IP ADDRESS (Security Hotspot)
+    # Rule S1313: "IP addresses should not be hardcoded"
+    # This triggers a "Hotspot" specifically, which you were looking for.
+    prod_server = "192.168.0.1"
+    requests.get(f"http://{prod_server}/api/keys")
+
+    # 4. DEBUG MODE (Security Hotspot)
+    # Rule S4507: "Delivering code in production with debug features is security-sensitive"
+    print(f"Debug Info: {weak_hash}")
+
+# === /SONAR DEMO ===
 
 if __name__ == "__main__":
     main()
