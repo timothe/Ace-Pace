@@ -1,14 +1,17 @@
-import requests
-from bs4 import BeautifulSoup
-import os
-import zlib
-import argparse
-import re
-import sqlite3
-from datetime import datetime
-import csv
-import time
 import getpass
+import time
+import csv
+from datetime import datetime
+import sqlite3
+import re
+import argparse
+import zlib
+import os
+from bs4 import BeautifulSoup
+import requests
+
+from clients import get_client
+
 
 # Check if running in Docker (non-interactive mode)
 IS_DOCKER = "RUN_DOCKER" in os.environ
@@ -132,7 +135,6 @@ def fetch_episodes_metadata(base_url):
                         "title": fname_text,
                         "clean_title": re.sub(r"\[.*?\]", "", fname_text).strip(),
                         "crc32": crc32,
-                        "magnet": "",  # Not available here
                         "magnet": "",  # Not available here
                         "timestamp": 0,  # Not available here
                         "is_extended": "extended" in fname_text.lower(),
@@ -326,7 +328,7 @@ def update_episodes_index_db(base_url):
 def load_crc32_to_title_from_index():
     conn = init_episodes_db()
     c = conn.cursor()
-    c.execute("SELECT crc32, title FROM episodes_index")
+    c.execute("SELECT crc32, title FROM episodes")
     d = dict(c.fetchall())
     conn.close()
     return d
@@ -553,142 +555,6 @@ def export_db_to_csv(conn):
     set_metadata(conn, "last_db_export", now_str)
 
 
-def download_with_transmission():
-    if not os.path.exists(CSV_FILE):
-        print(f"Missing file '{CSV_FILE}' not found. Run the script first!")
-        return
-
-    magnets = []
-    with open(CSV_FILE, "r", encoding="utf-8") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            magnet_link = row.get("Magnet Link", "").strip()
-            if magnet_link.startswith("magnet:"):
-                magnets.append(magnet_link)
-
-    if not magnets:
-        print(f"No magnet links found in '{CSV_FILE}'.")
-        return
-
-    if IS_DOCKER:
-        print("Running in Docker mode - using environment variables for Transmission config.")
-        host = os.getenv("TORRENT_HOST", "localhost")
-        port = int(os.getenv("TORREN_PORT", "9091"))
-        rpc_username = os.getenv("TORRENT_USER", "")
-        rpc_password = os.getenv("TORRENT_PASSWORD", "")
-    else:
-        print("The details below are not stored.")
-        host = input("Enter Transmission host (default: localhost): ").strip()
-        if not host:
-            host = "localhost"
-        port_input = input("Enter Transmission port (default: 9091): ").strip()
-        if port_input:
-            try:
-                port = int(port_input)
-            except ValueError:
-                print("Invalid port number. Using default 9091.")
-                port = 9091
-        else:
-            port = 9091
-        rpc_username = input("Enter Transmission username (leave blank if none): ").strip()
-        rpc_password = getpass.getpass(
-            "Enter Transmission password (leave blank if none): "
-        ).strip()
-
-    base_url = f"http://{host}:{port}/transmission/rpc"
-    session_id = None
-    session = requests.Session()
-    auth = (rpc_username, rpc_password) if rpc_username else None
-
-    # Test connection and get session ID
-    try:
-        headers = {}
-        if session_id:
-            headers["X-Transmission-Session-Id"] = session_id
-        resp = session.post(
-            base_url, auth=auth, headers=headers, json={"method": "session-get"}
-        )
-        if resp.status_code == 409:
-            session_id = resp.headers.get("X-Transmission-Session-Id")
-            headers["X-Transmission-Session-Id"] = session_id
-            resp = session.post(
-                base_url, auth=auth, headers=headers, json={"method": "session-get"}
-            )
-        resp.raise_for_status()
-    except Exception as e:
-        print(f"Failed to connect to Transmission RPC: {e}")
-        return
-
-    print("Connection to Transmission successful!")
-
-    # Suggest default download directory to user
-    try:
-        session_info = resp.json()
-        default_download_dir = ""
-        if "arguments" in session_info and "download-dir" in session_info["arguments"]:
-            default_download_dir = session_info["arguments"]["download-dir"]
-    except Exception:
-        default_download_dir = ""
-
-    if IS_DOCKER:
-        target_folder = "/media"
-    else:
-        if default_download_dir:
-            prompt_text = f"Enter target folder for downloads (current default: {default_download_dir}): "
-        else:
-            prompt_text = "Enter target folder for downloads (leave blank for default): "
-        target_folder = input(prompt_text).strip()
-
-    if IS_DOCKER:
-        confirm = "y"
-    else:
-        confirm = (
-            input(f"Do you want to add {len(magnets)} torrents to Transmission? (y/n): ")
-            .strip()
-            .lower()
-        )
-    if confirm != "y":
-        print("Abort! Abort!")
-        return
-
-    added_count = 0
-    total = len(magnets)
-    for idx, magnet in enumerate(magnets, 1):
-        truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
-        print(f"Adding {idx}/{total}: {truncated}")
-        payload = {"method": "torrent-add", "arguments": {"filename": magnet}}
-        if target_folder:
-            payload["arguments"]["download-dir"] = target_folder
-        try:
-            headers = {"X-Transmission-Session-Id": session_id} if session_id else {}
-            resp = session.post(base_url, auth=auth, headers=headers, json=payload)
-            if resp.status_code == 409:
-                session_id = resp.headers.get("X-Transmission-Session-Id")
-                headers["X-Transmission-Session-Id"] = session_id
-                resp = session.post(base_url, auth=auth, headers=headers, json=payload)
-            resp.raise_for_status()
-            result = resp.json()
-            if result.get("result") == "success":
-                added_count += 1
-            else:
-                print(
-                    f"Failed to add torrent: {truncated} Error: {result.get('result')}"
-                )
-            time.sleep(0.1)
-        except Exception as e:
-            print(f"Failed to add torrent: {truncated} Error: {e}")
-
-    print(f"Added {added_count} torrents to Transmission.")
-
-
-def download_missing_to_client(client_type):
-    client_type = client_type.lower()
-    if client_type == "transmission":
-        download_with_transmission()
-    else:
-        print(f"Download client '{client_type}' not supported.")
-
-
 def get_local_crcs(conn):
     """
     Get a set of all CRC32s present in the local file database.
@@ -801,9 +667,14 @@ def main():
         "--db", action="store_true", help="Export database to CSV and exit."
     )
     parser.add_argument(
+        "--client",
+        choices=["transmission", "qbittorrent"],
+        help="The BitTorrent client to use.",
+    )
+    parser.add_argument(
         "--download",
-        metavar="CLIENT",
-        help="Import magnet links from missing CSV and add to specified BitTorrent client (e.g. transmission).",
+        action="store_true",
+        help="Import magnet links from missing CSV and add to the specified BitTorrent client.",
     )
     parser.add_argument(
         "--rename",
@@ -815,6 +686,13 @@ def main():
         action="store_true",
         help="Update episodes metadata database from Nyaa.",
     )
+    parser.add_argument("--host", default="localhost", help="The BitTorrent client host.")
+    parser.add_argument("--port", type=int, help="The BitTorrent client port.")
+    parser.add_argument("--username", help="The BitTorrent client username.")
+    parser.add_argument("--password", help="The BitTorrent client password.")
+    parser.add_argument("--download-folder", help="The folder to download the torrents to.")
+    parser.add_argument("--tag", action="append", help="Tag to add to the torrent in qBittorrent (can be used multiple times).")
+    parser.add_argument("--category", help="Category to add to the torrent in qBittorrent.")
     args = parser.parse_args()
 
     if IS_DOCKER:
@@ -870,7 +748,42 @@ def main():
         set_metadata(conn, "last_folder", folder)
 
     if args.download:
-        download_missing_to_client(args.download)
+        if not args.client:
+            print("Error: --client is required when using --download.")
+            return
+
+        if not os.path.exists(CSV_FILE):
+            print(f"Missing file '{CSV_FILE}' not found. Run the script first!")
+            return
+
+        magnets = []
+        with open(CSV_FILE, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                magnet_link = row.get("Magnet Link", "").strip()
+                if magnet_link.startswith("magnet:"):
+                    magnets.append(magnet_link)
+
+        if not magnets:
+            print(f"No magnet links found in '{CSV_FILE}'.")
+            return
+
+        port = args.port
+        if not port:
+            port = 9091 if args.client == "transmission" else 8080
+
+        try:
+            client = get_client(args.client, args.host, port, args.username, args.password)
+            client.add_torrents(
+                magnets,
+                download_folder=args.download_folder,
+                tags=args.tag,
+                category=args.category,
+            )
+        except (ValueError, Exception) as e:
+            print(f"Error: {e}")
+            return
+
         return
 
     if args.rename:
@@ -897,7 +810,7 @@ def main():
                 .lower()
             )
         if prompt == "y":
-            update_episodes_index_db()
+            update_episodes_index_db(args.url)
         print(
             "Renaming local files based on matching titles from One Pace episodes index..."
         )
@@ -1042,10 +955,26 @@ def main():
                 # Extract magnets for download
                 magnets = [ep["magnet"] for ep in missing if ep["magnet"]]
                 if magnets:
-                    if client == "transmission":
-                         download_with_transmission(magnets)
+                    # Get client configuration
+                    if IS_DOCKER:
+                        host = os.getenv("TORRENT_HOST", "localhost")
+                        port = int(os.getenv("TORRENT_PORT", "9091" if client == "transmission" else "8080"))
+                        username = os.getenv("TORRENT_USER", "")
+                        password = os.getenv("TORRENT_PASSWORD", "")
+                        download_folder = os.getenv("DOWNLOAD_FOLDER", "/media")
                     else:
-                        print(f"Client '{client}' not supported yet.")
+                        host = input(f"Enter {client} host (default: localhost): ").strip() or "localhost"
+                        port_input = input(f"Enter {client} port (default: {'9091' if client == 'transmission' else '8080'}): ").strip()
+                        port = int(port_input) if port_input else (9091 if client == "transmission" else 8080)
+                        username = input(f"Enter {client} username (leave blank if none): ").strip()
+                        password = getpass.getpass(f"Enter {client} password (leave blank if none): ").strip()
+                        download_folder = input("Enter download folder (leave blank for default): ").strip() or None
+                    
+                    try:
+                        client_obj = get_client(client, host, port, username, password)
+                        client_obj.add_torrents(magnets, download_folder=download_folder)
+                    except (ValueError, Exception) as e:
+                        print(f"Error: {e}")
                 else:
                     print("No magnet links found for missing episodes.")
             else:
