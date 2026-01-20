@@ -88,3 +88,5 @@ python acepace.py --db
 ## 🙏 Credits
 
 Ace-Pace is proudly inspired by and built to support the incredible work of the [One-Pace](http://onepace.net/) team. Their dedication to crafting a seamless and engaging One Piece viewing experience has allowed me to discover and share this legendary series. I salute their passion, creativity, and commitment.
+
+Since the start of this project, not unlinke Luffy, a few people joined me to build or support it, namely [@Staubgeborener](https://github.com/Staubgeborener) & [@thekoma](https://github.com/thekoma) who implemented the multi-clients functionality. Check them out!
