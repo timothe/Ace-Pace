@@ -16,6 +16,9 @@ from clients import get_client
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 
+# Quality regex patterns - matches [1080p], [720p], etc. (case insensitive)
+QUALITY_REGEX = re.compile(r"\[(\d+p)\]", re.IGNORECASE)
+
 # Video file extensions we care about
 VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 
@@ -98,11 +101,25 @@ def fetch_episodes_metadata():
     Returns: List of (crc32, title, page_link)
     """
 
+    def _is_valid_quality(fname_text):
+        """Check if filename has valid quality (1080p preferred, 720p as fallback only).
+        Returns True if quality is 1080p or 720p, False otherwise."""
+        quality_matches = QUALITY_REGEX.findall(fname_text)
+        if not quality_matches:
+            return False  # No quality marker found, exclude
+        # Check if quality is exactly 1080p or 720p (not higher, not lower)
+        for quality in quality_matches:
+            quality_num = int(quality.lower().replace('p', ''))
+            if quality_num == 1080 or quality_num == 720:
+                return True
+        return False  # Quality not 1080p or 720p
+
     def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
-        """Helper to extract CRC32 from fname_text and store if valid and unique."""
+        """Helper to extract CRC32 from fname_text and store if valid and unique.
+        Only accepts episodes with 1080p or 720p quality (720p as fallback)."""
         m = CRC32_REGEX.findall(fname_text)
         found = False
-        if m and "[One Pace]" in fname_text:
+        if m and "[One Pace]" in fname_text and _is_valid_quality(fname_text):
             crc32 = m[-1].upper()
             if crc32 not in seen_crc32:
                 # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
