@@ -3,6 +3,7 @@ import pytest
 import sys
 import os
 from unittest.mock import patch, MagicMock, Mock
+from requests.structures import CaseInsensitiveDict
 
 # Add parent directory to path to import clients
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -119,7 +120,8 @@ class TestTransmissionClient:
         # First call returns 409 with session ID
         mock_response_409 = MagicMock()
         mock_response_409.status_code = 409
-        mock_response_409.headers = {"X-Transmission-Session-Id": "test_session_id"}
+        # Use CaseInsensitiveDict to match requests.Response.headers behavior
+        mock_response_409.headers = CaseInsensitiveDict({"X-Transmission-Session-Id": "test_session_id"})
         
         # Second call succeeds
         mock_response_200 = MagicMock()
@@ -156,16 +158,23 @@ class TestTransmissionClient:
         """Test Transmission handles 409 during torrent add."""
         mock_session = MagicMock()
         
-        # First call returns 409, second succeeds
+        # Response for __init__ connection test (session-get)
+        mock_init_response = MagicMock()
+        mock_init_response.status_code = 200
+        mock_init_response.json.return_value = {"result": "success"}
+        
+        # First call in add_torrents returns 409, second succeeds
         mock_response_409 = MagicMock()
         mock_response_409.status_code = 409
-        mock_response_409.headers = {"X-Transmission-Session-Id": "new_session_id"}
+        # Use CaseInsensitiveDict to match requests.Response.headers behavior
+        mock_response_409.headers = CaseInsensitiveDict({"X-Transmission-Session-Id": "new_session_id"})
         
         mock_response_200 = MagicMock()
         mock_response_200.status_code = 200
         mock_response_200.json.return_value = {"result": "success"}
         
-        mock_session.post.side_effect = [mock_response_409, mock_response_200]
+        # __init__ makes one POST, add_torrents makes two POSTs (409 then retry)
+        mock_session.post.side_effect = [mock_init_response, mock_response_409, mock_response_200]
         mock_session_class.return_value = mock_session
         
         client = TransmissionClient("localhost", 9091, None, None)
