@@ -56,7 +56,7 @@ class TestMissingEpisodeDetection:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6G7H8].mkv">[One Pace] Episode 2 [1080p][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6A7B8].mkv">[One Pace] Episode 2 [1080p][E5F6A7B8].mkv</a>
                             <a href="magnet:?xt=urn:btih:def456">Magnet</a>
                         </td>
                     </tr>
@@ -91,7 +91,7 @@ class TestMissingEpisodeDetection:
         
         assert len(crc32_to_link) == 2
         assert "A1B2C3D4" in crc32_to_link
-        assert "E5F6G7H8" in crc32_to_link
+        assert "E5F6A7B8" in crc32_to_link
         assert "A1B2C3D4" in crc32_to_text
         assert "magnet:?xt=urn:btih:abc123" in crc32_to_magnet.values()
 

@@ -44,8 +44,8 @@ def sample_episode_data():
     """Sample episode data for testing."""
     return [
         ("A1B2C3D4", "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv", "https://nyaa.si/view/12345"),
-        ("E5F6G7H8", "[One Pace] Episode 2 [1080p][E5F6G7H8].mkv", "https://nyaa.si/view/12346"),
-        ("I9J0K1L2", "[One Pace] Episode 3 [1080p][I9J0K1L2].mkv", "https://nyaa.si/view/12347"),
+        ("E5F6A7B8", "[One Pace] Episode 2 [1080p][E5F6A7B8].mkv", "https://nyaa.si/view/12346"),
+        ("A9B0C1D2", "[One Pace] Episode 3 [1080p][A9B0C1D2].mkv", "https://nyaa.si/view/12347"),
     ]
 
 
@@ -64,7 +64,7 @@ def mock_nyaa_html_single_page():
                 </tr>
                 <tr>
                     <td>
-                        <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6G7H8].mkv">[One Pace] Episode 2 [1080p][E5F6G7H8].mkv</a>
+                        <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6A7B8].mkv">[One Pace] Episode 2 [1080p][E5F6A7B8].mkv</a>
                         <a href="magnet:?xt=urn:btih:def456">Magnet</a>
                     </td>
                 </tr>

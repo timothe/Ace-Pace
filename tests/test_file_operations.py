@@ -125,7 +125,7 @@ class TestCSVExport:
             )
             cursor.execute(
                 "INSERT INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
-                ("/path/to/file2.mkv", "E5F6G7H8")
+                ("/path/to/file2.mkv", "E5F6A7B8")
             )
             conn.commit()
             

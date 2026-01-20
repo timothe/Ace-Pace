@@ -24,11 +24,11 @@ class TestCRC32Extraction:
 
     def test_extract_crc32_multiple_matches(self):
         """Test extracting CRC32 when multiple matches exist (takes last)."""
-        filename = "[One Pace] Episode 1 [1080p][A1B2C3D4][E5F6G7H8].mkv"
+        filename = "[One Pace] Episode 1 [1080p][A1B2C3D4][E5F6A7B8].mkv"
         matches = acepace.CRC32_REGEX.findall(filename)
         assert len(matches) == 2
         # Should take the last match
-        assert matches[-1].upper() == "E5F6G7H8"
+        assert matches[-1].upper() == "E5F6A7B8"
 
     def test_extract_crc32_no_match(self):
         """Test extracting CRC32 from filename without CRC32."""

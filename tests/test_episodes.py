@@ -26,7 +26,7 @@ class TestEpisodeMetadataFetching:
         
         assert len(episodes) == 2
         assert any(ep[0] == "A1B2C3D4" for ep in episodes)
-        assert any(ep[0] == "E5F6G7H8" for ep in episodes)
+        assert any(ep[0] == "E5F6A7B8" for ep in episodes)
 
     @patch('acepace.requests.get')
     @patch('acepace.time.sleep')  # Mock sleep to speed up tests
@@ -46,7 +46,7 @@ class TestEpisodeMetadataFetching:
                 <table class="torrent-list">
                     <tr>
                         <td>
-                            <a href="/view/12347" title="[One Pace] Episode 3 [1080p][I9J0K1L2].mkv">[One Pace] Episode 3 [1080p][I9J0K1L2].mkv</a>
+                            <a href="/view/12347" title="[One Pace] Episode 3 [1080p][A9B0C1D2].mkv">[One Pace] Episode 3 [1080p][A9B0C1D2].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -225,7 +225,7 @@ class TestEpisodeQualityFiltering:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6G7H8].mkv">[One Pace] Episode 2 [1080p][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6A7B8].mkv">[One Pace] Episode 2 [1080p][E5F6A7B8].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -262,7 +262,7 @@ class TestEpisodeQualityFiltering:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6G7H8].mkv">[One Pace] Episode 2 [720p][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6A7B8].mkv">[One Pace] Episode 2 [720p][E5F6A7B8].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -299,12 +299,12 @@ class TestEpisodeQualityFiltering:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [360p][E5F6G7H8].mkv">[One Pace] Episode 2 [360p][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [360p][E5F6A7B8].mkv">[One Pace] Episode 2 [360p][E5F6A7B8].mkv</a>
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12347" title="[One Pace] Episode 3 [240p][I9J0K1L2].mkv">[One Pace] Episode 3 [240p][I9J0K1L2].mkv</a>
+                            <a href="/view/12347" title="[One Pace] Episode 3 [240p][A9B0C1D2].mkv">[One Pace] Episode 3 [240p][A9B0C1D2].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -378,17 +378,17 @@ class TestEpisodeQualityFiltering:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6G7H8].mkv">[One Pace] Episode 2 [720p][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6A7B8].mkv">[One Pace] Episode 2 [720p][E5F6A7B8].mkv</a>
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12347" title="[One Pace] Episode 3 [480p][I9J0K1L2].mkv">[One Pace] Episode 3 [480p][I9J0K1L2].mkv</a>
+                            <a href="/view/12347" title="[One Pace] Episode 3 [480p][A9B0C1D2].mkv">[One Pace] Episode 3 [480p][A9B0C1D2].mkv</a>
                         </td>
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12348" title="[One Pace] Episode 4 [1080p][M3N4O5P6].mkv">[One Pace] Episode 4 [1080p][M3N4O5P6].mkv</a>
+                            <a href="/view/12348" title="[One Pace] Episode 4 [1080p][A3B4C5D6].mkv">[One Pace] Episode 4 [1080p][A3B4C5D6].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -431,7 +431,7 @@ class TestEpisodeQualityFiltering:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [720P][E5F6G7H8].mkv">[One Pace] Episode 2 [720P][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [720P][E5F6A7B8].mkv">[One Pace] Episode 2 [720P][E5F6A7B8].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -465,7 +465,7 @@ class TestEpisodeQualityFiltering:
                     </tr>
                     <tr>
                         <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6G7H8].mkv">[One Pace] Episode 2 [1080p][E5F6G7H8].mkv</a>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6A7B8].mkv">[One Pace] Episode 2 [1080p][E5F6A7B8].mkv</a>
                         </td>
                     </tr>
                 </table>
@@ -485,7 +485,7 @@ class TestEpisodeQualityFiltering:
         # Should only include episode with quality marker
         assert len(episodes) == 1
         crc32, title, _ = episodes[0]
-        assert crc32 == "E5F6G7H8"
+        assert crc32 == "E5F6A7B8"
         assert "[1080p]" in title.upper() or "1080P" in title.upper()
 
     @patch('acepace.requests.get')

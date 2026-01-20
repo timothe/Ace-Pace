@@ -126,7 +126,7 @@ class TestEpisodesIndexOperations:
             mapping = acepace.load_crc32_to_title_from_index()
             assert len(mapping) == 3
             assert mapping["A1B2C3D4"] == "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv"
-            assert mapping["E5F6G7H8"] == "[One Pace] Episode 2 [1080p][E5F6G7H8].mkv"
-            assert mapping["I9J0K1L2"] == "[One Pace] Episode 3 [1080p][I9J0K1L2].mkv"
+            assert mapping["E5F6A7B8"] == "[One Pace] Episode 2 [1080p][E5F6A7B8].mkv"
+            assert mapping["A9B0C1D2"] == "[One Pace] Episode 3 [1080p][A9B0C1D2].mkv"
             
             os.remove(os.path.join(temp_dir, 'test.db'))
