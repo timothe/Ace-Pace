@@ -44,7 +44,7 @@ class TestMissingEpisodeDetection:
     @patch('acepace.requests.get')
     def test_fetch_crc32_links_from_nyaa(self, mock_get):
         """Test fetching CRC32 links from Nyaa."""
-        html = """
+        html_with_results = """
         <html>
             <body>
                 <table class="torrent-list">
@@ -65,10 +65,26 @@ class TestMissingEpisodeDetection:
         </html>
         """
         
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+        # Empty page to stop the loop
+        html_empty = """
+        <html>
+            <body>
+                <table class="torrent-list">
+                </table>
+            </body>
+        </html>
+        """
+        
+        mock_response1 = MagicMock()
+        mock_response1.status_code = 200
+        mock_response1.text = html_with_results
+        
+        mock_response2 = MagicMock()
+        mock_response2.status_code = 200
+        mock_response2.text = html_empty
+        
+        # First page has results, second page is empty to stop the loop
+        mock_get.side_effect = [mock_response1, mock_response2]
         
         base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
         crc32_to_link, crc32_to_text, crc32_to_magnet, last_page = acepace.fetch_crc32_links(base_url)
