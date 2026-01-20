@@ -25,6 +25,11 @@ VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 DB_NAME = "crc32_files.db"
 EPISODES_DB_NAME = "episodes_index.db"
 
+# Constants for repeated string literals
+HTML_PARSER = "html.parser"
+MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
+NYAA_BASE_URL = "https://nyaa.si"
+
 
 def init_db():
     exists = os.path.exists(DB_NAME)
@@ -54,7 +59,6 @@ def init_db():
 
 # --- New: Episodes metadata DB ---
 def init_episodes_db():
-    exists = os.path.exists(EPISODES_DB_NAME)
     conn = sqlite3.connect(EPISODES_DB_NAME)
     c = conn.cursor()
     c.execute(
@@ -94,53 +98,37 @@ def set_episodes_metadata(conn, key, value):
 
 
 # --- New: Fetch and update episodes_index table ---
-def fetch_episodes_metadata():
-    """
-    Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
-    If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
-    Returns: List of (crc32, title, page_link)
-    """
+def _is_valid_quality(fname_text):
+    """Check if filename has valid quality (1080p preferred, 720p as fallback only).
+    Returns True if quality is 1080p or 720p, False otherwise."""
+    quality_matches = QUALITY_REGEX.findall(fname_text)
+    if not quality_matches:
+        return False  # No quality marker found, exclude
+    # Check if quality is exactly 1080p or 720p (not higher, not lower)
+    for quality in quality_matches:
+        quality_num = int(quality.lower().replace('p', ''))
+        if quality_num == 1080 or quality_num == 720:
+            return True
+    return False  # Quality not 1080p or 720p
 
-    def _is_valid_quality(fname_text):
-        """Check if filename has valid quality (1080p preferred, 720p as fallback only).
-        Returns True if quality is 1080p or 720p, False otherwise."""
-        quality_matches = QUALITY_REGEX.findall(fname_text)
-        if not quality_matches:
-            return False  # No quality marker found, exclude
-        # Check if quality is exactly 1080p or 720p (not higher, not lower)
-        for quality in quality_matches:
-            quality_num = int(quality.lower().replace('p', ''))
-            if quality_num == 1080 or quality_num == 720:
-                return True
-        return False  # Quality not 1080p or 720p
 
-    def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
-        """Helper to extract CRC32 from fname_text and store if valid and unique.
-        Only accepts episodes with 1080p or 720p quality (720p as fallback)."""
-        m = CRC32_REGEX.findall(fname_text)
-        found = False
-        if m and "[One Pace]" in fname_text and _is_valid_quality(fname_text):
-            crc32 = m[-1].upper()
-            if crc32 not in seen_crc32:
-                # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
-                episodes.append((crc32, fname_text, page_link))
-                seen_crc32.add(crc32)
-                found = True
-        return found
+def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
+    """Helper to extract CRC32 from fname_text and store if valid and unique.
+    Only accepts episodes with 1080p or 720p quality (720p as fallback)."""
+    m = CRC32_REGEX.findall(fname_text)
+    found = False
+    if m and "[One Pace]" in fname_text and _is_valid_quality(fname_text):
+        crc32 = m[-1].upper()
+        if crc32 not in seen_crc32:
+            # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
+            episodes.append((crc32, fname_text, page_link))
+            seen_crc32.add(crc32)
+            found = True
+    return found
 
-    base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
-    episodes = []
-    seen_crc32 = set()
-    page = 1
-    print(f"Browsing {base_url}...")
 
-    # --- Get total number of pages by parsing first page's pagination controls ---
-    resp = requests.get(f"{base_url}&p=1")
-    if resp.status_code != 200:
-        print(f"Failed to fetch page 1, status code: {resp.status_code}")
-        return episodes
-    soup = BeautifulSoup(resp.text, "html.parser")
-    # Find pagination links and determine max page number
+def _get_total_pages(soup):
+    """Extract total number of pages from pagination controls."""
     total_pages = 1
     pagination = soup.find("ul", class_="pagination")
     if pagination:
@@ -155,6 +143,109 @@ def fetch_episodes_metadata():
                     pass
         if page_numbers:
             total_pages = max(page_numbers)
+    return total_pages
+
+
+def _extract_title_link_from_row(row):
+    """Extract title link from a table row."""
+    links = row.find_all("a", href=True)
+    for a in links:
+        href = a.get("href", "")
+        if href.startswith("/view/") and a.has_attr("title"):
+            return a
+    return None
+
+
+def _extract_filenames_from_folder_structure(filelist_div):
+    """Extract filenames from folder structure in file list."""
+    all_uls = filelist_div.find_all("ul")
+    filenames = []
+    for ul in all_uls:
+        for file_li in ul.find_all("li"):
+            if not file_li.find("ul"):
+                direct_texts = [
+                    t for t in file_li.contents if isinstance(t, str)
+                ]
+                fname_text = "".join(direct_texts).strip()
+                if fname_text:
+                    filenames.append(fname_text)
+    return filenames
+
+
+def _extract_filenames_from_torrent_page(torrent_soup):
+    """Extract filenames from a torrent page's file list."""
+    filelist_div = torrent_soup.find("div", class_="torrent-file-list")
+    if not filelist_div:
+        return []
+    
+    has_folder = bool(filelist_div.find("a", class_="folder"))
+    
+    if has_folder:
+        return _extract_filenames_from_folder_structure(filelist_div)
+    else:
+        li = filelist_div.find("li")
+        if li:
+            direct_texts = [t for t in li.contents if isinstance(t, str)]
+            fname_text = "".join(direct_texts).strip()
+            if fname_text:
+                return [fname_text]
+    return []
+
+
+def _process_torrent_page(page_link, seen_crc32, episodes):
+    """Process a torrent page to extract CRC32 information from file list."""
+    try:
+        torrent_resp = requests.get(page_link)
+        if torrent_resp.status_code != 200:
+            print(f"Failed to fetch torrent page {page_link}")
+            return False
+        t_soup = BeautifulSoup(torrent_resp.text, HTML_PARSER)
+        filenames = _extract_filenames_from_torrent_page(t_soup)
+        found = False
+        for fname in filenames:
+            if _process_fname_entry(str(fname), seen_crc32, episodes, page_link):
+                found = True
+        return found
+    except Exception:
+        return False
+
+
+def _process_episode_row(row, seen_crc32, episodes):
+    """Process a single table row to extract episode information."""
+    title_link = _extract_title_link_from_row(row)
+    if not title_link:
+        return False
+    
+    title = title_link.text.strip()
+    page_link = NYAA_BASE_URL + title_link["href"]
+    matches = CRC32_REGEX.findall(title)
+    
+    if matches:
+        return _process_fname_entry(title, seen_crc32, episodes, page_link)
+    else:
+        return _process_torrent_page(page_link, seen_crc32, episodes)
+
+
+def fetch_episodes_metadata():
+    """
+    Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
+    If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
+    Returns: List of (crc32, title, page_link)
+    """
+
+    base_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace"
+    episodes = []
+    seen_crc32 = set()
+    page = 1
+    print(f"Browsing {base_url}...")
+
+    # --- Get total number of pages by parsing first page's pagination controls ---
+    resp = requests.get(f"{base_url}&p=1")
+    if resp.status_code != 200:
+        print(f"Failed to fetch page 1, status code: {resp.status_code}")
+        return episodes
+    soup = BeautifulSoup(resp.text, HTML_PARSER)
+    total_pages = _get_total_pages(soup)
 
     # Now loop from page 1 to total_pages
     while page <= total_pages:
@@ -167,84 +258,13 @@ def fetch_episodes_metadata():
             if resp.status_code != 200:
                 print(f"Failed to fetch page {page}, status code: {resp.status_code}")
                 break
-            page_soup = BeautifulSoup(resp.text, "html.parser")
+            page_soup = BeautifulSoup(resp.text, HTML_PARSER)
         table = page_soup.find("table", class_="torrent-list")
         if not table:
             break
         rows = table.find_all("tr")
-        page_has_matches = False
         for row in rows:
-            links = row.find_all("a", href=True)
-            title_link = None
-            for a in links:
-                href = a.get("href", "")
-                if href.startswith("/view/") and a.has_attr("title"):
-                    title_link = a
-                    break
-            if not title_link:
-                continue
-            title = title_link.text.strip()
-            page_link = "https://nyaa.si" + title_link["href"]
-            matches = CRC32_REGEX.findall(title)
-            found_in_this_row = False
-            if matches:
-                found_in_this_row = _process_fname_entry(
-                    title, seen_crc32, episodes, page_link
-                )
-            else:
-                try:
-                    # print(f"Fetching page {page_link}...")
-                    torrent_resp = requests.get(page_link)
-                    if torrent_resp.status_code != 200:
-                        print(f"Failed to fetch torrent page {page_link}")
-                        continue
-                    t_soup = BeautifulSoup(torrent_resp.text, "html.parser")
-                    filelist_div = t_soup.find("div", class_="torrent-file-list")
-                    if not filelist_div:
-                        continue
-                    has_folder = bool(filelist_div.find("a", class_="folder"))
-                    filenames = []
-                    if has_folder:
-                        # print("Has folder")
-                        all_uls = filelist_div.find_all("ul")
-                        leaf_filenames = []
-                        for ul in all_uls:
-                            for file_li in ul.find_all("li"):
-                                if not file_li.find("ul"):
-                                    direct_texts = [
-                                        t
-                                        for t in file_li.contents
-                                        if isinstance(t, str)
-                                    ]
-                                    fname_text = "".join(direct_texts).strip()
-                                    if fname_text:
-                                        leaf_filenames.append(fname_text)
-                        for fname in leaf_filenames:
-                            fname = str(fname)
-                            if _process_fname_entry(
-                                fname, seen_crc32, episodes, page_link
-                            ):
-                                found_in_this_row = True
-                    else:
-                        # print("No folder")
-                        li = filelist_div.find("li")
-                        direct_texts = [t for t in li.contents if isinstance(t, str)]
-                        fname_text = "".join(direct_texts).strip()
-                        # print(f"Direct text: {fname_text}")
-                        if fname_text:
-                            if _process_fname_entry(
-                                fname_text, seen_crc32, episodes, page_link
-                            ):
-                                found_in_this_row = True
-                except Exception:
-                    print(
-                        f"Error occurred while processing file list for {title} ({page_link})"
-                    )
-            if found_in_this_row:
-                page_has_matches = True
-        # If no matches on this page, break (may be redundant now that we know total_pages)
-        # if not page_has_matches:
-        #     break
+            _process_episode_row(row, seen_crc32, episodes)
         page += 1
         time.sleep(0.2)
     print(f"Fetched {len(episodes)} unique episodes with CRC32s.")
@@ -294,6 +314,33 @@ def set_metadata(conn, key, value):
     conn.commit()
 
 
+def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
+    """Process a single table row to extract CRC32 information."""
+    links = row.find_all("a", href=True)
+    title_link = None
+    magnet_link = ""
+    for a in links:
+        if a.has_attr("title"):
+            title_link = a
+        href = a.get("href", "")
+        if href.startswith("magnet:"):
+            magnet_link = href
+    if not title_link:
+        return False  # Skip rows without a valid title link
+    filename_text = title_link.text
+    link = NYAA_BASE_URL + title_link["href"]
+    matches = CRC32_REGEX.findall(filename_text)
+    if matches:
+        crc32 = matches[-1].upper()
+        crc32_to_link[crc32] = link
+        crc32_to_text[crc32] = filename_text
+        crc32_to_magnet[crc32] = magnet_link
+        return True
+    else:
+        print(f"Warning: No CRC32 found in title '{filename_text}'")
+        return False
+
+
 def fetch_crc32_links(base_url):
     crc32_to_link = {}
     crc32_to_text = {}
@@ -307,7 +354,7 @@ def fetch_crc32_links(base_url):
             print(f"Failed to fetch page {page}, status code: {resp.status_code}")
             break
 
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = BeautifulSoup(resp.text, HTML_PARSER)
         table = soup.find("table", class_="torrent-list")
         if not table:
             print("No table found, stopping.")
@@ -320,25 +367,7 @@ def fetch_crc32_links(base_url):
 
         found_in_page = False
         for row in rows:
-            links = row.find_all("a", href=True)
-            title_link = None
-            magnet_link = ""
-            for a in links:
-                if a.has_attr("title"):
-                    title_link = a
-                href = a.get("href", "")
-                if href.startswith("magnet:"):
-                    magnet_link = href
-            if not title_link:
-                continue  # Skip rows without a valid title link
-            filename_text = title_link.text
-            link = "https://nyaa.si" + title_link["href"]
-            matches = CRC32_REGEX.findall(filename_text)
-            if matches:
-                crc32 = matches[-1].upper()
-                crc32_to_link[crc32] = link
-                crc32_to_text[crc32] = filename_text
-                crc32_to_magnet[crc32] = magnet_link
+            if _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
                 found_in_page = True
             else:
                 print(f"Warning: No CRC32 found in title '{filename_text}'")
@@ -352,18 +381,8 @@ def fetch_crc32_links(base_url):
     return crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page
 
 
-def fetch_title_by_crc32(crc32):
-    # Search on Nyaa for the given CRC32
-    search_url = f"https://nyaa.si/?f=0&c=0_0&q={crc32}&o=asc"
-    resp = requests.get(search_url)
-    if resp.status_code != 200:
-        print(f"Failed to fetch search results for CRC32 {crc32}")
-        return None
-    soup = BeautifulSoup(resp.text, "html.parser")
-    table = soup.find("table", class_="torrent-list")
-    if not table:
-        return None
-    rows = table.find_all("tr")
+def _extract_matching_titles_from_rows(rows, crc32):
+    """Extract titles matching the given CRC32 from table rows."""
     matched_titles = []
     for row in rows:
         links = row.find_all("a", href=True)
@@ -374,6 +393,23 @@ def fetch_title_by_crc32(crc32):
                 matches = CRC32_REGEX.findall(filename_text)
                 if matches and matches[-1].upper() == crc32:
                     matched_titles.append(filename_text)
+    return matched_titles
+
+
+def fetch_title_by_crc32(crc32):
+    # Search on Nyaa for the given CRC32
+    search_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q={crc32}&o=asc"
+    resp = requests.get(search_url)
+    if resp.status_code != 200:
+        print(f"Failed to fetch search results for CRC32 {crc32}")
+        return None
+    soup = BeautifulSoup(resp.text, HTML_PARSER)
+    table = soup.find("table", class_="torrent-list")
+    if not table:
+        return None
+    rows = table.find_all("tr")
+    matched_titles = _extract_matching_titles_from_rows(rows, crc32)
+    
     if len(matched_titles) == 1:
         print(f"Found {crc32} on Nyaa!")
         return matched_titles[0]
@@ -419,7 +455,7 @@ def calculate_local_crc32(folder, conn):
     return local_crc32s
 
 
-def rename_local_files(conn, folder):
+def rename_local_files(conn):
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
     entries = c.fetchall()
@@ -433,7 +469,6 @@ def rename_local_files(conn, folder):
     for _, crc32 in entries:
         local_crc32s.add(crc32)
 
-    matched = 0
     total = len(local_crc32s)
     rename_plan = []
     for file_path, crc32 in entries:
@@ -441,14 +476,12 @@ def rename_local_files(conn, folder):
         if not title:
             continue  # No match found in index, skip
         dir_name = os.path.dirname(file_path)
-        ext = os.path.splitext(file_path)[1]
         # Sanitize title for filename (remove problematic characters)
         sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
         new_filename = f"{sanitized_title}"
         new_path = os.path.join(dir_name, new_filename)
         if os.path.abspath(file_path) != os.path.abspath(new_path):
             rename_plan.append((file_path, new_path))
-            matched += 1
 
     if not rename_plan:
         print("No files to rename.")
@@ -495,14 +528,237 @@ def export_db_to_csv(conn):
     set_metadata(conn, "last_db_export", now_str)
 
 
-def main():
+def _get_folder_from_args(args, conn, needs_folder):
+    """Get folder path from arguments or prompt user."""
+    folder = args.folder
+    if needs_folder and not folder:
+        # Try to load last_folder from metadata
+        last_folder = get_metadata(conn, "last_folder")
+        if last_folder:
+            print(f"Last used folder: {last_folder}")
+            user_input = input(
+                "Press Enter to use this folder, or enter a new path: "
+            ).strip()
+            if user_input:
+                folder = user_input
+            else:
+                folder = last_folder
+        else:
+            folder = input("Enter the folder containing local video files: ").strip()
+        if not folder:
+            print("Error: No folder specified.")
+            return None
+        set_metadata(conn, "last_folder", folder)
+    elif folder:
+        set_metadata(conn, "last_folder", folder)
+    return folder
+
+
+def _handle_download_command(args):
+    """Handle the download command."""
+    if not args.client:
+        print("Error: --client is required when using --download.")
+        return False
+
+    if not os.path.exists(MISSING_CSV_FILENAME):
+        print(f"Missing file '{MISSING_CSV_FILENAME}' not found. Run the script first!")
+        return False
+
+    magnets = []
+    with open(MISSING_CSV_FILENAME, "r", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            magnet_link = row.get("Magnet Link", "").strip()
+            if magnet_link.startswith("magnet:"):
+                magnets.append(magnet_link)
+
+    if not magnets:
+        print(f"No magnet links found in '{MISSING_CSV_FILENAME}'.")
+        return False
+
+    port = args.port
+    if not port:
+        port = 9091 if args.client == "transmission" else 8080
+
+    try:
+        client = get_client(args.client, args.host, port, args.username, args.password)
+        client.add_torrents(
+            magnets,
+            download_folder=args.download_folder,
+            tags=args.tag,
+            category=args.category,
+        )
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+
+    return True
+
+
+def _get_rename_prompt(last_ep_update):
+    """Get user prompt for updating episodes database before renaming."""
+    if not last_ep_update:
+        print("WARNING: Episodes metadata database has not been updated yet.")
+        return input("Update episodes metadata database before renaming? (y/n): ").strip().lower()
+    else:
+        return input(
+            f"Update episodes metadata database before renaming? (last update: {last_ep_update}) (y/n): "
+        ).strip().lower()
+
+
+def _handle_rename_command(conn):
+    """Handle the rename command."""
+    episodes_db_conn = init_episodes_db()
+    last_ep_update = get_episodes_metadata(
+        episodes_db_conn, "episodes_db_last_update"
+    )
+    episodes_db_conn.close()
+    
+    prompt = _get_rename_prompt(last_ep_update)
+    
+    if prompt == "y":
+        update_episodes_index_db()
+    print(
+        "Renaming local files based on matching titles from One Pace episodes index..."
+    )
+    rename_local_files(conn)
+
+
+def _count_video_files(folder, conn):
+    """Count total video files and files already recorded in DB."""
+    total_files = 0
+    recorded_files = 0
+    c = conn.cursor()
+    for root, dirs, files in os.walk(folder):
+        for file in files:
+            ext = os.path.splitext(file)[1].lower()
+            if ext in VIDEO_EXTENSIONS:
+                total_files += 1
+                file_path = os.path.join(root, file)
+                c.execute("SELECT 1 FROM crc32_cache WHERE file_path = ?", (file_path,))
+                if c.fetchone():
+                    recorded_files += 1
+    return total_files, recorded_files
+
+
+def _load_old_missing_crc32s():
+    """Load CRC32s from previous missing CSV file."""
+    old_missing_crc32s = set()
+    if os.path.exists(MISSING_CSV_FILENAME):
+        with open(MISSING_CSV_FILENAME, "r", encoding="utf-8") as f:
+            reader = csv.reader(f)
+            next(reader, None)  # skip header
+            for row in reader:
+                if len(row) >= 1:
+                    title = row[0]
+                    # Extract CRC32 from title if possible
+                    matches = CRC32_REGEX.findall(title)
+                    if matches:
+                        old_missing_crc32s.add(matches[-1].upper())
+    return old_missing_crc32s
+
+
+def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_magnet):
+    """Save missing episodes to CSV file."""
+    with open(MISSING_CSV_FILENAME, "w", encoding="utf-8", newline="") as f:
+        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
+        writer.writerow(["Title", "Page Link", "Magnet Link"])
+        for crc32 in missing:
+            title = crc32_to_text[crc32]
+            page_link = crc32_to_link[crc32]
+            magnet = crc32_to_magnet.get(crc32, "")
+            writer.writerow([title, page_link, magnet])
+    print(f"Missing files list saved to {MISSING_CSV_FILENAME}")
+
+
+def _print_report_header(conn, folder, args):
+    """Print header information for the report."""
+    last_missing_export = get_metadata(conn, "last_missing_export")
+    if last_missing_export:
+        print(f"Last missing files list generated on: {last_missing_export}")
+
+    total_files, recorded_files = _count_video_files(folder, conn)
+
+    last_run = get_metadata(conn, "last_run")
+    if last_run:
+        print(f"Last run was on: {last_run}")
+
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_run", now_str)
+
+    print(f"Using URL: {args.url}")
+    print(f"Total video files detected: {total_files}")
+    print(f"Episodes already recorded in DB: {recorded_files}")
+    
+    return last_run
+
+
+def _calculate_and_find_missing(folder, conn, args, last_run):
+    """Calculate local CRC32s and find missing episodes."""
+    crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
+        fetch_crc32_links(args.url)
+    )
+
+    print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
+
+    if last_run:
+        print("Calculating new local CRC32 hashes...")
+    else:
+        print(
+            "Calculating local CRC32 hashes - this will take a while on first run!..."
+        )
+
+    local_crc32s = calculate_local_crc32(folder, conn)
+    print(f"Found {len(local_crc32s)} local CRC32 hashes.")
+
+    missing = [crc32 for crc32 in crc32_to_link if crc32 not in local_crc32s]
+
+    print(
+        f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
+    )
+    
+    return missing, crc32_to_text, crc32_to_link, crc32_to_magnet, last_checked_page
+
+
+def _report_new_missing_episodes(missing, crc32_to_text):
+    """Report newly detected missing episodes."""
+    old_missing_crc32s = _load_old_missing_crc32s()
+    new_crc32s = set(missing) - old_missing_crc32s
+    if new_crc32s:
+        print(f"New missing episodes detected since last export: {len(new_crc32s)}")
+        for crc32 in new_crc32s:
+            title = crc32_to_text.get(crc32, "(Unknown Title)")
+            print(f"Missing: {title}")
+
+
+def _generate_missing_episodes_report(conn, folder, args):
+    """Generate and save missing episodes report."""
+    last_run = _print_report_header(conn, folder, args)
+    
+    missing, crc32_to_text, crc32_to_link, crc32_to_magnet, last_checked_page = (
+        _calculate_and_find_missing(folder, conn, args, last_run)
+    )
+
+    _report_new_missing_episodes(missing, crc32_to_text)
+
+    _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_magnet)
+
+    set_metadata(conn, "last_checked_page", str(last_checked_page))
+    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    set_metadata(conn, "last_missing_export", now_str)
+
+    return missing, crc32_to_text
+
+
+def _parse_arguments():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Find missing episodes from your personal One Pace library."
     )
     parser.add_argument(
         "--url",
-        default="https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc",
-        help="Base URL without the page param. Example: 'https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc' ",
+        default=f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace+1080p&o=asc",
+        help=f"Base URL without the page param. Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
     parser.add_argument("--folder", help="Folder containing local video files.")
     parser.add_argument(
@@ -535,16 +791,21 @@ def main():
     parser.add_argument("--download-folder", help="The folder to download the torrents to.")
     parser.add_argument("--tag", action="append", help="Tag to add to the torrent in qBittorrent (can be used multiple times).")
     parser.add_argument("--category", help="Category to add to the torrent in qBittorrent.")
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    # Check if the URL points to a valid Nyaa domain
-    if not args.url.startswith(("https://nyaa.si", "https://nyaa.land")):
+
+def _validate_url(url):
+    """Validate that URL points to a valid Nyaa domain."""
+    if not url.startswith((NYAA_BASE_URL, "https://nyaa.land")):
         print(
-            "Error: The --url argument must point to a valid Nyaa website (https://nyaa.si or https://nyaa.land)."
+            f"Error: The --url argument must point to a valid Nyaa website ({NYAA_BASE_URL} or https://nyaa.land)."
         )
-        return
+        return False
+    return True
 
-    # --- Show last episodes metadata update ---
+
+def _show_episodes_metadata_status():
+    """Show last episodes metadata update status."""
     episodes_db_conn = init_episodes_db()
     last_ep_update = get_episodes_metadata(episodes_db_conn, "episodes_db_last_update")
     if last_ep_update:
@@ -553,6 +814,38 @@ def main():
         print("Episodes metadata database not yet updated.")
     episodes_db_conn.close()
 
+
+def _handle_main_commands(args, conn, folder):
+    """Handle main command execution."""
+    if args.download:
+        _handle_download_command(args)
+        return
+
+    if args.rename:
+        _handle_rename_command(conn)
+        return
+
+    if not folder:
+        print("Error: --folder argument is required.")
+        return
+
+    if args.db:
+        export_db_to_csv(conn)
+        return
+
+    _generate_missing_episodes_report(conn, folder, args)
+
+    # Note: To download missing episodes, use --download flag with --client
+
+
+def main():
+    args = _parse_arguments()
+
+    if not _validate_url(args.url):
+        return
+
+    _show_episodes_metadata_status()
+
     if args.episodes_update:
         update_episodes_index_db()
         return
@@ -560,211 +853,12 @@ def main():
     conn = init_db()
 
     # Folder selection logic: Always prompt if folder is required but not given
-    folder = args.folder
     needs_folder = not args.download  # All commands except --download need folder
-    if needs_folder and not folder:
-        # Try to load last_folder from metadata
-        last_folder = get_metadata(conn, "last_folder")
-        if last_folder:
-            print(f"Previously used folder: {last_folder}")
-            user_input = input(
-                "Press Enter to use this folder, or enter a new path: "
-            ).strip()
-            if user_input:
-                folder = user_input
-            else:
-                folder = last_folder
-        else:
-            folder = input("Enter the folder containing local video files: ").strip()
-        if not folder:
-            print("Error: No folder specified.")
-            return
-        set_metadata(conn, "last_folder", folder)
-    elif folder:
-        set_metadata(conn, "last_folder", folder)
-
-    if args.download:
-        if not args.client:
-            print("Error: --client is required when using --download.")
-            return
-
-        if not os.path.exists("Ace-Pace_Missing.csv"):
-            print("Missing file 'Ace-Pace_Missing.csv' not found. Run the script first!")
-            return
-
-        magnets = []
-        with open("Ace-Pace_Missing.csv", "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                magnet_link = row.get("Magnet Link", "").strip()
-                if magnet_link.startswith("magnet:"):
-                    magnets.append(magnet_link)
-
-        if not magnets:
-            print("No magnet links found in 'Ace-Pace_Missing.csv'.")
-            return
-
-        port = args.port
-        if not port:
-            port = 9091 if args.client == "transmission" else 8080
-
-        try:
-            client = get_client(args.client, args.host, port, args.username, args.password)
-            client.add_torrents(
-                magnets,
-                download_folder=args.download_folder,
-                tags=args.tag,
-                category=args.category,
-            )
-        except (ValueError, Exception) as e:
-            print(f"Error: {e}")
-            return
-
+    folder = _get_folder_from_args(args, conn, needs_folder)
+    if folder is None:
         return
 
-    if args.rename:
-        # Prompt to update episodes_index DB if it's old
-        episodes_db_conn = init_episodes_db()
-        last_ep_update = get_episodes_metadata(
-            episodes_db_conn, "episodes_db_last_update"
-        )
-        episodes_db_conn.close()
-        if not last_ep_update:
-            print("WARNING: Episodes metadata database has not been updated yet.")
-        elif last_ep_update:
-            prompt = (
-                input(
-                    f"Update episodes metadata database before renaming? (last update: {last_ep_update}) (y/n): "
-                )
-                .strip()
-                .lower()
-            )
-        else:
-            prompt = (
-                input("Update episodes metadata database before renaming? (y/n): ")
-                .strip()
-                .lower()
-            )
-        if prompt == "y":
-            update_episodes_index_db()
-        print(
-            "Renaming local files based on matching titles from One Pace episodes index..."
-        )
-        rename_local_files(conn, folder)
-        return
-
-    if not folder:
-        print("Error: --folder argument is required.")
-        return
-
-    last_missing_export = get_metadata(conn, "last_missing_export")
-    if last_missing_export:
-        print(f"Last missing files list generated on: {last_missing_export}")
-
-    if args.db:
-        export_db_to_csv(conn)
-        return
-
-    # Count total video files and files already recorded in DB
-    total_files = 0
-    recorded_files = 0
-    c = conn.cursor()
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            ext = os.path.splitext(file)[1].lower()
-            if ext in VIDEO_EXTENSIONS:
-                total_files += 1
-                file_path = os.path.join(root, file)
-                c.execute("SELECT 1 FROM crc32_cache WHERE file_path = ?", (file_path,))
-                if c.fetchone():
-                    recorded_files += 1
-
-    last_run = get_metadata(conn, "last_run")
-    if last_run:
-        print(f"Last run was on: {last_run}")
-
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    set_metadata(conn, "last_run", now_str)
-
-    print(f"Using URL: {args.url}")
-    print(f"Total video files detected: {total_files}")
-    print(f"Episodes already recorded in DB: {recorded_files}")
-
-    crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
-        fetch_crc32_links(args.url)
-    )
-
-    print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
-
-    if last_run:
-        print("Calculating new local CRC32 hashes...")
-    else:
-        print(
-            "Calculating local CRC32 hashes - this will take a while on first run!..."
-        )
-
-    local_crc32s = calculate_local_crc32(folder, conn)
-    print(f"Found {len(local_crc32s)} local CRC32 hashes.")
-
-    missing = [crc32 for crc32 in crc32_to_link if crc32 not in local_crc32s]
-
-    print(
-        f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
-    )
-
-    # Check for new CRC32 in missing compared to old file if exists
-    old_missing_crc32s = set()
-    if os.path.exists("Ace-Pace_Missing.csv"):
-        with open("Ace-Pace_Missing.csv", "r", encoding="utf-8") as f:
-            reader = csv.reader(f)
-            next(reader, None)  # skip header
-            for row in reader:
-                if len(row) >= 1:
-                    title = row[0]
-                    # Extract CRC32 from title if possible
-                    matches = CRC32_REGEX.findall(title)
-                    if matches:
-                        old_missing_crc32s.add(matches[-1].upper())
-        new_crc32s = set(missing) - old_missing_crc32s
-        if new_crc32s:
-            print(f"New missing episodes detected since last export: {len(new_crc32s)}")
-            for crc32 in new_crc32s:
-                title = crc32_to_text.get(crc32, "(Unknown Title)")
-                print(f"Missing: {title}")
-
-    with open("Ace-Pace_Missing.csv", "w", encoding="utf-8", newline="") as f:
-        writer = csv.writer(f, quoting=csv.QUOTE_ALL)
-        writer.writerow(["Title", "Page Link", "Magnet Link"])
-        for crc32 in missing:
-            title = crc32_to_text[crc32]
-            page_link = crc32_to_link[crc32]
-            magnet = crc32_to_magnet.get(crc32, "")
-            writer.writerow([title, page_link, magnet])
-
-    print("Missing files list saved to Ace-Pace_Missing.csv")
-
-    set_metadata(conn, "last_checked_page", str(last_checked_page))
-    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    set_metadata(conn, "last_missing_export", now_str)
-
-    if missing:
-        prompt = (
-            input(
-                "Do you want to add missing episodes to a BitTorrent client now? (y/n): "
-            )
-            .strip()
-            .lower()
-        )
-        if prompt == "y":
-            client = (
-                input("Enter client name (currently supported: transmission): ")
-                .strip()
-                .lower()
-            )
-            if client:
-                download_missing_to_client(client)
-            else:
-                print("No client specified. Skipping download.")
+    _handle_main_commands(args, conn, folder)
 
 
 if __name__ == "__main__":

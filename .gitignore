@@ -29,3 +29,4 @@ Ace-Pace_DB.csv
 Ace-Pace_Missing.csv
 crc32_files.db
 check.sh
+sonar-project.properties

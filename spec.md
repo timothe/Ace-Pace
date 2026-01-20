@@ -30,10 +30,12 @@
 - Tracks file paths and their corresponding checksums
 
 ### 3. Missing Episode Detection
-- Compares local CRC32 checksums against the episodes index
+- Fetches episode list from Nyaa.si using the provided URL (default: One-Pace 1080p search)
+- Compares local CRC32 checksums against fetched episodes
 - Generates a CSV report (`Ace-Pace_Missing.csv`) listing missing episodes
 - Includes title, page link, and magnet link for each missing episode
-- Tracks new missing episodes since last export
+- Tracks new missing episodes since last export by comparing with previous CSV
+- Note: Uses `fetch_crc32_links()` for real-time fetching, not the cached episodes index
 
 ### 4. Automated Downloading
 - Integrates with BitTorrent clients (Transmission, qBittorrent)
@@ -149,11 +151,13 @@ Ace-Pace/
 
 ### Standard Workflow
 1. User runs script with `--folder` to scan local library
-2. Script calculates/retrieves CRC32 checksums for local files
-3. Script fetches episode list from Nyaa.si (or uses cached index)
-4. Script compares local CRC32s against episode index
-5. Script generates `Ace-Pace_Missing.csv` with missing episodes
-6. User optionally runs `--download` to add missing episodes to BitTorrent client
+2. Script validates URL and shows episodes metadata status
+3. Script calculates/retrieves CRC32 checksums for local files
+4. Script fetches episode list from Nyaa.si using `fetch_crc32_links()`
+5. Script compares local CRC32s against fetched episodes
+6. Script generates `Ace-Pace_Missing.csv` with missing episodes
+7. Script reports new missing episodes since last export
+8. User optionally runs `--download --client <client>` to add missing episodes to BitTorrent client
 
 ### Episodes Index Update Workflow
 1. User runs `--episodes_update` to refresh episodes database
@@ -213,9 +217,8 @@ Ace-Pace/
 
 ### User Prompts
 - Folder selection (with last folder suggestion)
-- Episodes index update confirmation
+- Episodes index update confirmation (when using `--rename`)
 - File renaming confirmation
-- BitTorrent client selection (legacy prompt)
 
 ## Future Considerations
 
@@ -233,11 +236,40 @@ Ace-Pace/
 ### Technical Improvements
 - Async/await for concurrent web scraping
 - Better error recovery and retry logic
-- Unit tests and integration tests
+- Unit tests and integration tests (✅ implemented)
 - Logging framework instead of print statements
 - Type hints for better code documentation
 - Configuration validation
 - Better handling of edge cases in filename parsing
+- Code refactoring for reduced cognitive complexity (✅ completed)
+
+## Code Architecture
+
+### Function Organization
+The codebase follows a modular structure with clear separation of concerns:
+
+#### Public API Functions
+- `main()`: Entry point for the application
+- `fetch_episodes_metadata()`: Fetches episodes from Nyaa.si
+- `update_episodes_index_db()`: Updates the episodes index database
+- `fetch_crc32_links()`: Fetches CRC32 links from a Nyaa.si URL
+- `fetch_title_by_crc32()`: Searches for a title by CRC32
+- `calculate_local_crc32()`: Calculates CRC32 for local files
+- `rename_local_files()`: Renames local files based on episodes index
+- `export_db_to_csv()`: Exports database to CSV
+- `load_crc32_to_title_from_index()`: Loads CRC32-to-title mapping
+
+#### Private Helper Functions (prefixed with `_`)
+Helper functions are prefixed with `_` to indicate they are internal implementation details:
+
+- **Extraction functions**: `_extract_*` - Extract data from HTML/structures
+- **Processing functions**: `_process_*` - Process data structures
+- **Validation functions**: `_is_*`, `_validate_*` - Validate inputs/data
+- **Command handlers**: `_handle_*` - Handle specific command-line operations
+- **Utility functions**: `_get_*`, `_load_*`, `_save_*`, `_print_*`, `_report_*` - Utility operations
+- **Workflow functions**: `_generate_*`, `_calculate_*` - Orchestrate multi-step workflows
+
+This naming convention improves code readability and makes the public API clear.
 
 ## Development Guidelines
 
@@ -246,6 +278,8 @@ Ace-Pace/
 - Use descriptive variable names
 - Add docstrings for functions
 - Keep functions focused and single-purpose
+- Use `_` prefix for private/internal helper functions
+- Maintain cognitive complexity ≤ 15 per function
 
 ### Database Schema
 - Use SQLite for simplicity
