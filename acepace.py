@@ -315,7 +315,8 @@ def set_metadata(conn, key, value):
 
 
 def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
-    """Process a single table row to extract CRC32 information."""
+    """Process a single table row to extract CRC32 information.
+    Returns tuple: (success: bool, filename_text: str or None)"""
     links = row.find_all("a", href=True)
     title_link = None
     magnet_link = ""
@@ -326,7 +327,7 @@ def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
         if href.startswith("magnet:"):
             magnet_link = href
     if not title_link:
-        return False  # Skip rows without a valid title link
+        return False, None  # Skip rows without a valid title link
     filename_text = title_link.text
     link = NYAA_BASE_URL + title_link["href"]
     matches = CRC32_REGEX.findall(filename_text)
@@ -335,10 +336,9 @@ def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
         crc32_to_link[crc32] = link
         crc32_to_text[crc32] = filename_text
         crc32_to_magnet[crc32] = magnet_link
-        return True
+        return True, filename_text
     else:
-        print(f"Warning: No CRC32 found in title '{filename_text}'")
-        return False
+        return False, filename_text
 
 
 def fetch_crc32_links(base_url):
@@ -367,9 +367,10 @@ def fetch_crc32_links(base_url):
 
         found_in_page = False
         for row in rows:
-            if _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
+            success, filename_text = _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet)
+            if success:
                 found_in_page = True
-            else:
+            elif filename_text:
                 print(f"Warning: No CRC32 found in title '{filename_text}'")
 
         if not found_in_page:
