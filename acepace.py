@@ -13,6 +13,9 @@ import requests
 from clients import get_client
 
 
+# Check if running in Docker (non-interactive mode)
+IS_DOCKER = "RUN_DOCKER" in os.environ
+
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 
@@ -456,6 +459,49 @@ def calculate_local_crc32(folder, conn):
     return local_crc32s
 
 
+def _build_rename_plan(entries, crc32_to_title):
+    """Build a plan of files to rename based on CRC32 matches."""
+    rename_plan = []
+    for file_path, crc32 in entries:
+        title = crc32_to_title.get(crc32)
+        if not title:
+            continue  # No match found in index, skip
+        dir_name = os.path.dirname(file_path)
+        # Sanitize title for filename (remove problematic characters)
+        sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
+        new_filename = f"{sanitized_title}"
+        new_path = os.path.join(dir_name, new_filename)
+        if os.path.abspath(file_path) != os.path.abspath(new_path):
+            rename_plan.append((file_path, new_path))
+    return rename_plan
+
+
+def _get_rename_confirmation():
+    """Get user confirmation for renaming files."""
+    if IS_DOCKER:
+        return "y"
+    return input("Proceed with renaming? (y/n): ").strip().lower()
+
+
+def _execute_rename(rename_plan, conn):
+    """Execute the rename plan and update the database."""
+    c = conn.cursor()
+    for old, new in rename_plan:
+        try:
+            if os.path.exists(new):
+                print(f"Cannot rename {old} to {new}: target file already exists.")
+                continue
+            os.rename(old, new)
+            print(f"Renamed {old} to {new}")
+            # Update DB with new file path
+            c.execute(
+                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (new, old)
+            )
+            conn.commit()
+        except Exception as e:
+            print(f"Failed to rename {old} to {new}: {e}")
+
+
 def rename_local_files(conn):
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
@@ -471,18 +517,7 @@ def rename_local_files(conn):
         local_crc32s.add(crc32)
 
     total = len(local_crc32s)
-    rename_plan = []
-    for file_path, crc32 in entries:
-        title = crc32_to_title.get(crc32)
-        if not title:
-            continue  # No match found in index, skip
-        dir_name = os.path.dirname(file_path)
-        # Sanitize title for filename (remove problematic characters)
-        sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
-        new_filename = f"{sanitized_title}"
-        new_path = os.path.join(dir_name, new_filename)
-        if os.path.abspath(file_path) != os.path.abspath(new_path):
-            rename_plan.append((file_path, new_path))
+    rename_plan = _build_rename_plan(entries, crc32_to_title)
 
     if not rename_plan:
         print("No files to rename.")
@@ -494,25 +529,12 @@ def rename_local_files(conn):
         print(f"{os.path.basename(old)} -> {os.path.basename(new)}")
     print(f"{len(rename_plan)}/{total} files will be renamed.")
 
-    confirm = input("Proceed with renaming? (y/n): ").strip().lower()
+    confirm = _get_rename_confirmation()
     if confirm != "y":
         print("Renaming aborted.")
         return
 
-    for old, new in rename_plan:
-        try:
-            if os.path.exists(new):
-                print(f"Cannot rename {old} to {new}: target file already exists.")
-                continue
-            os.rename(old, new)
-            print(f"Renamed {old} to {new}")
-            # Update DB with new file path
-            c.execute(
-                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (new, old)
-            )
-            conn.commit()
-        except Exception as e:
-            print(f"Failed to rename {old} to {new}: {e}")
+    _execute_rename(rename_plan, conn)
 
 
 def export_db_to_csv(conn):
@@ -532,6 +554,12 @@ def export_db_to_csv(conn):
 def _get_folder_from_args(args, conn, needs_folder):
     """Get folder path from arguments or prompt user."""
     folder = args.folder
+    if IS_DOCKER and needs_folder:
+        # In Docker mode, use /media as default folder
+        folder = "/media"
+        set_metadata(conn, "last_folder", folder)
+        return folder
+    
     if needs_folder and not folder:
         # Try to load last_folder from metadata
         last_folder = get_metadata(conn, "last_folder")
@@ -555,15 +583,49 @@ def _get_folder_from_args(args, conn, needs_folder):
     return folder
 
 
-def _handle_download_command(args):
-    """Handle the download command."""
-    if not args.client:
-        print("Error: --client is required when using --download.")
-        return False
+def _get_client_from_args_or_env(args):
+    """Get client type from args or environment variables."""
+    if IS_DOCKER and not args.client:
+        return os.getenv("TORRENT_CLIENT", "transmission")
+    return args.client
 
+
+def _get_default_port(client):
+    """Get default port for a given client."""
+    return 9091 if client == "transmission" else 8080
+
+
+def _get_docker_connection_params(args):
+    """Get connection parameters from Docker environment variables."""
+    host = os.getenv("TORRENT_HOST", args.host or "localhost")
+    port_env = os.getenv("TORRENT_PORT")
+    port = int(port_env) if port_env else None
+    if not port:
+        default_port = _get_default_port(args.client)
+        port = args.port if args.port else default_port
+    username = os.getenv("TORRENT_USER", args.username or "")
+    password = os.getenv("TORRENT_PASSWORD", args.password or "")
+    download_folder = args.download_folder or "/media"
+    return host, port, username, password, download_folder
+
+
+def _get_non_docker_connection_params(args):
+    """Get connection parameters from command-line arguments."""
+    host = args.host or "localhost"
+    port = args.port
+    if not port:
+        port = _get_default_port(args.client)
+    username = args.username or ""
+    password = args.password or ""
+    download_folder = args.download_folder
+    return host, port, username, password, download_folder
+
+
+def _load_magnet_links():
+    """Load magnet links from the missing CSV file."""
     if not os.path.exists(MISSING_CSV_FILENAME):
         print(f"Missing file '{MISSING_CSV_FILENAME}' not found. Run the script first!")
-        return False
+        return None
 
     magnets = []
     with open(MISSING_CSV_FILENAME, "r", encoding="utf-8") as f:
@@ -575,17 +637,33 @@ def _handle_download_command(args):
 
     if not magnets:
         print(f"No magnet links found in '{MISSING_CSV_FILENAME}'.")
+        return None
+
+    return magnets
+
+
+def _handle_download_command(args):
+    """Handle the download command."""
+    client = _get_client_from_args_or_env(args)
+    if not client:
+        print("Error: --client is required when using --download.")
         return False
 
-    port = args.port
-    if not port:
-        port = 9091 if args.client == "transmission" else 8080
+    magnets = _load_magnet_links()
+    if magnets is None:
+        return False
+
+    # Get connection parameters based on Docker mode
+    if IS_DOCKER:
+        host, port, username, password, download_folder = _get_docker_connection_params(args)
+    else:
+        host, port, username, password, download_folder = _get_non_docker_connection_params(args)
 
     try:
-        client = get_client(args.client, args.host, port, args.username, args.password)
-        client.add_torrents(
+        client_obj = get_client(client, host, port, username, password)
+        client_obj.add_torrents(
             magnets,
-            download_folder=args.download_folder,
+            download_folder=download_folder,
             tags=args.tag,
             category=args.category,
         )
@@ -598,6 +676,10 @@ def _handle_download_command(args):
 
 def _get_rename_prompt(last_ep_update):
     """Get user prompt for updating episodes database before renaming."""
+    if IS_DOCKER:
+        # In Docker mode, always update if database hasn't been updated
+        return "y" if not last_ep_update else "n"
+    
     if not last_ep_update:
         print("WARNING: Episodes metadata database has not been updated yet.")
         return input("Update episodes metadata database before renaming? (y/n): ").strip().lower()
@@ -842,6 +924,9 @@ def _handle_main_commands(args, conn, folder):
 def main():
     args = _parse_arguments()
 
+    if IS_DOCKER:
+        print("Running in Docker mode (non-interactive)")
+
     if not _validate_url(args.url):
         return
 
@@ -860,7 +945,6 @@ def main():
         return
 
     _handle_main_commands(args, conn, folder)
-
 
 if __name__ == "__main__":
     main()

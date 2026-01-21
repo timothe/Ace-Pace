@@ -1,0 +1,25 @@
+services:
+  ace-pace:
+    build: .
+    image: ace-pace
+    container_name: ace-pace
+    volumes:
+      - /path/to/OnePaceLibrary:/media:rw
+      - ./crc32_files.db:/app/crc32_files.db:rw
+      - ./episodes_index.db:/app/episodes_index.db:rw
+      - ./Ace-Pace_Missing.csv:/app/Ace-Pace_Missing.csv:rw
+    networks:
+      - "proxy"
+    environment:
+      - TZ=Europe/Berlin
+      - TORRENT_HOST=127.0.0.1
+      - TORRENT_PORT=9091
+      - TORRENT_CLIENT=transmission
+      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
+      #- TORRENT_USER=admin
+      #- TORRENT_PASSWORD=password
+      - DB=true
+      - EPISODES_UPDATE=true
+networks:
+  proxy:
+    driver: bridge
