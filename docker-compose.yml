@@ -1,7 +1,7 @@
 services:
   ace-pace:
     build: .
-    image: ace-pace
+    image: timothe/ace-pace:latest # or timothe/ace-pace:dev for dev branch
     container_name: ace-pace
     volumes:
       - /path/to/OnePaceLibrary:/media:rw
@@ -11,11 +11,11 @@ services:
     networks:
       - "proxy"
     environment:
-      - TZ=Europe/Berlin
+      - TZ=Europe/London
       - TORRENT_HOST=127.0.0.1
       - TORRENT_PORT=9091
       - TORRENT_CLIENT=transmission
-      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
+      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
       #- TORRENT_USER=admin
       #- TORRENT_PASSWORD=password
       - DB=true
