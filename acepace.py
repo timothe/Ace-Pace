@@ -1,4 +1,3 @@
-import getpass
 import time
 import csv
 from datetime import datetime
@@ -7,8 +6,8 @@ import re
 import argparse
 import zlib
 import os
-from bs4 import BeautifulSoup
-import requests
+from bs4 import BeautifulSoup  # type: ignore
+import requests  # type: ignore
 
 from clients import get_client
 
@@ -142,7 +141,7 @@ def _get_total_pages(soup):
             if text.isdigit():
                 try:
                     page_numbers.append(int(text))
-                except Exception:
+                except (ValueError, TypeError):
                     pass
         if page_numbers:
             total_pages = max(page_numbers)
@@ -209,7 +208,7 @@ def _process_torrent_page(page_link, seen_crc32, episodes):
             if _process_fname_entry(str(fname), seen_crc32, episodes, page_link):
                 found = True
         return found
-    except Exception:
+    except (requests.RequestException, AttributeError, TypeError):
         return False
 
 
@@ -265,7 +264,7 @@ def fetch_episodes_metadata():
         table = page_soup.find("table", class_="torrent-list")
         if not table:
             break
-        rows = table.find_all("tr")
+        rows = table.find_all("tr")  # type: ignore
         for row in rows:
             _process_episode_row(row, seen_crc32, episodes)
         page += 1
@@ -411,7 +410,7 @@ def fetch_title_by_crc32(crc32):
     table = soup.find("table", class_="torrent-list")
     if not table:
         return None
-    rows = table.find_all("tr")
+    rows = table.find_all("tr")  # type: ignore
     matched_titles = _extract_matching_titles_from_rows(rows, crc32)
     
     if len(matched_titles) == 1:
