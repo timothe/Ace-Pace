@@ -1,13 +1,13 @@
 import abc
 import getpass
 import time
-import requests
-import qbittorrentapi
+import requests  # type: ignore
+import qbittorrentapi  # type: ignore
 import re
 
 class Client(abc.ABC):
     @abc.abstractmethod
-    def add_torrents(self, torrents, download_folder=None, tags=None, category=None):
+    def add_torrents(self, magnets, download_folder=None, tags=None, category=None):
         pass
 
 class QBittorrentClient(Client):
@@ -21,8 +21,37 @@ class QBittorrentClient(Client):
         try:
             self.client.auth_log_in()
         except qbittorrentapi.LoginFailed as e:
-            raise Exception(f"Failed to connect to qBittorrent: {e}") from e
+            raise ConnectionError(f"Failed to connect to qBittorrent: {e}") from e
         print("Connection to qBittorrent successful!")
+
+    def _extract_info_hash(self, magnet):
+        """Extract info hash from magnet link."""
+        match = re.search(r"xt=urn:btih:([a-fA-F0-9]{40})", magnet)
+        if not match:
+            return None
+        return match.group(1).lower()
+
+    def _handle_existing_torrent(self, info_hash, tags_str, truncated):
+        """Handle case when torrent already exists."""
+        print(f"Torrent {truncated} already exists.")
+        if tags_str:
+            print(f"Adding tags to existing torrent: {tags_str}")
+            self.client.torrents_add_tags(tags=tags_str, torrent_hashes=info_hash)
+
+    def _add_new_torrent(self, magnet, download_folder, tags_str, category, truncated):
+        """Add a new torrent to qBittorrent."""
+        print(f"Adding new torrent: {truncated}")
+        try:
+            self.client.torrents_add(
+                urls=magnet,
+                save_path=download_folder if download_folder else None,
+                tags=tags_str,
+                category=category,
+            )
+            return True
+        except Exception as e:
+            print(f"Failed to add torrent: {truncated} Error: {e}")
+            return False
 
     def add_torrents(self, magnets, download_folder=None, tags=None, category=None):
         if tags:
@@ -35,34 +64,17 @@ class QBittorrentClient(Client):
             truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
             print(f"Processing {idx}/{total}: {truncated}")
 
-            # Extract info hash from magnet link
-            match = re.search(r"xt=urn:btih:([a-fA-F0-9]{40})", magnet)
-            if not match:
+            info_hash = self._extract_info_hash(magnet)
+            if not info_hash:
                 print(f"Could not find info hash in magnet link: {truncated}")
                 continue
 
-            info_hash = match.group(1).lower()
-
-            # Check if torrent already exists
             existing_torrent = self.client.torrents_info(torrent_hashes=info_hash)
-
             if existing_torrent:
-                print(f"Torrent {truncated} already exists.")
-                if tags:
-                    print(f"Adding tags to existing torrent: {tags_str}")
-                    self.client.torrents_add_tags(tags=tags_str, torrent_hashes=info_hash)
+                self._handle_existing_torrent(info_hash, tags_str, truncated)
             else:
-                print(f"Adding new torrent: {truncated}")
-                try:
-                    self.client.torrents_add(
-                        urls=magnet,
-                        save_path=download_folder if download_folder else None,
-                        tags=tags_str,
-                        category=category,
-                    )
+                if self._add_new_torrent(magnet, download_folder, tags_str, category, truncated):
                     added_count += 1
-                except Exception as e:
-                    print(f"Failed to add torrent: {truncated} Error: {e}")
             time.sleep(0.1)
         print(f"Added {added_count} new torrents to qBittorrent.")
 
@@ -83,18 +95,49 @@ class TransmissionClient(Client):
                 self.base_url, auth=self.auth, headers=headers, json={"method": "session-get"}
             )
             if resp.status_code == 409:
-                self.session_id = resp.headers.get("X-Transmission-Session-Id")
-                headers["X-Transmission-Session-Id"] = self.session_id
-                resp = self.session.post(
-                    self.base_url, auth=self.auth, headers=headers, json={"method": "session-get"}
-                )
+                new_session_id = resp.headers.get("X-Transmission-Session-Id")
+                if new_session_id:
+                    self.session_id = new_session_id
+                    headers["X-Transmission-Session-Id"] = self.session_id
+                    resp = self.session.post(
+                        self.base_url, auth=self.auth, headers=headers, json={"method": "session-get"}
+                    )
             resp.raise_for_status()
-        except Exception as e:
-            raise Exception(f"Failed to connect to Transmission RPC: {e}") from e
+        except (requests.RequestException, ValueError) as e:
+            raise ConnectionError(f"Failed to connect to Transmission RPC: {e}") from e
 
         print("Connection to Transmission successful!")
         self.session_info = resp.json()
 
+
+    def _make_rpc_request(self, payload):
+        """Make an RPC request to Transmission, handling session ID updates."""
+        headers = {"X-Transmission-Session-Id": self.session_id} if self.session_id else {}
+        resp = self.session.post(self.base_url, auth=self.auth, headers=headers, json=payload)
+        if resp.status_code == 409:
+            new_session_id = resp.headers.get("X-Transmission-Session-Id")
+            if new_session_id:
+                self.session_id = new_session_id
+                headers["X-Transmission-Session-Id"] = self.session_id
+                resp = self.session.post(self.base_url, auth=self.auth, headers=headers, json=payload)
+        return resp
+
+    def _add_single_torrent(self, magnet, download_folder, truncated):
+        """Add a single torrent to Transmission."""
+        payload = {"method": "torrent-add", "arguments": {"filename": magnet}}
+        if download_folder:
+            payload["arguments"]["download-dir"] = download_folder
+        try:
+            resp = self._make_rpc_request(payload)
+            resp.raise_for_status()
+            result = resp.json()
+            if result.get("result") == "success":
+                return True
+            print(f"Failed to add torrent: {truncated} Error: {result.get('result')}")
+            return False
+        except Exception as e:
+            print(f"Failed to add torrent: {truncated} Error: {e}")
+            return False
 
     def add_torrents(self, magnets, download_folder=None, tags=None, category=None):
         if tags or category:
@@ -104,28 +147,9 @@ class TransmissionClient(Client):
         for idx, magnet in enumerate(magnets, 1):
             truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
             print(f"Adding {idx}/{total}: {truncated}")
-            payload = {"method": "torrent-add", "arguments": {"filename": magnet}}
-            if download_folder:
-                payload["arguments"]["download-dir"] = download_folder
-            try:
-                headers = {"X-Transmission-Session-Id": self.session_id} if self.session_id else {}
-                resp = self.session.post(self.base_url, auth=self.auth, headers=headers, json=payload)
-                if resp.status_code == 409:
-                    self.session_id = resp.headers.get("X-Transmission-Session-Id")
-                    headers["X-Transmission-Session-Id"] = self.session_id
-                    resp = self.session.post(self.base_url, auth=self.auth, headers=headers, json=payload)
-                resp.raise_for_status()
-                result = resp.json()
-                if result.get("result") == "success":
-                    added_count += 1
-                else:
-                    print(
-                        f"Failed to add torrent: {truncated} Error: {result.get('result')}"
-                    )
-                time.sleep(0.1)
-            except Exception as e:
-                print(f"Failed to add torrent: {truncated} Error: {e}")
-
+            if self._add_single_torrent(magnet, download_folder, truncated):
+                added_count += 1
+            time.sleep(0.1)
         print(f"Added {added_count} torrents to Transmission.")
 
 

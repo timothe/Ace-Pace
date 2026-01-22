@@ -87,7 +87,7 @@ class TestMissingEpisodeDetection:
         mock_get.side_effect = [mock_response1, mock_response2]
         
         base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
-        crc32_to_link, crc32_to_text, crc32_to_magnet, last_page = acepace.fetch_crc32_links(base_url)
+        crc32_to_link, crc32_to_text, crc32_to_magnet, _ = acepace.fetch_crc32_links(base_url)
         
         assert len(crc32_to_link) == 2
         assert "A1B2C3D4" in crc32_to_link

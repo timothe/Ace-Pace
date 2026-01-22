@@ -55,7 +55,6 @@ class TestFileRenaming:
                     title = crc32_to_title.get(crc32)
                     if title:
                         dir_name = os.path.dirname(file_path)
-                        ext = os.path.splitext(file_path)[1]
                         sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
                         new_filename = f"{sanitized_title}"
                         new_path = os.path.join(dir_name, new_filename)
@@ -85,8 +84,7 @@ class TestFileRenaming:
         
         with patch('acepace.DB_NAME', os.path.join(temp_dir, 'test.db')):
             conn = acepace.init_db()
-            crc32s = acepace.calculate_local_crc32(temp_dir, conn)
-            actual_crc32 = list(crc32s)[0]
+            acepace.calculate_local_crc32(temp_dir, conn)
             
             # Mock load_crc32_to_title_from_index to return empty/no match
             with patch('acepace.load_crc32_to_title_from_index') as mock_load:
@@ -130,7 +128,6 @@ class TestCSVExport:
             conn.commit()
             
             # Export to CSV
-            csv_path = os.path.join(temp_dir, "export.csv")
             with patch('acepace.DB_NAME', os.path.join(temp_dir, 'test.db')):
                 acepace.export_db_to_csv(conn)
             
