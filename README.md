@@ -18,6 +18,26 @@ pip install -r requirements.txt
 
 This will install all necessary packages to ensure Ace-Pace runs smoothly.
 
+## 🧪 Running Tests
+
+To run the test suite with coverage:
+
+```bash
+# Install test dependencies
+pip install -r requirements.txt
+
+# Run tests with coverage
+pytest
+
+# Or explicitly generate coverage report
+pytest --cov=. --cov-report=xml --cov-report=html --cov-report=term-missing
+```
+
+This will generate:
+- `coverage.xml` - Used by SonarQube for test coverage analysis
+- `htmlcov/` - HTML coverage report (open `htmlcov/index.html` in a browser)
+- Terminal output showing coverage summary
+
 ## 🛠️ How to Use
 
 Run the script using Python with the following command:

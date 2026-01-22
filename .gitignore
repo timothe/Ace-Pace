@@ -30,3 +30,14 @@ Ace-Pace_Missing.csv
 crc32_files.db
 check.sh
 sonar-project.properties
+
+# Coverage reports
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+*.cover
+.hypothesis/
+.pytest_cache/
+# Keep coverage.xml for SonarQube (but can be regenerated)
+# coverage.xml
