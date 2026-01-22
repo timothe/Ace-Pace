@@ -41,5 +41,3 @@ jobs:
           context: .
           push: true
           tags: timothe/ace-pace:${{ steps.meta.outputs.tag }}
-          cache-from: type=registry,ref=timothe/ace-pace:buildcache
-          cache-to: type=registry,ref=timothe/ace-pace:buildcache,mode=max
