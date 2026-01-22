@@ -18,6 +18,81 @@ pip install -r requirements.txt
 
 This will install all necessary packages to ensure Ace-Pace runs smoothly.
 
+## 🐳 Docker Usage
+
+Ace-Pace can also be run using Docker, which simplifies deployment and ensures consistent execution across different environments.
+
+### Using Docker Run
+
+You can run Ace-Pace using `docker run` with environment variables and volume mounts:
+
+```bash
+docker run --rm \
+  -v /path/to/OnePaceLibrary:/media:rw \
+  -v $(pwd)/crc32_files.db:/app/crc32_files.db:rw \
+  -v $(pwd)/episodes_index.db:/app/episodes_index.db:rw \
+  -v $(pwd)/Ace-Pace_Missing.csv:/app/Ace-Pace_Missing.csv:rw \
+  -e TZ=Europe/London \
+  -e TORRENT_HOST=127.0.0.1 \
+  -e TORRENT_PORT=9091 \
+  -e TORRENT_CLIENT=transmission \
+  -e NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc \
+  -e DB=true \
+  -e EPISODES_UPDATE=true \
+  timothe/ace-pace:latest
+```
+
+### Using Docker Compose
+
+For easier management, you can use the provided `docker-compose.yml` file. First, edit the compose file to match your setup:
+
+1. Update the volume path for your One-Pace library:
+   ```yaml
+   volumes:
+     - /path/to/OnePaceLibrary:/media:rw
+   ```
+
+2. Configure environment variables as needed (Torrent client settings, Nyaa URL, etc.)
+
+3. Run with:
+   ```bash
+   docker-compose up
+   ```
+
+Or run in detached mode:
+```bash
+docker-compose up -d
+```
+
+### Docker Environment Variables
+
+The following environment variables can be used to configure Ace-Pace in Docker:
+
+- `NYAA_URL` - Nyaa.si search URL (default: `https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc`)
+- `TORRENT_CLIENT` - BitTorrent client type: `transmission` or `qbittorrent` (default: `transmission`)
+- `TORRENT_HOST` - BitTorrent client host address (default: `127.0.0.1`)
+- `TORRENT_PORT` - BitTorrent client port (default: `9091` for Transmission, `8080` for qBittorrent)
+- `TORRENT_USER` - BitTorrent client username (optional)
+- `TORRENT_PASSWORD` - BitTorrent client password (optional)
+- `DB` - Set to `true` to generate CSV database export (default: `true`)
+- `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa (default: `true`)
+- `TZ` - Timezone (default: `Europe/Berlin`)
+
+### Docker Volume Mounts
+
+The following volumes should be mounted for persistent data:
+
+- `/media` - Mount your One-Pace library directory here (read-write)
+- `/app/crc32_files.db` - Database file for CRC32 checksums (read-write)
+- `/app/episodes_index.db` - Database file for episodes index (read-write)
+- `/app/Ace-Pace_Missing.csv` - CSV export of missing episodes (read-write)
+
+### Docker Notes
+
+- In Docker mode, Ace-Pace automatically uses `/media` as the default folder path
+- The container runs non-interactively, so all configuration must be provided via environment variables
+- Make sure your BitTorrent client is accessible from within the Docker network (use host network mode or configure networking appropriately)
+
 ## 🧪 Running Tests
 
 To run the test suite with coverage:
@@ -46,21 +121,23 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
 ```
 
 ### 🔭 Main commands
-- `--folder <path>`
+
+- `--folder <path>` (required for most cases)
   Specify the path to your local One-Pace video library. Ace-Pace will scan this directory recursively to identify and analyze your existing episodes.
 
 - `--url <website_url>`
   Define the Nyaa URL used for the query to get episodes metadata and download links. Defaults to `https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc`.
 
-- `--db`
+- `--db` (standalone flag)
   Create a CSV file with the existing local file paths and CRC32 checksums. Useful to check what's detected and debugging.
 
 ### 📥 Download commands
+
 - `--client <client_name>`
   Specify the BitTorrent client to use for downloading missing episodes.
   Supported clients: `transmission`, `qbittorrent`.
 
-- `--download`
+- `--download` (standalone flag)
   Enable downloading of missing episodes using the specified BitTorrent client.
 
 - `--host <host>`
@@ -83,7 +160,6 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
 
 - `--category <category>`
   Category to add to the torrent in qBittorrent.
-
 
 ### 📚 Some examples
 
