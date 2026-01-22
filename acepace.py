@@ -832,10 +832,110 @@ def _generate_missing_episodes_report(conn, folder, args):
     return missing, crc32_to_text
 
 
+def _print_help():
+    """Print detailed help information about all available commands."""
+    help_text = """
+Ace-Pace - Find missing episodes from your personal One Pace library
+
+AVAILABLE COMMANDS:
+
+  Main Operations:
+    (no flags)              Generate missing episodes report
+                            Scans local folder, calculates CRC32 hashes, and compares
+                            with episodes available on Nyaa to find missing episodes.
+                            Outputs results to Ace-Pace_Missing.csv
+
+    --episodes_update       Update episodes metadata database from Nyaa
+                            Fetches all One Pace episodes from Nyaa and stores their
+                            CRC32, title, and page link in the episodes index database.
+                            This should be run periodically to keep the database current.
+
+    --rename                Rename local files based on CRC32 matching
+                            Matches local video files with episodes in the database
+                            and renames them to match the official episode titles.
+                            Prompts to update episodes database if it's outdated.
+
+    --db                    Export local CRC32 database to CSV
+                            Exports the database of calculated CRC32 hashes for
+                            local video files to Ace-Pace_DB.csv
+
+    --download              Download missing episodes via BitTorrent client
+                            Reads magnet links from Ace-Pace_Missing.csv and adds
+                            them to the specified BitTorrent client (requires --client)
+
+  BitTorrent Client Options (for --download):
+    --client {transmission,qbittorrent}
+                            Specify which BitTorrent client to use
+                            Required when using --download
+
+    --host HOST             BitTorrent client host (default: localhost)
+
+    --port PORT             BitTorrent client port
+                            Defaults: Transmission=9091, qBittorrent=8080
+
+    --username USERNAME     BitTorrent client username (if required)
+
+    --password PASSWORD     BitTorrent client password (if required)
+
+    --download-folder PATH  Folder where torrents should be downloaded
+                            Default: /media (in Docker) or client default
+
+    --tag TAG               Add tag to torrents in qBittorrent
+                            Can be used multiple times to add multiple tags
+
+    --category CATEGORY     Add category to torrents in qBittorrent
+
+  General Options:
+    --url URL               Custom Nyaa search URL
+                            Default: https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
+                            Must point to a valid Nyaa domain
+
+    --folder PATH           Folder containing local video files
+                            If not specified, will prompt for input
+                            In Docker mode, defaults to /media
+
+EXAMPLES:
+
+  # Generate missing episodes report
+  python acepace.py --folder /path/to/videos
+
+  # Update episodes database
+  python acepace.py --episodes_update
+
+  # Rename local files to match episode titles
+  python acepace.py --folder /path/to/videos --rename
+
+  # Download missing episodes to qBittorrent
+  python acepace.py --download --client qbittorrent --host localhost --port 8080
+
+  # Export database to CSV
+  python acepace.py --folder /path/to/videos --db
+
+For more information, visit: https://github.com/your-repo/ace-pace
+"""
+    print(help_text)
+
+
 def _parse_arguments():
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Find missing episodes from your personal One Pace library."
+        description="Find missing episodes from your personal One Pace library.",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        add_help=False,  # Disable automatic help to use custom one
+        epilog="""
+Examples:
+  python acepace.py --folder /path/to/videos
+  python acepace.py --episodes_update
+  python acepace.py --rename --folder /path/to/videos
+  python acepace.py --download --client qbittorrent
+
+Use --help for detailed command descriptions.
+        """
+    )
+    parser.add_argument(
+        "--help", "-h",
+        action="store_true",
+        help="Show detailed help message with all available commands."
     )
     parser.add_argument(
         "--url",
@@ -849,7 +949,7 @@ def _parse_arguments():
     parser.add_argument(
         "--client",
         choices=["transmission", "qbittorrent"],
-        help="The BitTorrent client to use.",
+        help="The BitTorrent client to use (required for --download).",
     )
     parser.add_argument(
         "--download",
@@ -922,6 +1022,11 @@ def _handle_main_commands(args, conn, folder):
 
 def main():
     args = _parse_arguments()
+
+    # Show detailed help if requested
+    if args.help:
+        _print_help()
+        return
 
     if IS_DOCKER:
         print("Running in Docker mode (non-interactive)")
