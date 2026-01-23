@@ -93,6 +93,12 @@ The following volumes should be mounted for persistent data:
 - The container runs non-interactively, so all configuration must be provided via environment variables
 - Make sure your BitTorrent client is accessible from within the Docker network (use host network mode or configure networking appropriately)
 
+### VPN Considerations
+
+If you're running Ace-Pace through a VPN container (such as Gluetun), you may encounter 429 (Too Many Requests) errors when querying Nyaa.si. This is because multiple requests from the same VPN exit node can trigger rate limiting.
+
+**Recommendation:** It's perfectly fine to run Ace-Pace without a VPN. Instead, keep your BitTorrent client behind the VPN to protect your downloads while allowing Ace-Pace to query Nyaa.si directly without rate limiting issues.
+
 ## 🧪 Running Tests
 
 To run the test suite with coverage:
