@@ -22,7 +22,6 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && pip install --no-cache-dir -r /app/requirements.txt \
-    && chmod +x /app/entrypoint.sh \
-    && touch /app/Ace-Pace_Missing.csv
+    && chmod +x /app/entrypoint.sh
 
 CMD ["/app/entrypoint.sh"]

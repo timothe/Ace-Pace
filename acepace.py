@@ -24,18 +24,49 @@ QUALITY_REGEX = re.compile(r"\[(\d+p)\]", re.IGNORECASE)
 # Video file extensions we care about
 VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 
-DB_NAME = "crc32_files.db"
-EPISODES_DB_NAME = "episodes_index.db"
-
 # Constants for repeated string literals
 HTML_PARSER = "html.parser"
-MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
 NYAA_BASE_URL = "https://nyaa.si"
+
+# Config directory and file names
+CONFIG_DIR_DOCKER = "/config"
+CONFIG_DIR_LOCAL = "."
+DB_NAME = "crc32_files.db"
+EPISODES_DB_NAME = "episodes_index.db"
+MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
+DB_CSV_FILENAME = "Ace-Pace_DB.csv"
+
+
+def get_config_dir():
+    """Get the config directory path based on Docker mode.
+    Returns the config directory path, creating it if necessary."""
+    if IS_DOCKER:
+        config_dir = CONFIG_DIR_DOCKER
+    else:
+        config_dir = CONFIG_DIR_LOCAL
+    
+    # Ensure config directory exists
+    if not os.path.exists(config_dir):
+        os.makedirs(config_dir, exist_ok=True)
+    
+    return config_dir
+
+
+def get_config_path(filename):
+    """Get the full path to a config file.
+    Args:
+        filename: The name of the config file
+    Returns:
+        Full path to the config file in the appropriate config directory
+    """
+    config_dir = get_config_dir()
+    return os.path.join(config_dir, filename)
 
 
 def init_db():
-    exists = os.path.exists(DB_NAME)
-    conn = sqlite3.connect(DB_NAME)
+    db_path = get_config_path(DB_NAME)
+    exists = os.path.exists(db_path)
+    conn = sqlite3.connect(db_path)
     c = conn.cursor()
     c.execute(
         """
@@ -61,7 +92,8 @@ def init_db():
 
 # --- New: Episodes metadata DB ---
 def init_episodes_db():
-    conn = sqlite3.connect(EPISODES_DB_NAME)
+    episodes_db_path = get_config_path(EPISODES_DB_NAME)
+    conn = sqlite3.connect(episodes_db_path)
     c = conn.cursor()
     c.execute(
         """
@@ -362,7 +394,7 @@ def fetch_crc32_links(base_url):
             print("No table found, stopping.")
             break
 
-        rows = table.find_all("tr")
+        rows = table.find_all("tr")  # type: ignore
         if not rows:
             print("No rows found, stopping.")
             break
@@ -540,12 +572,13 @@ def export_db_to_csv(conn):
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
     rows = c.fetchall()
-    with open("Ace-Pace_DB.csv", "w", encoding="utf-8", newline="") as f:
+    export_csv_path = get_config_path(DB_CSV_FILENAME)
+    with open(export_csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(["File Path", "CRC32"])
         for row in rows:
             writer.writerow(row)
-    print("Database exported to Ace-Pace_DB.csv")
+    print(f"Database exported to {export_csv_path}")
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_db_export", now_str)
 
@@ -622,12 +655,13 @@ def _get_non_docker_connection_params(args):
 
 def _load_magnet_links():
     """Load magnet links from the missing CSV file."""
-    if not os.path.exists(MISSING_CSV_FILENAME):
-        print(f"Missing file '{MISSING_CSV_FILENAME}' not found. Run the script first!")
+    missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
+    if not os.path.exists(missing_csv_path):
+        print(f"Missing file '{missing_csv_path}' not found. Run the script first!")
         return None
 
     magnets = []
-    with open(MISSING_CSV_FILENAME, "r", encoding="utf-8") as f:
+    with open(missing_csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
             magnet_link = row.get("Magnet Link", "").strip()
@@ -635,7 +669,7 @@ def _load_magnet_links():
                 magnets.append(magnet_link)
 
     if not magnets:
-        print(f"No magnet links found in '{MISSING_CSV_FILENAME}'.")
+        print(f"No magnet links found in '{missing_csv_path}'.")
         return None
 
     return magnets
@@ -726,8 +760,9 @@ def _count_video_files(folder, conn):
 def _load_old_missing_crc32s():
     """Load CRC32s from previous missing CSV file."""
     old_missing_crc32s = set()
-    if os.path.exists(MISSING_CSV_FILENAME):
-        with open(MISSING_CSV_FILENAME, "r", encoding="utf-8") as f:
+    missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
+    if os.path.exists(missing_csv_path):
+        with open(missing_csv_path, "r", encoding="utf-8") as f:
             reader = csv.reader(f)
             next(reader, None)  # skip header
             for row in reader:
@@ -742,7 +777,8 @@ def _load_old_missing_crc32s():
 
 def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_magnet):
     """Save missing episodes to CSV file."""
-    with open(MISSING_CSV_FILENAME, "w", encoding="utf-8", newline="") as f:
+    missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
+    with open(missing_csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(["Title", "Page Link", "Magnet Link"])
         for crc32 in missing:
@@ -750,7 +786,7 @@ def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_m
             page_link = crc32_to_link[crc32]
             magnet = crc32_to_magnet.get(crc32, "")
             writer.writerow([title, page_link, magnet])
-    print(f"Missing files list saved to {MISSING_CSV_FILENAME}")
+    print(f"Missing files list saved to {missing_csv_path}")
 
 
 def _print_report_header(conn, folder, args):

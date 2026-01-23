@@ -5,9 +5,7 @@ services:
     container_name: ace-pace
     volumes:
       - /path/to/OnePaceLibrary:/media:rw
-      - ./crc32_files.db:/app/crc32_files.db:rw
-      - ./episodes_index.db:/app/episodes_index.db:rw
-      - ./Ace-Pace_Missing.csv:/app/Ace-Pace_Missing.csv:rw
+      - /path/to/config:/config:rw
     networks:
       - "proxy"
     environment:
