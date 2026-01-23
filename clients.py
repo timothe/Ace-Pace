@@ -21,7 +21,13 @@ class QBittorrentClient(Client):
         try:
             self.client.auth_log_in()
         except qbittorrentapi.LoginFailed as e:
-            raise ConnectionError(f"Failed to connect to qBittorrent: {e}") from e
+            raise ConnectionError(f"Failed to authenticate with qBittorrent at {host}:{port}: {e}") from e
+        except qbittorrentapi.APIConnectionError as e:
+            raise ConnectionError(f"Failed to connect to qBittorrent at {host}:{port}. Check if the client is running and accessible: {e}") from e
+        except qbittorrentapi.APIError as e:
+            raise ConnectionError(f"qBittorrent API error at {host}:{port}: {e}") from e
+        except Exception as e:
+            raise ConnectionError(f"Unexpected error connecting to qBittorrent at {host}:{port}: {e}") from e
         print("Connection to qBittorrent successful!")
 
     def _extract_info_hash(self, magnet):
@@ -103,8 +109,14 @@ class TransmissionClient(Client):
                         self.base_url, auth=self.auth, headers=headers, json={"method": "session-get"}
                     )
             resp.raise_for_status()
-        except (requests.RequestException, ValueError) as e:
-            raise ConnectionError(f"Failed to connect to Transmission RPC: {e}") from e
+        except requests.ConnectionError as e:
+            raise ConnectionError(f"Failed to connect to Transmission at {host}:{port}. Check if the client is running and accessible: {e}") from e
+        except requests.Timeout as e:
+            raise ConnectionError(f"Connection to Transmission at {host}:{port} timed out: {e}") from e
+        except requests.RequestException as e:
+            raise ConnectionError(f"Failed to connect to Transmission RPC at {host}:{port}: {e}") from e
+        except ValueError as e:
+            raise ConnectionError(f"Invalid response from Transmission at {host}:{port}: {e}") from e
 
         print("Connection to Transmission successful!")
         self.session_info = resp.json()

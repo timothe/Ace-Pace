@@ -700,8 +700,15 @@ def _handle_download_command(args):
             tags=args.tag,
             category=args.category,
         )
+    except ConnectionError as e:
+        print(f"Connection Error: {e}")
+        print(f"Please verify that {client} is running and accessible at {host}:{port}")
+        return False
+    except ValueError as e:
+        print(f"Configuration Error: {e}")
+        return False
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Unexpected Error: {e}")
         return False
 
     return True

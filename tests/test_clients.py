@@ -34,10 +34,11 @@ class TestQBittorrentClient:
         mock_client.auth_log_in.side_effect = qbittorrentapi.LoginFailed("Invalid credentials")
         mock_client_class.return_value = mock_client
         
-        with pytest.raises(Exception) as exc_info:
+        with pytest.raises(ConnectionError) as exc_info:
             QBittorrentClient("localhost", 8080, "user", "pass")
         
-        assert "Failed to connect to qBittorrent" in str(exc_info.value)
+        assert "Failed to authenticate with qBittorrent" in str(exc_info.value)
+        assert "localhost:8080" in str(exc_info.value)
 
     @patch('clients.qbittorrentapi.Client')
     @patch('clients.time.sleep')
@@ -92,6 +93,35 @@ class TestQBittorrentClient:
         
         # Should not call torrents_add for invalid magnet
         mock_client.torrents_add.assert_not_called()
+
+    @patch('clients.qbittorrentapi.Client')
+    def test_qbittorrent_client_init_api_connection_error(self, mock_client_class):
+        """Test qBittorrent client initialization with API connection error."""
+        import qbittorrentapi
+        mock_client = MagicMock()
+        mock_client.auth_log_in.side_effect = qbittorrentapi.APIConnectionError("Connection refused")
+        mock_client_class.return_value = mock_client
+        
+        with pytest.raises(ConnectionError) as exc_info:
+            QBittorrentClient("localhost", 8080, "user", "pass")
+        
+        assert "Failed to connect to qBittorrent" in str(exc_info.value)
+        assert "localhost:8080" in str(exc_info.value)
+        assert "Check if the client is running" in str(exc_info.value)
+
+    @patch('clients.qbittorrentapi.Client')
+    def test_qbittorrent_client_init_api_error(self, mock_client_class):
+        """Test qBittorrent client initialization with general APIError."""
+        import qbittorrentapi
+        mock_client = MagicMock()
+        mock_client.auth_log_in.side_effect = qbittorrentapi.APIError("General API error")
+        mock_client_class.return_value = mock_client
+        
+        with pytest.raises(ConnectionError) as exc_info:
+            QBittorrentClient("localhost", 8080, "user", "pass")
+        
+        assert "qBittorrent API error" in str(exc_info.value)
+        assert "localhost:8080" in str(exc_info.value)
 
 
 class TestTransmissionClient:
@@ -182,6 +212,35 @@ class TestTransmissionClient:
         client.add_torrents(sample_magnet_links[:1])  # Just one to simplify
         
         assert client.session_id == "new_session_id"
+
+    @patch('clients.requests.Session')
+    def test_transmission_client_init_connection_error(self, mock_session_class):
+        """Test Transmission client initialization with connection error."""
+        import requests
+        mock_session = MagicMock()
+        mock_session.post.side_effect = requests.ConnectionError("Connection refused")
+        mock_session_class.return_value = mock_session
+        
+        with pytest.raises(ConnectionError) as exc_info:
+            TransmissionClient("localhost", 9091, "user", "pass")
+        
+        assert "Failed to connect to Transmission" in str(exc_info.value)
+        assert "localhost:9091" in str(exc_info.value)
+        assert "Check if the client is running" in str(exc_info.value)
+
+    @patch('clients.requests.Session')
+    def test_transmission_client_init_timeout(self, mock_session_class):
+        """Test Transmission client initialization with timeout."""
+        import requests
+        mock_session = MagicMock()
+        mock_session.post.side_effect = requests.Timeout("Request timed out")
+        mock_session_class.return_value = mock_session
+        
+        with pytest.raises(ConnectionError) as exc_info:
+            TransmissionClient("localhost", 9091, "user", "pass")
+        
+        assert "timed out" in str(exc_info.value)
+        assert "localhost:9091" in str(exc_info.value)
 
 
 class TestClientFactory:
