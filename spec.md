@@ -15,12 +15,11 @@
 ### 1. Episode Discovery and Indexing
 - Scrapes Nyaa.si torrent tracker for One-Pace episodes
 - Extracts CRC32 checksums from episode filenames or torrent file lists
-- **Quality Filtering**: Only extracts episodes with 1080p quality, or 720p as fallback
+- **Quality Filtering**: Only extracts episodes with 1080p quality
   - Episodes without quality markers are excluded
-  - Episodes with quality lower than 720p (480p, 360p, etc.) are excluded
-  - Episodes with quality higher than 1080p (1440p, 2160p/4K, etc.) are excluded
+  - Episodes with quality other than 1080p (720p, 480p, 360p, 1440p, 2160p/4K, etc.) are excluded
   - Quality filtering is applied in both `fetch_episodes_metadata()` and `fetch_crc32_links()`
-  - Filtering is case-insensitive (accepts 1080P, 720P, etc.)
+  - Filtering is case-insensitive (accepts 1080P, etc.)
 - **URL Parameter Support**: Both `fetch_episodes_metadata()` and `update_episodes_index_db()` accept a `base_url` parameter
   - Allows consistent URL usage across all episode fetching functions
   - Default URL includes 1080p filter, but can be overridden
@@ -43,7 +42,7 @@
 ### 3. Missing Episode Detection
 - Fetches episode list from Nyaa.si using the provided URL (default: One-Pace 1080p search)
 - **Quality Filtering**: `fetch_crc32_links()` applies quality filtering via `_process_crc32_row()`
-  - Only accepts episodes with 1080p or 720p quality
+  - Only accepts episodes with 1080p quality
   - Requires "[One Pace]" marker in filename
   - Ensures consistent filtering regardless of URL parameters
 - Compares local CRC32 checksums against fetched episodes (using normalized paths)
@@ -229,7 +228,7 @@ Ace-Pace/
 2. Script uses provided URL or defaults to One-Pace search (without quality filter in URL)
 3. Script scrapes all pages of Nyaa.si search results
 4. For each torrent, extracts CRC32 from title or file list
-5. Applies quality filtering (1080p/720p only) before storing
+5. Applies quality filtering (1080p only) before storing
 6. Stores CRC32, title, and page link in `episodes_index.db`
 7. Updates metadata with last update timestamp
 8. Note: Quality filtering is applied regardless of URL parameters
@@ -336,7 +335,7 @@ Ace-Pace/
 - Integration with media server APIs (Plex, Jellyfin)
 - Duplicate detection and cleanup
 - Episode metadata enrichment (thumbnails, descriptions)
-- Note: Episode quality filtering (720p, 1080p) is already implemented ✅
+- Note: Episode quality filtering (1080p only) is already implemented ✅
 
 ### Technical Improvements
 - Async/await for concurrent web scraping
@@ -385,11 +384,11 @@ The codebase follows a modular structure with clear separation of concerns:
 - `set_episodes_metadata(conn, key, value)`: Stores episodes database metadata
 - `fetch_episodes_metadata(base_url=None)`: Fetches episodes from Nyaa.si
   - `base_url`: Optional Nyaa.si search URL (defaults to One-Pace search without quality filter)
-  - Quality filtering (1080p/720p) is always applied regardless of URL
+  - Quality filtering (1080p only) is always applied regardless of URL
 - `update_episodes_index_db(base_url=None)`: Updates the episodes index database
   - `base_url`: Optional Nyaa.si search URL (passed to `fetch_episodes_metadata()`)
 - `fetch_crc32_links(base_url)`: Fetches CRC32 links from a Nyaa.si URL
-  - Applies quality filtering (1080p/720p only) via `_process_crc32_row()`
+  - Applies quality filtering (1080p only) via `_process_crc32_row()`
 - `fetch_title_by_crc32(crc32)`: Searches for a title by CRC32
 - `calculate_local_crc32(folder, conn)`: Calculates CRC32 for local files
   - Uses normalized paths for database storage and lookup
@@ -414,7 +413,7 @@ Helper functions are prefixed with `_` to indicate they are internal implementat
 - `_process_crc32_row(row, ...)`: Processes row to extract CRC32 for missing episodes
 
 **Validation functions** (`_is_*`, `_validate_*`): Validate inputs/data
-- `_is_valid_quality(fname_text)`: Checks if filename has valid quality (1080p/720p)
+- `_is_valid_quality(fname_text)`: Checks if filename has valid quality (1080p only)
 - `_validate_url(url)`: Validates URL points to valid Nyaa domain
 
 **Command handlers** (`_handle_*`): Handle specific command-line operations
@@ -504,7 +503,7 @@ When working on this project:
     - Always pass `args.url` to ensure consistent URL usage across functions
     - Quality filtering is applied regardless of URL parameters
 17. **Quality filtering** - Applied in both `fetch_episodes_metadata()` and `fetch_crc32_links()` via `_is_valid_quality()`
-    - Only accepts 1080p or 720p episodes
+    - Only accepts 1080p episodes
     - Requires "[One Pace]" marker in filename
     - Ensures consistent filtering regardless of URL search parameters
 18. **Config directory** - Use `get_config_dir()` and `get_config_path()` for consistent file location handling

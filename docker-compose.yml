@@ -14,8 +14,9 @@ services:
       - DB=true
       # Update episodes index database on container start (default: false)
       - EPISODES_UPDATE=true
-      # Nyaa.si search URL (default: https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc)
-      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
+      # Nyaa.si search URL (optional, default: https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc)
+      # Quality filtering (1080p only) is always applied in code regardless of URL
+      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
 
       # Download missing episodes after generating report (default: false)
       #- DOWNLOAD=true

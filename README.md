@@ -29,16 +29,15 @@ You can run Ace-Pace using `docker run` with environment variables and volume mo
 ```bash
 docker run --rm \
   -v /path/to/OnePaceLibrary:/media:rw \
-  -v $(pwd)/crc32_files.db:/app/crc32_files.db:rw \
-  -v $(pwd)/episodes_index.db:/app/episodes_index.db:rw \
-  -v $(pwd)/Ace-Pace_Missing.csv:/app/Ace-Pace_Missing.csv:rw \
+  -v /path/to/config:/config:rw \
   -e TZ=Europe/London \
-  -e TORRENT_HOST=127.0.0.1 \
-  -e TORRENT_PORT=9091 \
-  -e TORRENT_CLIENT=transmission \
-  -e NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc \
   -e DB=true \
   -e EPISODES_UPDATE=true \
+  -e DOWNLOAD=false \
+  -e TORRENT_CLIENT=transmission \
+  -e TORRENT_HOST=127.0.0.1 \
+  -e TORRENT_PORT=9091 \
+  -e NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc \
   timothe/ace-pace:latest
 ```
 
@@ -46,10 +45,11 @@ docker run --rm \
 
 For easier management, you can use the provided `docker-compose.yml` file. First, edit the compose file to match your setup:
 
-1. Update the volume path for your One-Pace library:
+1. Update the volume paths:
    ```yaml
    volumes:
      - /path/to/OnePaceLibrary:/media:rw
+     - /path/to/config:/config:rw
    ```
 
 2. Configure environment variables as needed (Torrent client settings, Nyaa URL, etc.)
@@ -68,29 +68,42 @@ docker-compose up -d
 
 The following environment variables can be used to configure Ace-Pace in Docker:
 
-- `NYAA_URL` - Nyaa.si search URL (default: `https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc`)
+- `NYAA_URL` - Nyaa.si search URL (optional, default: `https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc`)
+  - When not set, uses default URL without quality filter. Quality filtering (1080p only) is always applied in code.
+- `DB` - Set to `true` to generate CSV database export on container start (default: `false`)
+- `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa on container start (default: `false`)
+- `DOWNLOAD` - Set to `true` to automatically download missing episodes after generating report (default: `false`)
 - `TORRENT_CLIENT` - BitTorrent client type: `transmission` or `qbittorrent` (default: `transmission`)
-- `TORRENT_HOST` - BitTorrent client host address (default: `127.0.0.1`)
+- `TORRENT_HOST` - BitTorrent client host address (default: `localhost`)
 - `TORRENT_PORT` - BitTorrent client port (default: `9091` for Transmission, `8080` for qBittorrent)
 - `TORRENT_USER` - BitTorrent client username (optional)
 - `TORRENT_PASSWORD` - BitTorrent client password (optional)
-- `DB` - Set to `true` to generate CSV database export (default: `true`)
-- `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa (default: `true`)
-- `TZ` - Timezone (default: `Europe/Berlin`)
+- `TZ` - Timezone (default: `Europe/London`)
 
 ### Docker Volume Mounts
 
 The following volumes should be mounted for persistent data:
 
 - `/media` - Mount your One-Pace library directory here (read-write)
-- `/app/crc32_files.db` - Database file for CRC32 checksums (read-write)
-- `/app/episodes_index.db` - Database file for episodes index (read-write)
-- `/app/Ace-Pace_Missing.csv` - CSV export of missing episodes (read-write)
+- `/config` - Mount a directory for persistent configuration and data files (read-write)
+  - Contains: `crc32_files.db`, `episodes_index.db`, `Ace-Pace_Missing.csv`, `Ace-Pace_DB.csv`
+
+### Docker Execution Flow
+
+When the container starts, it executes the following steps in order:
+
+1. **Episodes Update** (if `EPISODES_UPDATE=true`): Updates the episodes metadata database from Nyaa
+2. **Database Export** (if `DB=true`): Exports the CRC32 database to CSV
+3. **Missing Episodes Report**: Always runs to generate/update `Ace-Pace_Missing.csv`
+4. **Download** (if `DOWNLOAD=true`): Automatically downloads missing episodes via the configured BitTorrent client
 
 ### Docker Notes
 
 - In Docker mode, Ace-Pace automatically uses `/media` as the default folder path
 - The container runs non-interactively, so all configuration must be provided via environment variables
+- All data files (databases, CSV exports) are stored in `/config` directory
+- Quality filtering (1080p only) is applied in code regardless of the URL used
+- When `NYAA_URL` is not set, the default URL searches for all "one pace" episodes without quality filter, then filters for 1080p in code
 - Make sure your BitTorrent client is accessible from within the Docker network (use host network mode or configure networking appropriately)
 
 ### VPN Considerations
@@ -132,7 +145,8 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
   Specify the path to your local One-Pace video library. Ace-Pace will scan this directory recursively to identify and analyze your existing episodes.
 
 - `--url <website_url>`
-  Define the Nyaa URL used for the query to get episodes metadata and download links. Defaults to `https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc`.
+  Define the Nyaa URL used for the query to get episodes metadata and download links. Defaults to `https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc`.
+  Note: Quality filtering (1080p only) is always applied in code.
 
 - `--db` (standalone flag)
   Create a CSV file with the existing local file paths and CRC32 checksums. Useful to check what's detected and debugging.
@@ -170,7 +184,7 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
 ### 📚 Some examples
 
 ```
-python acepace.py --folder "/volume42/media/One Piece/" --url https://nyaa.si/?f=0&c=0_0&q=one+pace+720p&o=asc
+python acepace.py --folder "/volume42/media/One Piece/" --url https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
 python acepace.py --folder "/volume42/media/One Piece/"
 python acepace.py --client transmission --download
 python acepace.py --client qbittorrent --download --host 192.168.1.100 --port 8080 --username myuser --password mypassword --download-folder /downloads/onepace --tag onepace --tag 'one pace' --category 'anime'

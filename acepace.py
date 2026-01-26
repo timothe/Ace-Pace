@@ -18,7 +18,7 @@ IS_DOCKER = "RUN_DOCKER" in os.environ
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
 
-# Quality regex patterns - matches [1080p], [720p], etc. (case insensitive)
+# Quality regex patterns - matches [1080p], etc. (case insensitive)
 QUALITY_REGEX = re.compile(r"\[(\d+p)\]", re.IGNORECASE)
 
 # Video file extensions we care about
@@ -154,22 +154,22 @@ def set_episodes_metadata(conn, key, value):
 
 # --- New: Fetch and update episodes_index table ---
 def _is_valid_quality(fname_text):
-    """Check if filename has valid quality (1080p preferred, 720p as fallback only).
-    Returns True if quality is 1080p or 720p, False otherwise."""
+    """Check if filename has valid quality (1080p only).
+    Returns True if quality is 1080p, False otherwise."""
     quality_matches = QUALITY_REGEX.findall(fname_text)
     if not quality_matches:
         return False  # No quality marker found, exclude
-    # Check if quality is exactly 1080p or 720p (not higher, not lower)
+    # Check if quality is exactly 1080p (not higher, not lower)
     for quality in quality_matches:
         quality_num = int(quality.lower().replace('p', ''))
-        if quality_num == 1080 or quality_num == 720:
+        if quality_num == 1080:
             return True
-    return False  # Quality not 1080p or 720p
+    return False  # Quality not 1080p
 
 
 def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
     """Helper to extract CRC32 from fname_text and store if valid and unique.
-    Only accepts episodes with 1080p or 720p quality (720p as fallback)."""
+    Only accepts episodes with 1080p quality."""
     m = CRC32_REGEX.findall(fname_text)
     found = False
     if m and "[One Pace]" in fname_text and _is_valid_quality(fname_text):
@@ -287,7 +287,7 @@ def fetch_episodes_metadata(base_url=None):
     If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
     Args:
         base_url: Base URL for Nyaa search. If None, uses default without quality filter.
-                  Note: Quality filtering (1080p/720p) is always applied regardless of URL.
+                  Note: Quality filtering (1080p only) is always applied regardless of URL.
     Returns: List of (crc32, title, page_link)
     """
     if base_url is None:
@@ -379,7 +379,7 @@ def set_metadata(conn, key, value):
 
 def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
     """Process a single table row to extract CRC32 information.
-    Only accepts episodes with 1080p or 720p quality (720p as fallback).
+    Only accepts episodes with 1080p quality.
     Returns tuple: (success: bool, filename_text: str or None)"""
     links = row.find_all("a", href=True)
     title_link = None
@@ -396,7 +396,7 @@ def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
     link = NYAA_BASE_URL + title_link["href"]
     matches = CRC32_REGEX.findall(filename_text)
     if matches:
-        # Only accept episodes with valid quality (1080p or 720p) and One Pace marker
+        # Only accept episodes with valid quality (1080p only) and One Pace marker
         if "[One Pace]" in filename_text and _is_valid_quality(filename_text):
             crc32 = matches[-1].upper()
             crc32_to_link[crc32] = link
@@ -874,10 +874,10 @@ def _print_report_header(conn, folder, args):
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_run", now_str)
 
-    # Show URL, but note that quality filtering (1080p/720p) is applied regardless
+    # Show URL, but note that quality filtering (1080p only) is applied regardless
     url_display = args.url
-    if "1080p" not in url_display and "720p" not in url_display:
-        url_display += " (quality filtering: 1080p/720p only)"
+    if "1080p" not in url_display:
+        url_display += " (quality filtering: 1080p only)"
     print(f"Using URL: {url_display}")
     print(f"Total video files detected: {total_files}")
     print(f"Episodes already recorded in DB: {recorded_files}")
@@ -1001,7 +1001,7 @@ AVAILABLE COMMANDS:
   General Options:
     --url URL               Custom Nyaa search URL
                             Default: https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
-                            Note: Quality filtering (1080p/720p) is applied in code regardless of URL
+                            Note: Quality filtering (1080p only) is applied in code regardless of URL
                             Must point to a valid Nyaa domain
 
     --folder PATH           Folder containing local video files
@@ -1054,7 +1054,7 @@ Use --help for detailed command descriptions.
     parser.add_argument(
         "--url",
         default=f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc",
-        help=f"Base URL without the page param. Default searches for 'one pace' without quality filter (quality filtering 1080p/720p is applied in code). Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc' ",
+        help=f"Base URL without the page param. Default searches for 'one pace' without quality filter (quality filtering 1080p only is applied in code). Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
     parser.add_argument("--folder", help="Folder containing local video files.")
     parser.add_argument(
