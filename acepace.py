@@ -80,7 +80,11 @@ def normalize_file_path(file_path):
         return os.path.normpath(os.path.abspath(file_path))
 
 
-def init_db():
+def init_db(suppress_messages=False):
+    """Initialize the database.
+    Args:
+        suppress_messages: If True, suppress informational messages (useful for automated runs)
+    """
     db_path = get_config_path(DB_NAME)
     exists = os.path.exists(db_path)
     conn = sqlite3.connect(db_path)
@@ -102,7 +106,7 @@ def init_db():
     """
     )
     conn.commit()
-    if exists:
+    if exists and not suppress_messages:
         print("Database already exists. You can export it using the --db option.")
     return conn
 
@@ -837,7 +841,11 @@ def _print_report_header(conn, folder, args):
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_run", now_str)
 
-    print(f"Using URL: {args.url}")
+    # Show URL, but note that quality filtering (1080p/720p) is applied regardless
+    url_display = args.url
+    if "1080p" not in url_display and "720p" not in url_display:
+        url_display += " (quality filtering: 1080p/720p only)"
+    print(f"Using URL: {url_display}")
     print(f"Total video files detected: {total_files}")
     print(f"Episodes already recorded in DB: {recorded_files}")
     
@@ -897,6 +905,9 @@ def _generate_missing_episodes_report(conn, folder, args):
     set_metadata(conn, "last_checked_page", str(last_checked_page))
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_missing_export", now_str)
+    
+    # Print missing count prominently
+    print(f"Missing episodes: {len(missing)}")
 
     return missing, crc32_to_text
 
@@ -1009,7 +1020,7 @@ Use --help for detailed command descriptions.
     parser.add_argument(
         "--url",
         default=f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace+1080p&o=asc",
-        help=f"Base URL without the page param. Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc' ",
+        help=f"Base URL without the page param. Default includes 1080p filter. Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace+1080p&o=asc' ",
     )
     parser.add_argument("--folder", help="Folder containing local video files.")
     parser.add_argument(
@@ -1097,7 +1108,8 @@ def main():
         _print_help()
         return
 
-    if IS_DOCKER:
+    # Only show Docker mode message once, and not for --db or --episodes_update commands
+    if IS_DOCKER and not args.db and not args.episodes_update:
         print("Running in Docker mode (non-interactive)")
 
     if not _validate_url(args.url):
@@ -1109,7 +1121,8 @@ def main():
         update_episodes_index_db()
         return
 
-    conn = init_db()
+    # Suppress messages when exporting DB (since it's automated)
+    conn = init_db(suppress_messages=args.db)
 
     # Folder selection logic: Always prompt if folder is required but not given
     needs_folder = not args.download  # All commands except --download need folder
