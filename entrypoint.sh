@@ -11,4 +11,4 @@ fi
 
 exec python /app/acepace.py \
     ${NYAA_URL:+--url "$NYAA_URL"} \
-    ${TORRENT_CLIENT:+--download --client "$TORRENT_CLIENT"} \
+    ${TORRENT_CLIENT:+--download --client "$TORRENT_CLIENT"}

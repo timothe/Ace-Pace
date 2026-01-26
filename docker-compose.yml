@@ -13,7 +13,7 @@ services:
       - TORRENT_HOST=127.0.0.1
       - TORRENT_PORT=9091
       - TORRENT_CLIENT=transmission
-      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
+      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
       #- TORRENT_USER=admin
       #- TORRENT_PASSWORD=password
       - DB=true

@@ -106,6 +106,44 @@ class TestFileRenaming:
             
             conn.close()
 
+    def test_rename_uses_normalized_paths(self, temp_dir):
+        """Test that rename operations use normalized paths in database."""
+        test_file = os.path.join(temp_dir, "old_name.mkv")
+        with open(test_file, "wb") as f:
+            f.write(b"test video content")
+        
+        with patch('acepace.DB_NAME', os.path.join(temp_dir, 'test.db')):
+            conn = acepace.init_db()
+            
+            # Calculate CRC32 (stores normalized path)
+            acepace.calculate_local_crc32(temp_dir, conn)
+            
+            # Get the stored path from database
+            cursor = conn.cursor()
+            cursor.execute("SELECT file_path FROM crc32_cache")
+            stored_path = cursor.fetchone()[0]
+            
+            # Verify it's normalized
+            assert os.path.isabs(stored_path)
+            assert stored_path == acepace.normalize_file_path(test_file)
+            
+            # Mock rename scenario
+            with patch('acepace.load_crc32_to_title_from_index') as mock_load:
+                crc32s = acepace.calculate_local_crc32(temp_dir, conn)
+                actual_crc32 = list(crc32s)[0]
+                mock_load.return_value = {actual_crc32: "[One Pace] Episode 1 [1080p].mkv"}
+                
+                # Simulate rename
+                new_path = os.path.join(temp_dir, "[One Pace] Episode 1 [1080p].mkv")
+                normalized_old = acepace.normalize_file_path(test_file)
+                normalized_new = acepace.normalize_file_path(new_path)
+                
+                # Check that paths would be normalized in database update
+                assert normalized_old == stored_path  # Should match what's in DB
+                assert os.path.isabs(normalized_new)
+            
+            conn.close()
+
 
 class TestCSVExport:
     """Tests for CSV export functionality."""

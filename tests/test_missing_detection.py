@@ -96,6 +96,64 @@ class TestMissingEpisodeDetection:
         assert "magnet:?xt=urn:btih:abc123" in crc32_to_magnet.values()
 
     @patch('acepace.requests.get')
+    def test_fetch_crc32_links_filters_quality(self, mock_get):
+        """Test that fetch_crc32_links filters episodes by quality (1080p/720p only)."""
+        html_with_mixed_quality = """
+        <html>
+            <body>
+                <table class="torrent-list">
+                    <tr>
+                        <td>
+                            <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
+                            <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6A7B8].mkv">[One Pace] Episode 2 [720p][E5F6A7B8].mkv</a>
+                            <a href="magnet:?xt=urn:btih:def456">Magnet</a>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <a href="/view/12347" title="[One Pace] Episode 3 [480p][A9B0C1D2].mkv">[One Pace] Episode 3 [480p][A9B0C1D2].mkv</a>
+                            <a href="magnet:?xt=urn:btih:ghi789">Magnet</a>
+                        </td>
+                    </tr>
+                </table>
+            </body>
+        </html>
+        """
+        
+        html_empty = """
+        <html>
+            <body>
+                <table class="torrent-list">
+                </table>
+            </body>
+        </html>
+        """
+        
+        mock_response1 = MagicMock()
+        mock_response1.status_code = 200
+        mock_response1.text = html_with_mixed_quality
+        
+        mock_response2 = MagicMock()
+        mock_response2.status_code = 200
+        mock_response2.text = html_empty
+        
+        mock_get.side_effect = [mock_response1, mock_response2]
+        
+        base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
+        crc32_to_link, crc32_to_text, crc32_to_magnet, _ = acepace.fetch_crc32_links(base_url)
+        
+        # Should only have 1080p and 720p episodes, not 480p
+        assert len(crc32_to_link) == 2
+        assert "A1B2C3D4" in crc32_to_link  # 1080p - should be included
+        assert "E5F6A7B8" in crc32_to_link  # 720p - should be included
+        assert "A9B0C1D2" not in crc32_to_link  # 480p - should be filtered out
+
+    @patch('acepace.requests.get')
     def test_fetch_crc32_links_stops_on_empty_page(self, mock_get):
         """Test that fetching stops when no matches found."""
         # First page has results

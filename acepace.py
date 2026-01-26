@@ -63,6 +63,23 @@ def get_config_path(filename):
     return os.path.join(config_dir, filename)
 
 
+def normalize_file_path(file_path):
+    """Normalize a file path for consistent storage and lookup.
+    Resolves symlinks and converts to absolute path to ensure the same file
+    always maps to the same path string, regardless of OS or environment.
+    Args:
+        file_path: The file path to normalize
+    Returns:
+        Normalized absolute path
+    """
+    try:
+        # Use realpath to resolve symlinks and get canonical path
+        return os.path.realpath(os.path.abspath(file_path))
+    except (OSError, ValueError):
+        # Fallback to abspath if realpath fails (e.g., file doesn't exist yet)
+        return os.path.normpath(os.path.abspath(file_path))
+
+
 def init_db():
     db_path = get_config_path(DB_NAME)
     exists = os.path.exists(db_path)
@@ -350,6 +367,7 @@ def set_metadata(conn, key, value):
 
 def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
     """Process a single table row to extract CRC32 information.
+    Only accepts episodes with 1080p or 720p quality (720p as fallback).
     Returns tuple: (success: bool, filename_text: str or None)"""
     links = row.find_all("a", href=True)
     title_link = None
@@ -366,13 +384,14 @@ def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
     link = NYAA_BASE_URL + title_link["href"]
     matches = CRC32_REGEX.findall(filename_text)
     if matches:
-        crc32 = matches[-1].upper()
-        crc32_to_link[crc32] = link
-        crc32_to_text[crc32] = filename_text
-        crc32_to_magnet[crc32] = magnet_link
-        return True, filename_text
-    else:
-        return False, filename_text
+        # Only accept episodes with valid quality (1080p or 720p) and One Pace marker
+        if "[One Pace]" in filename_text and _is_valid_quality(filename_text):
+            crc32 = matches[-1].upper()
+            crc32_to_link[crc32] = link
+            crc32_to_text[crc32] = filename_text
+            crc32_to_magnet[crc32] = magnet_link
+            return True, filename_text
+    return False, filename_text
 
 
 def fetch_crc32_links(base_url):
@@ -464,9 +483,11 @@ def calculate_local_crc32(folder, conn):
             ext = os.path.splitext(file)[1].lower()
             if ext in VIDEO_EXTENSIONS:
                 file_path = os.path.join(root, file)
-                # Check if file_path already in DB
+                # Normalize path for consistent storage and lookup
+                normalized_path = normalize_file_path(file_path)
+                # Check if normalized_path already in DB
                 c.execute(
-                    "SELECT crc32 FROM crc32_cache WHERE file_path = ?", (file_path,)
+                    "SELECT crc32 FROM crc32_cache WHERE file_path = ?", (normalized_path,)
                 )
                 row = c.fetchone()
                 if row:
@@ -484,7 +505,7 @@ def calculate_local_crc32(folder, conn):
                 local_crc32s.add(crc32)
                 c.execute(
                     "INSERT OR REPLACE INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
-                    (file_path, crc32),
+                    (normalized_path, crc32),
                 )
                 conn.commit()
     return local_crc32s
@@ -524,9 +545,12 @@ def _execute_rename(rename_plan, conn):
                 continue
             os.rename(old, new)
             print(f"Renamed {old} to {new}")
+            # Normalize paths for consistent database updates
+            normalized_old = normalize_file_path(old)
+            normalized_new = normalize_file_path(new)
             # Update DB with new file path
             c.execute(
-                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (new, old)
+                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (normalized_new, normalized_old)
             )
             conn.commit()
         except Exception as e:
@@ -758,7 +782,9 @@ def _count_video_files(folder, conn):
             if ext in VIDEO_EXTENSIONS:
                 total_files += 1
                 file_path = os.path.join(root, file)
-                c.execute("SELECT 1 FROM crc32_cache WHERE file_path = ?", (file_path,))
+                # Normalize path for consistent lookup
+                normalized_path = normalize_file_path(file_path)
+                c.execute("SELECT 1 FROM crc32_cache WHERE file_path = ?", (normalized_path,))
                 if c.fetchone():
                     recorded_files += 1
     return total_files, recorded_files

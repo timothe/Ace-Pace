@@ -88,9 +88,10 @@ class TestCRC32Calculation:
             # Second calculation should use cache
             crc32s2 = acepace.calculate_local_crc32(temp_dir, conn)
             
-            # Verify cache was used (check database)
+            # Verify cache was used (check database with normalized path)
+            normalized_path = acepace.normalize_file_path(test_file)
             cursor = conn.cursor()
-            cursor.execute("SELECT crc32 FROM crc32_cache WHERE file_path = ?", (test_file,))
+            cursor.execute("SELECT crc32 FROM crc32_cache WHERE file_path = ?", (normalized_path,))
             row = cursor.fetchone()
             assert row is not None
             
