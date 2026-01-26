@@ -652,7 +652,9 @@ def _get_folder_from_args(args, conn, needs_folder):
 
 
 def _get_client_from_args_or_env(args):
-    """Get client type from args or environment variables."""
+    """Get client type from args or environment variables.
+    In Docker mode, defaults to 'transmission' if not specified.
+    """
     if IS_DOCKER and not args.client:
         return os.getenv("TORRENT_CLIENT", "transmission")
     return args.client
@@ -664,17 +666,26 @@ def _get_default_port(client):
 
 
 def _get_docker_connection_params(args):
-    """Get connection parameters from Docker environment variables."""
+    """Get connection parameters from Docker environment variables.
+    Uses default values: localhost, 9091, transmission if not specified.
+    """
+    # Get client (defaults to transmission in Docker)
+    client = _get_client_from_args_or_env(args)
+    
+    # Get host (defaults to localhost)
     host = os.getenv("TORRENT_HOST", args.host or "localhost")
+    
+    # Get port (defaults to 9091 for transmission, 8080 for qbittorrent)
     port_env = os.getenv("TORRENT_PORT")
     port = int(port_env) if port_env else None
     if not port:
-        default_port = _get_default_port(args.client)
+        default_port = _get_default_port(client)
         port = args.port if args.port else default_port
+    
     username = os.getenv("TORRENT_USER", args.username or "")
     password = os.getenv("TORRENT_PASSWORD", args.password or "")
     download_folder = args.download_folder or "/media"
-    return host, port, username, password, download_folder
+    return host, port, username, password, download_folder, client
 
 
 def _get_non_docker_connection_params(args):
@@ -713,29 +724,39 @@ def _load_magnet_links():
 
 def _handle_download_command(args):
     """Handle the download command."""
-    client = _get_client_from_args_or_env(args)
-    if not client:
-        print("Error: --client is required when using --download.")
-        return False
+    # Get connection parameters based on Docker mode
+    if IS_DOCKER:
+        host, port, username, password, download_folder, client = _get_docker_connection_params(args)
+        # Log connection parameters in Docker mode
+        print("Download configuration:")
+        print(f"  Client: {client}")
+        print(f"  Host: {host}")
+        print(f"  Port: {port}")
+        if username:
+            print(f"  Username: {username}")
+        if download_folder:
+            print(f"  Download folder: {download_folder}")
+    else:
+        client = _get_client_from_args_or_env(args)
+        if not client:
+            print("Error: --client is required when using --download.")
+            return False
+        host, port, username, password, download_folder = _get_non_docker_connection_params(args)
 
     magnets = _load_magnet_links()
     if magnets is None:
         return False
 
-    # Get connection parameters based on Docker mode
-    if IS_DOCKER:
-        host, port, username, password, download_folder = _get_docker_connection_params(args)
-    else:
-        host, port, username, password, download_folder = _get_non_docker_connection_params(args)
-
     try:
         client_obj = get_client(client, host, port, username, password)
+        print(f"Adding {len(magnets)} missing episode(s) to {client}...")
         client_obj.add_torrents(
             magnets,
             download_folder=download_folder,
             tags=args.tag,
             category=args.category,
         )
+        print(f"Successfully added {len(magnets)} episode(s) to {client}.")
     except ConnectionError as e:
         print(f"Connection Error: {e}")
         print(f"Please verify that {client} is running and accessible at {host}:{port}")
@@ -1121,13 +1142,16 @@ def main():
         return
 
     # Only show Docker mode message once, and not for --db or --episodes_update commands
-    if IS_DOCKER and not args.db and not args.episodes_update:
+    # Also suppress for help command
+    if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
         print("Running in Docker mode (non-interactive)")
 
     if not _validate_url(args.url):
         return
 
-    _show_episodes_metadata_status()
+    # Only show episodes metadata status for main command (not for --db or --episodes_update)
+    if not args.db and not args.episodes_update:
+        _show_episodes_metadata_status()
 
     if args.episodes_update:
         update_episodes_index_db(args.url)

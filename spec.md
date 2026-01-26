@@ -19,6 +19,12 @@
   - Episodes without quality markers are excluded
   - Episodes with quality lower than 720p (480p, 360p, etc.) are excluded
   - Episodes with quality higher than 1080p (1440p, 2160p/4K, etc.) are excluded
+  - Quality filtering is applied in both `fetch_episodes_metadata()` and `fetch_crc32_links()`
+  - Filtering is case-insensitive (accepts 1080P, 720P, etc.)
+- **URL Parameter Support**: Both `fetch_episodes_metadata()` and `update_episodes_index_db()` accept a `base_url` parameter
+  - Allows consistent URL usage across all episode fetching functions
+  - Default URL includes 1080p filter, but can be overridden
+  - Quality filtering still applies regardless of URL parameters
 - Builds and maintains an episodes index database (`episodes_index.db`)
 - Supports both single-file and multi-file torrent structures
 - Handles pagination to fetch all available episodes
@@ -26,14 +32,24 @@
 ### 2. Local Library Management
 - Scans local directories recursively for video files (`.mkv`, `.mp4`, `.avi`)
 - Calculates CRC32 checksums for local video files
+- **Path Normalization**: All file paths are normalized before storage and lookup
+  - Uses `normalize_file_path()` to resolve symlinks and convert to absolute paths
+  - Ensures consistent path representation across different OS and environments
+  - Prevents cache misses when same file is accessed via different path representations
+  - Critical for consistent behavior between Python and Docker versions
 - Caches CRC32 values in `crc32_files.db` to avoid recalculating
-- Tracks file paths and their corresponding checksums
+- Tracks file paths and their corresponding checksums (using normalized paths)
 
 ### 3. Missing Episode Detection
 - Fetches episode list from Nyaa.si using the provided URL (default: One-Pace 1080p search)
-- Compares local CRC32 checksums against fetched episodes
+- **Quality Filtering**: `fetch_crc32_links()` applies quality filtering via `_process_crc32_row()`
+  - Only accepts episodes with 1080p or 720p quality
+  - Requires "[One Pace]" marker in filename
+  - Ensures consistent filtering regardless of URL parameters
+- Compares local CRC32 checksums against fetched episodes (using normalized paths)
 - Generates a CSV report (`Ace-Pace_Missing.csv`) listing missing episodes
 - Includes title, page link, and magnet link for each missing episode
+- Displays missing episode count prominently in output
 - Tracks new missing episodes since last export by comparing with previous CSV
 - Note: Uses `fetch_crc32_links()` for real-time fetching, not the cached episodes index
 
@@ -55,8 +71,9 @@
 
 #### `crc32_files.db`
 - **Table: `crc32_cache`**
-  - `file_path` (TEXT, PRIMARY KEY): Full path to local video file
+  - `file_path` (TEXT, PRIMARY KEY): Normalized absolute path to local video file
   - `crc32` (TEXT, UNIQUE): CRC32 checksum of the file
+  - Note: File paths are normalized using `normalize_file_path()` before storage
 - **Table: `metadata`**
   - `key` (TEXT, PRIMARY KEY): Metadata key
   - `value` (TEXT): Metadata value
@@ -79,6 +96,7 @@
 - Uses Python's `zlib.crc32()` for incremental calculation
 - Formats result as uppercase 8-character hexadecimal string
 - Caches results to avoid redundant calculations
+- Uses normalized file paths for cache lookups to ensure consistency
 
 #### CRC32 Extraction from Filenames
 - Uses regex pattern: `\[([A-Fa-f0-9]{8})\]`
@@ -113,7 +131,9 @@ Ace-Pace/
 │   ├── test_database.py
 │   ├── test_episodes.py
 │   ├── test_file_operations.py
-│   └── test_missing_detection.py
+│   ├── test_missing_detection.py
+│   ├── test_path_normalization.py
+│   └── test_main_command.py
 ├── crc32_files.db          # Local file checksum database (generated)
 ├── episodes_index.db       # Episodes metadata database (generated)
 ├── Ace-Pace_Missing.csv    # Missing episodes report (generated)
@@ -143,12 +163,31 @@ Ace-Pace/
 - **Docker Mode**: Detected via `RUN_DOCKER` environment variable
 - **Non-Interactive Operation**: In Docker mode, skips user prompts and uses defaults
 - **Default Folder**: Uses `/media` as default folder in Docker mode
+- **Config Directory**: Uses `/config` directory in Docker mode for databases and CSV files
+  - Local mode uses current directory (`.`)
+  - Config directory is automatically created if it doesn't exist
+- **Message Suppression**: In Docker mode, suppresses informational messages for automated commands
+  - "Running in Docker mode" message only shown once for main command (not for `--db` or `--episodes_update`)
+  - Episodes metadata status only shown for main command (suppressed for `--db` and `--episodes_update`)
+  - Database "already exists" message suppressed when `--db` flag is used
+- **Entrypoint Script**: `entrypoint.sh` orchestrates Docker execution
+  - Runs `--episodes_update` if `EPISODES_UPDATE=true` (with URL parameter if `NYAA_URL` is set)
+  - Runs `--db` if `DB=true` (exports database to CSV)
+  - **Always runs missing episodes report** (generates/updates `Ace-Pace_Missing.csv`)
+  - Runs `--download` if `DOWNLOAD=true` (downloads missing episodes after report generation)
+  - Always passes `--folder /media` to commands
+  - Passes `NYAA_URL` parameter when set
 - **Environment Variables**: Supports configuration via Docker environment variables
-  - `TORRENT_CLIENT`: BitTorrent client type (transmission/qbittorrent)
-  - `TORRENT_HOST`: Client host address
-  - `TORRENT_PORT`: Client port number
-  - `TORRENT_USER`: Client authentication username
-  - `TORRENT_PASSWORD`: Client authentication password
+  - `DOWNLOAD`: Set to "true" to download missing episodes after generating report (default: not set/false)
+  - `TORRENT_CLIENT`: BitTorrent client type (default: transmission)
+    - Options: transmission, qbittorrent
+  - `TORRENT_HOST`: Client host address (default: localhost)
+  - `TORRENT_PORT`: Client port number (default: 9091 for transmission, 8080 for qbittorrent)
+  - `TORRENT_USER`: Client authentication username (default: empty, not required)
+  - `TORRENT_PASSWORD`: Client authentication password (default: empty, not required)
+  - `NYAA_URL`: Custom Nyaa.si search URL (optional, defaults to 1080p search)
+  - `EPISODES_UPDATE`: Set to "true" to update episodes index on container start (default: not set/false)
+  - `DB`: Set to "true" to export database on container start (default: not set/false)
   - `RUN_DOCKER`: Flag to enable Docker mode (non-interactive)
 
 ## Command-Line Interface
@@ -186,28 +225,47 @@ Ace-Pace/
 8. User optionally runs `--download --client <client>` to add missing episodes to BitTorrent client
 
 ### Episodes Index Update Workflow
-1. User runs `--episodes_update` to refresh episodes database
-2. Script scrapes all pages of Nyaa.si One-Pace search results
-3. For each torrent, extracts CRC32 from title or file list
-4. Stores CRC32, title, and page link in `episodes_index.db`
-5. Updates metadata with last update timestamp
+1. User runs `--episodes_update` (optionally with `--url` to specify search URL)
+2. Script uses provided URL or defaults to One-Pace search (without quality filter in URL)
+3. Script scrapes all pages of Nyaa.si search results
+4. For each torrent, extracts CRC32 from title or file list
+5. Applies quality filtering (1080p/720p only) before storing
+6. Stores CRC32, title, and page link in `episodes_index.db`
+7. Updates metadata with last update timestamp
+8. Note: Quality filtering is applied regardless of URL parameters
 
 ### File Renaming Workflow
-1. User runs `--rename` with `--folder`
+1. User runs `--rename` with `--folder` (optionally with `--url` to specify search URL)
 2. Script checks episodes index update status
 3. Script prompts to update episodes index if outdated (skipped in Docker mode)
-4. Script loads CRC32-to-title mapping from episodes index
-5. Script matches local files by CRC32
-6. Script generates rename plan and prompts for confirmation (auto-confirms in Docker mode)
-7. Script renames files and updates database
+4. If update is needed, uses provided URL or default for `update_episodes_index_db()`
+5. Script loads CRC32-to-title mapping from episodes index
+6. Script matches local files by CRC32 (using normalized paths)
+7. Script generates rename plan and prompts for confirmation (auto-confirms in Docker mode)
+8. Script renames files and updates database with normalized paths
 
 ### Docker Workflow
 1. Container starts with `RUN_DOCKER` environment variable set
-2. Script operates in non-interactive mode (no user prompts)
-3. Default folder is `/media` (configurable via volume mount)
-4. BitTorrent client connection parameters read from environment variables
-5. All user prompts automatically answered with defaults
-6. Database files and CSV reports persist via volume mounts
+2. Entrypoint script (`entrypoint.sh`) orchestrates execution:
+   - If `EPISODES_UPDATE=true`: Runs `--episodes_update` with URL from `NYAA_URL` (if set)
+   - If `DB=true`: Runs `--db` to export database (suppresses informational messages)
+   - **Always runs missing episodes report** (generates/updates `Ace-Pace_Missing.csv`)
+   - If `DOWNLOAD=true`: Runs `--download` to download missing episodes
+     - Uses default connection parameters if not specified:
+       - Client: transmission
+       - Host: localhost
+       - Port: 9091 (transmission) or 8080 (qbittorrent)
+     - Logs connection parameters used for download
+3. Script operates in non-interactive mode (no user prompts)
+4. Default folder is `/media` (always passed via `--folder` in entrypoint)
+5. Config directory is `/config` (databases and CSV files stored here)
+6. BitTorrent client connection parameters use defaults if not specified via environment variables
+7. All user prompts automatically answered with defaults
+8. Database files and CSV reports persist via volume mounts
+9. Docker mode messages suppressed for automated commands (`--db`, `--episodes_update`)
+10. Episodes metadata status only shown for main command
+11. Missing episode count prominently displayed in output
+12. Missing episodes CSV is always updated before download (if download is enabled)
 
 ## Integration Points
 
@@ -276,9 +334,9 @@ Ace-Pace/
 - Automatic episode index updates on schedule
 - Support for additional video formats
 - Integration with media server APIs (Plex, Jellyfin)
-- Episode quality filtering (720p, 1080p, etc.)
 - Duplicate detection and cleanup
 - Episode metadata enrichment (thumbnails, descriptions)
+- Note: Episode quality filtering (720p, 1080p) is already implemented ✅
 
 ### Technical Improvements
 - Async/await for concurrent web scraping
@@ -313,18 +371,30 @@ The codebase follows a modular structure with clear separation of concerns:
 
 #### Public API Functions
 - `main()`: Entry point for the application
-- `init_db()`: Initializes the local CRC32 cache database
+- `init_db(suppress_messages=False)`: Initializes the local CRC32 cache database
+  - `suppress_messages`: If True, suppresses informational messages (useful for automated runs)
 - `init_episodes_db()`: Initializes the episodes index database
+- `get_config_dir()`: Gets config directory path based on Docker mode (`/config` in Docker, `.` locally)
+- `get_config_path(filename)`: Gets full path to a config file in the appropriate config directory
+- `normalize_file_path(file_path)`: Normalizes file path for consistent storage and lookup
+  - Resolves symlinks and converts to absolute path
+  - Ensures same file always maps to same path string regardless of OS/environment
 - `get_metadata(conn, key)`: Retrieves metadata value from database
 - `set_metadata(conn, key, value)`: Stores metadata value in database
 - `get_episodes_metadata(conn, key)`: Retrieves episodes database metadata
 - `set_episodes_metadata(conn, key, value)`: Stores episodes database metadata
-- `fetch_episodes_metadata()`: Fetches episodes from Nyaa.si
-- `update_episodes_index_db()`: Updates the episodes index database
+- `fetch_episodes_metadata(base_url=None)`: Fetches episodes from Nyaa.si
+  - `base_url`: Optional Nyaa.si search URL (defaults to One-Pace search without quality filter)
+  - Quality filtering (1080p/720p) is always applied regardless of URL
+- `update_episodes_index_db(base_url=None)`: Updates the episodes index database
+  - `base_url`: Optional Nyaa.si search URL (passed to `fetch_episodes_metadata()`)
 - `fetch_crc32_links(base_url)`: Fetches CRC32 links from a Nyaa.si URL
+  - Applies quality filtering (1080p/720p only) via `_process_crc32_row()`
 - `fetch_title_by_crc32(crc32)`: Searches for a title by CRC32
 - `calculate_local_crc32(folder, conn)`: Calculates CRC32 for local files
+  - Uses normalized paths for database storage and lookup
 - `rename_local_files(conn)`: Renames local files based on episodes index
+  - Uses normalized paths when updating database after renaming
 - `export_db_to_csv(conn)`: Exports database to CSV
 - `load_crc32_to_title_from_index()`: Loads CRC32-to-title mapping
 
@@ -349,7 +419,8 @@ Helper functions are prefixed with `_` to indicate they are internal implementat
 
 **Command handlers** (`_handle_*`): Handle specific command-line operations
 - `_handle_download_command(args)`: Handles the `--download` command
-- `_handle_rename_command(conn)`: Handles the `--rename` command
+- `_handle_rename_command(conn, base_url=None)`: Handles the `--rename` command
+  - `base_url`: Optional URL parameter passed to `update_episodes_index_db()` if update is needed
 - `_handle_main_commands(args, conn, folder)`: Routes and handles main commands
 
 **Getter functions** (`_get_*`): Retrieve or compute values
@@ -411,15 +482,41 @@ When working on this project:
 1. **CRC32 is the primary identifier** - All episode matching relies on CRC32 checksums
 2. **Nyaa.si structure** - Understand the HTML structure of Nyaa.si pages for scraping
 3. **Database state** - Always consider existing database state when making changes
-4. **File paths** - Handle both absolute and relative paths correctly
+4. **File paths** - Always use `normalize_file_path()` before storing/querying file paths in database
+   - Ensures consistent path representation across different OS and environments
+   - Critical for consistent behavior between Python and Docker versions
+   - Resolves symlinks and converts to absolute paths
 5. **User interaction** - Some operations require user confirmation (renaming, downloads), but are auto-confirmed in Docker mode
 6. **Client abstraction** - New BitTorrent clients should implement the `Client` interface from `clients.py`
 7. **Error tolerance** - The tool should continue processing even if individual items fail
-8. **Performance** - CRC32 calculation can be slow; caching is essential
+8. **Performance** - CRC32 calculation can be slow; caching is essential (uses normalized paths for cache keys)
 9. **Web scraping** - Be respectful with rate limiting and error handling
 10. **File naming** - Sanitize filenames to be filesystem-safe across platforms
 11. **Docker mode** - Check `IS_DOCKER` flag (from `RUN_DOCKER` env var) to determine if running in Docker
+    - Suppress informational messages for automated commands (`--db`, `--episodes_update`)
+    - Use `/config` directory for databases and CSV files in Docker mode
+    - Use `/media` as default folder in Docker mode
 12. **Function naming** - Follow the naming conventions in `NAMING_CONVENTIONS.md` when adding new helper functions
 13. **Code complexity** - Maintain cognitive complexity ≤ 15 per function (refactoring completed)
-14. **Testing** - Comprehensive test suite exists in `tests/` directory
+14. **Testing** - Comprehensive test suite exists in `tests/` directory (100+ tests covering all features)
 15. **Environment variables** - In Docker mode, prefer environment variables over CLI args for configuration
+16. **URL parameter consistency** - Both `fetch_episodes_metadata()` and `fetch_crc32_links()` accept URL parameters
+    - Always pass `args.url` to ensure consistent URL usage across functions
+    - Quality filtering is applied regardless of URL parameters
+17. **Quality filtering** - Applied in both `fetch_episodes_metadata()` and `fetch_crc32_links()` via `_is_valid_quality()`
+    - Only accepts 1080p or 720p episodes
+    - Requires "[One Pace]" marker in filename
+    - Ensures consistent filtering regardless of URL search parameters
+18. **Config directory** - Use `get_config_dir()` and `get_config_path()` for consistent file location handling
+    - Returns `/config` in Docker mode, `.` in local mode
+    - Automatically creates directory if it doesn't exist
+19. **Message suppression** - Use `suppress_messages=True` in `init_db()` for automated runs
+    - Prevents "Database already exists" message when running `--db` in Docker
+20. **Docker download logic** - Use `DOWNLOAD=true` environment variable to enable downloads (not `TORRENT_CLIENT` presence)
+    - Missing episodes CSV is always generated/updated before download (if download enabled)
+    - Download happens as a separate step after report generation
+21. **Default connection values** - In Docker mode, use defaults if not specified via environment variables
+    - Client: transmission
+    - Host: localhost
+    - Port: 9091 (transmission) or 8080 (qbittorrent)
+22. **Download logging** - Log connection parameters used for download in Docker mode for transparency

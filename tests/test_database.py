@@ -50,6 +50,38 @@ class TestDatabaseInitialization:
             conn.close()
             os.remove(os.path.join(temp_dir, 'test_episodes_index.db'))
 
+    def test_init_db_suppresses_messages_when_requested(self, temp_dir):
+        """Test that init_db suppresses messages when suppress_messages=True."""
+        with patch('acepace.DB_NAME', os.path.join(temp_dir, 'test.db')):
+            # First call creates the database (should show message if suppress_messages=False)
+            conn1 = acepace.init_db(suppress_messages=False)
+            conn1.close()
+            
+            # Second call with suppress_messages=True should not print message
+            with patch('builtins.print') as mock_print:
+                conn2 = acepace.init_db(suppress_messages=True)
+                conn2.close()
+                
+                # Verify "Database already exists" message was NOT printed
+                print_calls = [str(c) for c in mock_print.call_args_list]
+                assert not any("Database already exists" in str(call) for call in print_calls)
+
+    def test_init_db_shows_messages_when_not_suppressed(self, temp_dir):
+        """Test that init_db shows messages when suppress_messages=False (default)."""
+        with patch('acepace.DB_NAME', os.path.join(temp_dir, 'test.db')):
+            # First call creates the database
+            conn1 = acepace.init_db()
+            conn1.close()
+            
+            # Second call should show message (default behavior)
+            with patch('builtins.print') as mock_print:
+                conn2 = acepace.init_db(suppress_messages=False)
+                conn2.close()
+                
+                # Verify "Database already exists" message WAS printed
+                print_calls = [str(c) for c in mock_print.call_args_list]
+                assert any("Database already exists" in str(call) for call in print_calls)
+
 
 class TestMetadataOperations:
     """Tests for metadata get/set operations."""

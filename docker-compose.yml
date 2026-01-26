@@ -1,23 +1,37 @@
 services:
   ace-pace:
-    build: .
+    # build: .
     image: timothe/ace-pace:latest # or timothe/ace-pace:dev for dev branch
     container_name: ace-pace
     volumes:
       - /path/to/OnePaceLibrary:/media:rw
       - /path/to/config:/config:rw
-    networks:
-      - "proxy"
+    # networks:
+    #   - "proxy"
     environment:
       - TZ=Europe/London
-      - TORRENT_HOST=127.0.0.1
-      - TORRENT_PORT=9091
-      - TORRENT_CLIENT=transmission
-      - NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
-      #- TORRENT_USER=admin
-      #- TORRENT_PASSWORD=password
+      # Export database to CSV on container start (default: false)
       - DB=true
+      # Update episodes index database on container start (default: false)
       - EPISODES_UPDATE=true
-networks:
-  proxy:
-    driver: bridge
+      # Nyaa.si search URL (default: https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc)
+      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
+
+      # Download missing episodes after generating report (default: false)
+      #- DOWNLOAD=true
+      
+      # BitTorrent client type (default: transmission)
+      # Options: transmission, qbittorrent
+      #- TORRENT_CLIENT=transmission
+      # BitTorrent client host (default: localhost)
+      #- TORRENT_HOST=127.0.0.1
+      # BitTorrent client port (default: 9091 for transmission, 8080 for qbittorrent)
+      #- TORRENT_PORT=9091
+      # BitTorrent client username (default: empty, not required)
+      #- TORRENT_USER=admin
+      # BitTorrent client password (default: empty, not required)
+      #- TORRENT_PASSWORD=password
+
+# networks:
+#   proxy:
+#     driver: bridge
