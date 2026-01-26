@@ -1000,7 +1000,8 @@ AVAILABLE COMMANDS:
 
   General Options:
     --url URL               Custom Nyaa search URL
-                            Default: https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
+                            Default: https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
+                            Note: Quality filtering (1080p/720p) is applied in code regardless of URL
                             Must point to a valid Nyaa domain
 
     --folder PATH           Folder containing local video files
@@ -1052,8 +1053,8 @@ Use --help for detailed command descriptions.
     )
     parser.add_argument(
         "--url",
-        default=f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace+1080p&o=asc",
-        help=f"Base URL without the page param. Default includes 1080p filter. Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace+1080p&o=asc' ",
+        default=f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc",
+        help=f"Base URL without the page param. Default searches for 'one pace' without quality filter (quality filtering 1080p/720p is applied in code). Example: '{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace&o=asc' ",
     )
     parser.add_argument("--folder", help="Folder containing local video files.")
     parser.add_argument(
