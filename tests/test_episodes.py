@@ -27,6 +27,51 @@ class TestEpisodeMetadataFetching:
         assert len(episodes) == 2
         assert any(ep[0] == "A1B2C3D4" for ep in episodes)
         assert any(ep[0] == "E5F6A7B8" for ep in episodes)
+        
+        # Verify default URL was used
+        assert mock_get.call_count > 0
+        # Check that the default URL (without 1080p) was used
+        call_urls = [call[0][0] for call in mock_get.call_args_list]
+        assert any("q=one+pace" in url and "1080p" not in url for url in call_urls)
+
+    @patch('acepace.requests.get')
+    def test_fetch_episodes_metadata_uses_custom_url(self, mock_get, mock_nyaa_html_single_page):
+        """Test that fetch_episodes_metadata uses the provided URL parameter."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = mock_nyaa_html_single_page
+        mock_get.return_value = mock_response
+        
+        custom_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"
+        episodes = acepace.fetch_episodes_metadata(custom_url)
+        
+        assert len(episodes) == 2
+        
+        # Verify the custom URL was used in requests
+        assert mock_get.call_count > 0
+        call_urls = [call[0][0] for call in mock_get.call_args_list]
+        # All URLs should start with the custom URL (with page parameter)
+        for url in call_urls:
+            assert url.startswith(custom_url + "&p=") or url == custom_url + "&p=1"
+
+    @patch('acepace.requests.get')
+    def test_fetch_episodes_metadata_default_url_when_none_provided(self, mock_get, mock_nyaa_html_single_page):
+        """Test that fetch_episodes_metadata uses default URL when None is provided."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = mock_nyaa_html_single_page
+        mock_get.return_value = mock_response
+        
+        # Call with None explicitly
+        episodes = acepace.fetch_episodes_metadata(None)
+        
+        assert len(episodes) == 2
+        
+        # Verify default URL was used
+        assert mock_get.call_count > 0
+        call_urls = [call[0][0] for call in mock_get.call_args_list]
+        # Should use default URL without 1080p
+        assert any("q=one+pace" in url and "1080p" not in url for url in call_urls)
 
     @patch('acepace.requests.get')
     @patch('acepace.time.sleep')  # Mock sleep to speed up tests
@@ -206,6 +251,23 @@ class TestUpdateEpisodesIndex:
             
             conn.close()
             os.remove(os.path.join(temp_dir, 'test.db'))
+
+    @patch('acepace.fetch_episodes_metadata')
+    @patch('acepace.EPISODES_DB_NAME', 'test_episodes_index.db')
+    def test_update_episodes_index_db_uses_url_parameter(self, mock_fetch, temp_dir, sample_episode_data):
+        """Test that update_episodes_index_db passes URL parameter to fetch_episodes_metadata."""
+        with patch('acepace.EPISODES_DB_NAME', os.path.join(temp_dir, 'test.db')):
+            mock_fetch.return_value = sample_episode_data
+            
+            test_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"
+            acepace.update_episodes_index_db(test_url)
+            
+            # Verify fetch_episodes_metadata was called with the URL
+            mock_fetch.assert_called_once_with(test_url)
+            
+            # Clean up
+            if os.path.exists(os.path.join(temp_dir, 'test.db')):
+                os.remove(os.path.join(temp_dir, 'test.db'))
 
 
 class TestEpisodeQualityFiltering:
@@ -659,3 +721,100 @@ class TestQualityFilteringHelper:
             assert len(matches) > 0
             quality_num = int(matches[0].lower().replace('p', ''))
             assert quality_num not in [720, 1080]
+
+
+class TestURLParameterConsistency:
+    """Tests to ensure URL parameter is used consistently across functions."""
+
+    @patch('acepace.requests.get')
+    def test_fetch_episodes_metadata_and_fetch_crc32_links_use_same_url(self, mock_get):
+        """Test that both fetch_episodes_metadata and fetch_crc32_links use the same URL when provided."""
+        html_with_results = """
+        <html>
+            <body>
+                <table class="torrent-list">
+                    <tr>
+                        <td>
+                            <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
+                            <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
+                        </td>
+                    </tr>
+                </table>
+                <ul class="pagination">
+                    <li><a href="?p=1">1</a></li>
+                </ul>
+            </body>
+        </html>
+        """
+        
+        html_empty = """
+        <html>
+            <body>
+                <table class="torrent-list">
+                </table>
+            </body>
+        </html>
+        """
+        
+        mock_response1 = MagicMock()
+        mock_response1.status_code = 200
+        mock_response1.text = html_with_results
+        
+        mock_response2 = MagicMock()
+        mock_response2.status_code = 200
+        mock_response2.text = html_empty
+        
+        mock_get.side_effect = [mock_response1, mock_response2]
+        
+        test_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"
+        
+        # Test fetch_episodes_metadata
+        episodes = acepace.fetch_episodes_metadata(test_url)
+        
+        # Reset mock for second test
+        mock_get.reset_mock()
+        mock_get.side_effect = [mock_response1, mock_response2]
+        
+        # Test fetch_crc32_links
+        crc32_to_link, _, _, _ = acepace.fetch_crc32_links(test_url)
+        
+        # Both should use the same URL
+        assert mock_get.call_count > 0
+        
+        # Verify URLs used in both calls
+        episodes_urls = [call[0][0] for call in mock_get.call_args_list]
+        
+        # Both should have used URLs starting with test_url
+        for url in episodes_urls:
+            assert url.startswith(test_url + "&p=") or url == test_url + "&p=1"
+
+    @patch('acepace.fetch_episodes_metadata')
+    def test_update_episodes_index_db_passes_url_to_fetch_episodes_metadata(self, mock_fetch, temp_dir):
+        """Test that update_episodes_index_db correctly passes URL to fetch_episodes_metadata."""
+        with patch('acepace.EPISODES_DB_NAME', os.path.join(temp_dir, 'test.db')):
+            mock_fetch.return_value = []
+            
+            test_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"
+            acepace.update_episodes_index_db(test_url)
+            
+            # Verify fetch_episodes_metadata was called with the URL
+            mock_fetch.assert_called_once_with(test_url)
+            
+            conn = acepace.init_episodes_db()
+            conn.close()
+            os.remove(os.path.join(temp_dir, 'test.db'))
+
+    @patch('acepace.fetch_episodes_metadata')
+    def test_update_episodes_index_db_default_url_when_none_provided(self, mock_fetch, temp_dir):
+        """Test that update_episodes_index_db uses default URL when None is provided."""
+        with patch('acepace.EPISODES_DB_NAME', os.path.join(temp_dir, 'test.db')):
+            mock_fetch.return_value = []
+            
+            acepace.update_episodes_index_db()
+            
+            # Verify fetch_episodes_metadata was called with None (which triggers default)
+            mock_fetch.assert_called_once_with(None)
+            
+            conn = acepace.init_episodes_db()
+            conn.close()
+            os.remove(os.path.join(temp_dir, 'test.db'))

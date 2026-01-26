@@ -281,14 +281,18 @@ def _process_episode_row(row, seen_crc32, episodes):
         return _process_torrent_page(page_link, seen_crc32, episodes)
 
 
-def fetch_episodes_metadata():
+def fetch_episodes_metadata(base_url=None):
     """
     Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
     If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
+    Args:
+        base_url: Base URL for Nyaa search. If None, uses default without quality filter.
+                  Note: Quality filtering (1080p/720p) is always applied regardless of URL.
     Returns: List of (crc32, title, page_link)
     """
-
-    base_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace"
+    if base_url is None:
+        base_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace"
+    
     episodes = []
     seen_crc32 = set()
     page = 1
@@ -326,9 +330,13 @@ def fetch_episodes_metadata():
     return episodes
 
 
-def update_episodes_index_db():
+def update_episodes_index_db(base_url=None):
+    """Update episodes index database from Nyaa.
+    Args:
+        base_url: Base URL for Nyaa search. If None, uses default.
+    """
     conn = init_episodes_db()
-    episodes = fetch_episodes_metadata()
+    episodes = fetch_episodes_metadata(base_url)
     c = conn.cursor()
     count = 0
     for crc32, title, page_link in episodes:
@@ -757,8 +765,12 @@ def _get_rename_prompt(last_ep_update):
         ).strip().lower()
 
 
-def _handle_rename_command(conn):
-    """Handle the rename command."""
+def _handle_rename_command(conn, base_url=None):
+    """Handle the rename command.
+    Args:
+        conn: Database connection
+        base_url: Base URL for Nyaa search (optional)
+    """
     episodes_db_conn = init_episodes_db()
     last_ep_update = get_episodes_metadata(
         episodes_db_conn, "episodes_db_last_update"
@@ -768,7 +780,7 @@ def _handle_rename_command(conn):
     prompt = _get_rename_prompt(last_ep_update)
     
     if prompt == "y":
-        update_episodes_index_db()
+        update_episodes_index_db(base_url)
     print(
         "Renaming local files based on matching titles from One Pace episodes index..."
     )
@@ -1084,7 +1096,7 @@ def _handle_main_commands(args, conn, folder):
         return
 
     if args.rename:
-        _handle_rename_command(conn)
+        _handle_rename_command(conn, args.url)
         return
 
     if not folder:
@@ -1118,7 +1130,7 @@ def main():
     _show_episodes_metadata_status()
 
     if args.episodes_update:
-        update_episodes_index_db()
+        update_episodes_index_db(args.url)
         return
 
     # Suppress messages when exporting DB (since it's automated)
