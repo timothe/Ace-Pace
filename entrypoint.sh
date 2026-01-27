@@ -44,19 +44,10 @@ if [ "$DB" = "true" ]; then
 fi
 
 # Run missing episodes report
-# Skip only if doing a single operation (episodes_update only or db only)
-# This matches non-Docker behavior where each command is separate
-# Run report if: no flags (default), DOWNLOAD is set, or multiple operations
-SHOULD_RUN_REPORT=true
-if [ "$EPISODES_UPDATE" = "true" ] && [ "$DB" != "true" ] && [ "$DOWNLOAD" != "true" ]; then
-    # Only updating episodes, skip report (same as non-Docker)
-    SHOULD_RUN_REPORT=false
-elif [ "$DB" = "true" ] && [ "$EPISODES_UPDATE" != "true" ] && [ "$DOWNLOAD" != "true" ]; then
-    # Only exporting DB, skip report (same as non-Docker)
-    SHOULD_RUN_REPORT=false
-fi
-
-if [ "$SHOULD_RUN_REPORT" = "true" ]; then
+# Always run unless ONLY exporting DB (same as non-Docker: main command always runs)
+# When EPISODES_UPDATE=true, the Python code will use the database to avoid double fetch
+# Skip report only if DB=true AND no other operations
+if [ "$DB" != "true" ] || [ "$EPISODES_UPDATE" = "true" ] || [ "$DOWNLOAD" = "true" ]; then
     python /app/acepace.py \
         --folder /media \
         ${NYAA_URL:+--url "$NYAA_URL"}

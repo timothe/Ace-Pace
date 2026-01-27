@@ -440,6 +440,90 @@ def load_crc32_to_title_from_index():
     return d
 
 
+def load_1080p_episodes_from_index():
+    """Load only 1080p episodes from episodes_index database.
+    Returns: Tuple of (crc32_to_link, crc32_to_text) dictionaries with only 1080p episodes."""
+    conn = init_episodes_db()
+    c = conn.cursor()
+    c.execute("SELECT crc32, title, page_link FROM episodes_index")
+    crc32_to_link = {}
+    crc32_to_text = {}
+    for crc32, title, page_link in c.fetchall():
+        # Only include 1080p episodes (same filter as fetch_crc32_links)
+        if _is_valid_quality(title):
+            crc32_to_link[crc32] = page_link
+            crc32_to_text[crc32] = title
+    conn.close()
+    return crc32_to_link, crc32_to_text
+
+
+def fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link):
+    """Fetch magnet links from Nyaa search results for episodes already in crc32_to_link.
+    This is more efficient than fetching all episodes again.
+    Args:
+        base_url: Nyaa search URL
+        crc32_to_link: Dictionary mapping CRC32 to page_link (episodes we need magnet links for)
+    Returns: Dictionary mapping CRC32 to magnet_link"""
+    crc32_to_magnet = {}
+    crc32_set = set(crc32_to_link.keys())
+    
+    if not crc32_set:
+        return crc32_to_magnet
+    
+    # Get total number of pages
+    soup, success = _fetch_crc32_page(base_url, 1)
+    if not success:
+        return crc32_to_magnet
+    
+    total_pages = _get_total_pages(soup)
+    print(f"Fetching magnet links from {total_pages} pages...")
+    
+    # Process pages to extract magnet links for episodes we need
+    page = 1
+    found_count = 0
+    while page <= total_pages and found_count < len(crc32_set):
+        if _shutdown_requested:
+            break
+        
+        if page == 1:
+            page_soup = soup
+        else:
+            page_soup_result, success = _fetch_crc32_page(base_url, page)
+            if not success or page_soup_result is None:
+                break
+            page_soup = page_soup_result
+        
+        if page_soup is None:
+            break
+        
+        # Extract magnet links from rows, matching by CRC32
+        table = page_soup.find("table", class_="torrent-list")
+        if table:
+            rows = table.find_all("tr")
+            for row in rows:
+                if _shutdown_requested:
+                    break
+                title_link, magnet_link = _extract_links_from_row(row)
+                if (title_link and magnet_link and 
+                    isinstance(magnet_link, str) and 
+                    magnet_link.startswith(MAGNET_LINK_PREFIX) and
+                    hasattr(title_link, 'text')):
+                    filename_text = title_link.text
+                    # Extract CRC32 from title
+                    matches = CRC32_REGEX.findall(filename_text)
+                    if matches:
+                        crc32 = matches[-1].upper()
+                        if crc32 in crc32_set:
+                            crc32_to_magnet[crc32] = magnet_link
+                            found_count += 1
+        
+        page += 1
+        if page <= total_pages:
+            time.sleep(REQUEST_DELAY_SECONDS)
+    
+    return crc32_to_magnet
+
+
 
 
 def get_metadata(conn, key):
@@ -1322,9 +1406,38 @@ def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized,
 
 def _calculate_and_find_missing(folder, conn, args, last_run):
     """Calculate local CRC32s and find missing episodes."""
-    crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
-        fetch_crc32_links(args.url)
-    )
+    # Check if episodes_index was recently updated (within last 2 minutes)
+    # If so, use database instead of fetching again to avoid double fetch
+    conn_episodes = init_episodes_db()
+    last_update_str = get_episodes_metadata(conn_episodes, "episodes_db_last_update")
+    conn_episodes.close()
+    
+    use_database = False
+    if last_update_str:
+        try:
+            last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+            time_diff = datetime.now() - last_update
+            # Use database if updated within last 2 minutes (likely from --episodes_update)
+            if time_diff.total_seconds() < 120:
+                use_database = True
+        except (ValueError, TypeError):
+            # If parsing fails, fall through to normal fetch
+            pass
+    
+    if use_database:
+        # Use database to avoid double fetch
+        print("Using recently updated episodes index database (avoiding duplicate fetch)...")
+        crc32_to_link, crc32_to_text = load_1080p_episodes_from_index()
+        print(f"Loaded {len(crc32_to_link)} 1080p episodes from database.")
+        print("Fetching magnet links from search results...")
+        crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(args.url, crc32_to_link)
+        print(f"Fetched {len(crc32_to_magnet)} magnet links.")
+        last_checked_page = 0  # Not tracking pages when using database
+    else:
+        # Normal fetch from Nyaa
+        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
+            fetch_crc32_links(args.url)
+        )
 
     print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
 
