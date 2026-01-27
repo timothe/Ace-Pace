@@ -440,146 +440,6 @@ def load_crc32_to_title_from_index():
     return d
 
 
-def load_episodes_from_index():
-    """Load episodes from episodes_index database.
-    Returns: Tuple of (crc32_to_link, crc32_to_text) dictionaries."""
-    conn = init_episodes_db()
-    c = conn.cursor()
-    c.execute("SELECT crc32, title, page_link FROM episodes_index")
-    crc32_to_link = {}
-    crc32_to_text = {}
-    for crc32, title, page_link in c.fetchall():
-        crc32_to_link[crc32] = page_link
-        crc32_to_text[crc32] = title
-    conn.close()
-    return crc32_to_link, crc32_to_text
-
-
-def _extract_crc32_from_row(row, crc32_set):
-    """Extract CRC32 and magnet link from a table row if it matches the set.
-    Returns tuple: (crc32, magnet_link) or (None, None) if not found or doesn't match."""
-    title_link, magnet_link = _extract_links_from_row(row)
-    if (not title_link or not magnet_link or 
-        not isinstance(magnet_link, str) or 
-        not magnet_link.startswith(MAGNET_LINK_PREFIX) or
-        not hasattr(title_link, 'text')):
-        return None, None
-    
-    filename_text = title_link.text
-    matches = CRC32_REGEX.findall(filename_text)
-    if not matches:
-        return None, None
-    
-    crc32 = matches[-1].upper()
-    if crc32 in crc32_set:
-        return crc32, magnet_link
-    return None, None
-
-
-def _process_page_for_magnet_links(page_soup, crc32_set):
-    """Process a single page to extract magnet links matching CRC32s.
-    Returns tuple: (crc32_to_magnet dict, found_count)"""
-    crc32_to_magnet = {}
-    found_count = 0
-    
-    if page_soup is None:
-        return crc32_to_magnet, found_count
-    
-    table = page_soup.find("table", class_="torrent-list")
-    if not table:
-        return crc32_to_magnet, found_count
-    
-    rows = table.find_all("tr")
-    for row in rows:
-        if _shutdown_requested:
-            break
-        crc32, magnet_link = _extract_crc32_from_row(row, crc32_set)
-        if crc32:
-            crc32_to_magnet[crc32] = magnet_link
-            found_count += 1
-    
-    return crc32_to_magnet, found_count
-
-
-def _fetch_magnet_links_from_search_results(base_url, crc32_to_link):
-    """Fetch magnet links from Nyaa search results pages by matching CRC32s.
-    This is faster than fetching individual episode pages.
-    Args:
-        base_url: Nyaa search URL
-        crc32_to_link: Dictionary mapping CRC32 to page_link (from database)
-    Returns: Dictionary mapping CRC32 to magnet_link"""
-    crc32_to_magnet = {}
-    crc32_set = set(crc32_to_link.keys())
-    
-    # Get total number of pages
-    soup, success = _fetch_crc32_page(base_url, 1)
-    if not success:
-        return crc32_to_magnet
-    
-    total_pages = _get_total_pages(soup)
-    print(f"Fetching magnet links from {total_pages} pages...")
-    
-    # Process pages to extract magnet links
-    page = 1
-    found_count = 0
-    while page <= total_pages and found_count < len(crc32_set):
-        if _shutdown_requested:
-            break
-        
-        # Get page soup
-        if page == 1:
-            page_soup = soup
-        else:
-            page_soup_result, success = _fetch_crc32_page(base_url, page)
-            if not success or page_soup_result is None:
-                break
-            page_soup = page_soup_result
-        
-        # Process page for magnet links
-        page_magnets, page_found = _process_page_for_magnet_links(page_soup, crc32_set)
-        crc32_to_magnet.update(page_magnets)
-        found_count += page_found
-        
-        page += 1
-        if page <= total_pages:
-            time.sleep(REQUEST_DELAY_SECONDS)
-    
-    return crc32_to_magnet
-
-
-def load_crc32_data_from_index_or_fetch(base_url, use_index_if_recent=True, recent_threshold_minutes=10):
-    """Load CRC32 data from episodes_index database if recently updated, otherwise fetch from Nyaa.
-    Args:
-        base_url: Nyaa search URL (used if database is not recent)
-        use_index_if_recent: If True, check if database was recently updated
-        recent_threshold_minutes: Consider database recent if updated within this many minutes
-    Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
-    # Check if we should use the database
-    if use_index_if_recent:
-        conn = init_episodes_db()
-        last_update_str = get_episodes_metadata(conn, "episodes_db_last_update")
-        conn.close()
-        
-        if last_update_str:
-            try:
-                last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
-                time_diff = datetime.now() - last_update
-                if time_diff.total_seconds() < recent_threshold_minutes * 60:
-                    # Database was recently updated, use it
-                    print("Using recently updated episodes index database (skipping full Nyaa fetch)...")
-                    crc32_to_link, crc32_to_text = load_episodes_from_index()
-                    print(f"Loaded {len(crc32_to_link)} episodes from database.")
-                    print("Fetching magnet links from search results...")
-                    crc32_to_magnet = _fetch_magnet_links_from_search_results(base_url, crc32_to_link)
-                    print(f"Fetched {len(crc32_to_magnet)} magnet links.")
-                    # Return 0 for last_checked_page since we didn't check pages in the traditional way
-                    return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
-            except (ValueError, TypeError):
-                # If parsing fails, fall through to fetching
-                pass
-    
-    # Fall back to fetching from Nyaa
-    return fetch_crc32_links(base_url)
 
 
 def get_metadata(conn, key):
@@ -1462,9 +1322,8 @@ def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized,
 
 def _calculate_and_find_missing(folder, conn, args, last_run):
     """Calculate local CRC32s and find missing episodes."""
-    # Use database if recently updated (especially in Docker mode after --episodes_update)
     crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
-        load_crc32_data_from_index_or_fetch(args.url, use_index_if_recent=True, recent_threshold_minutes=10)
+        fetch_crc32_links(args.url)
     )
 
     print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
@@ -1524,9 +1383,11 @@ def _report_new_missing_episodes(missing, crc32_to_text):
     new_crc32s = set(missing) - old_missing_crc32s
     if new_crc32s:
         print(f"New missing episodes detected since last export: {len(new_crc32s)}")
-        for crc32 in new_crc32s:
-            title = crc32_to_text.get(crc32, "(Unknown Title)")
-            print(f"Missing: {title}")
+        # Only print individual episodes in DEBUG mode
+        if DEBUG_MODE:
+            for crc32 in new_crc32s:
+                title = crc32_to_text.get(crc32, "(Unknown Title)")
+                debug_print(f"Missing: {title}")
 
 
 def _generate_missing_episodes_report(conn, folder, args):
@@ -1764,6 +1625,11 @@ def main():
         if args.help:
             _print_help()
             sys.exit(0)
+
+        # Print header only for main command (not for --db or --episodes_update)
+        # Also suppress for help command
+        if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
+            _print_header()
 
         if not _validate_url(args.url):
             sys.exit(1)
