@@ -43,14 +43,28 @@ if [ "$DB" = "true" ]; then
     fi
 fi
 
-# Always run missing episodes report first (updates Ace-Pace_Missing.csv)
-python /app/acepace.py \
-    --folder /media \
-    ${NYAA_URL:+--url "$NYAA_URL"}
-EXIT_CODE=$?
-if [ $EXIT_CODE -ne 0 ]; then
-    echo "Missing episodes report failed with exit code $EXIT_CODE"
-    exit $EXIT_CODE
+# Run missing episodes report
+# Skip only if doing a single operation (episodes_update only or db only)
+# This matches non-Docker behavior where each command is separate
+# Run report if: no flags (default), DOWNLOAD is set, or multiple operations
+SHOULD_RUN_REPORT=true
+if [ "$EPISODES_UPDATE" = "true" ] && [ "$DB" != "true" ] && [ "$DOWNLOAD" != "true" ]; then
+    # Only updating episodes, skip report (same as non-Docker)
+    SHOULD_RUN_REPORT=false
+elif [ "$DB" = "true" ] && [ "$EPISODES_UPDATE" != "true" ] && [ "$DOWNLOAD" != "true" ]; then
+    # Only exporting DB, skip report (same as non-Docker)
+    SHOULD_RUN_REPORT=false
+fi
+
+if [ "$SHOULD_RUN_REPORT" = "true" ]; then
+    python /app/acepace.py \
+        --folder /media \
+        ${NYAA_URL:+--url "$NYAA_URL"}
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Missing episodes report failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    fi
 fi
 
 # If DOWNLOAD is set to true, download missing episodes after generating report
