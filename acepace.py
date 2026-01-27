@@ -1048,15 +1048,30 @@ def _load_old_missing_crc32s():
 def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_magnet):
     """Save missing episodes to CSV file."""
     missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
+    saved_count = 0
+    error_count = 0
     with open(missing_csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
         writer.writerow(["Title", "Page Link", "Magnet Link"])
         for crc32 in missing:
-            title = crc32_to_text[crc32]
-            page_link = crc32_to_link[crc32]
-            magnet = crc32_to_magnet.get(crc32, "")
-            writer.writerow([title, page_link, magnet])
+            try:
+                title = crc32_to_text.get(crc32, f"[CRC32: {crc32}]")
+                page_link = crc32_to_link.get(crc32, "")
+                magnet = crc32_to_magnet.get(crc32, "")
+                writer.writerow([title, page_link, magnet])
+                saved_count += 1
+            except Exception as e:
+                error_count += 1
+                print(f"ERROR: Failed to save missing episode with CRC32 '{crc32}': {e}")
+                # Still write a row with available information
+                writer.writerow([f"[ERROR: CRC32 {crc32}]", "", ""])
+    
     print(f"Missing files list saved to {missing_csv_path}")
+    if error_count > 0:
+        print(f"WARNING: {error_count} episodes had errors while saving to CSV")
+    if saved_count == 0 and len(missing) > 0:
+        print(f"ERROR: No episodes were successfully saved to CSV despite {len(missing)} missing episodes!")
+        print("This indicates a critical issue with the CRC32 mapping.")
 
 
 def _print_report_header(conn, folder, args):
@@ -1085,6 +1100,148 @@ def _print_report_header(conn, folder, args):
     return last_run
 
 
+def _print_troubleshooting_header(crc32_to_link, local_crc32s):
+    """Print initial troubleshooting information header."""
+    print("\n=== TROUBLESHOOTING INFO ===")
+    print(f"Episodes from Nyaa (crc32_to_link keys): {len(crc32_to_link)}")
+    print(f"Local CRC32s: {len(local_crc32s)}")
+    
+    # Check for empty sets
+    if len(crc32_to_link) == 0:
+        print("WARNING: No episodes fetched from Nyaa! Check URL and quality filtering.")
+    if len(local_crc32s) == 0:
+        print("WARNING: No local CRC32s found! Check folder path and file extensions.")
+    
+    # Show sample CRC32s from both sources (first 5)
+    if crc32_to_link:
+        sample_nyaa = list(crc32_to_link.keys())[:5]
+        print(f"Sample Nyaa CRC32s (first 5): {sample_nyaa}")
+        print(f"Sample Nyaa CRC32 types: {[type(c).__name__ for c in sample_nyaa]}")
+    if local_crc32s:
+        sample_local = list(local_crc32s)[:5]
+        print(f"Sample local CRC32s (first 5): {sample_local}")
+        print(f"Sample local CRC32 types: {[type(c).__name__ for c in sample_local]}")
+
+
+def _normalize_crc32_sets(crc32_to_link, local_crc32s):
+    """Normalize CRC32 sets to uppercase strings for comparison.
+    Returns tuple: (nyaa_crc32s_normalized, local_crc32s_normalized)"""
+    nyaa_crc32s_normalized = {str(c).strip().upper() for c in crc32_to_link.keys()}
+    local_crc32s_normalized = {str(c).strip().upper() for c in local_crc32s}
+    
+    print("\nAfter normalization:")
+    print(f"Nyaa CRC32s: {len(nyaa_crc32s_normalized)}")
+    print(f"Local CRC32s: {len(local_crc32s_normalized)}")
+    
+    # Check for matches using normalized sets
+    matches_normalized = nyaa_crc32s_normalized & local_crc32s_normalized
+    print(f"Matches after normalization: {len(matches_normalized)}")
+    if matches_normalized:
+        print(f"Sample matches (first 3): {list(matches_normalized)[:3]}")
+    
+    return nyaa_crc32s_normalized, local_crc32s_normalized
+
+
+def _build_normalized_to_original_mapping(crc32_to_link, nyaa_crc32s_normalized):
+    """Build mapping from normalized CRC32 back to original key.
+    Returns tuple: (normalized_to_original dict, mapping_issues list)"""
+    normalized_to_original = {}
+    for orig_key in crc32_to_link.keys():
+        norm_key = str(orig_key).strip().upper()
+        # If we already have this normalized key, keep the first one (shouldn't happen with CRC32s)
+        if norm_key not in normalized_to_original:
+            normalized_to_original[norm_key] = orig_key
+    
+    mapping_issues = []
+    # Verify the mapping is correct
+    if len(normalized_to_original) != len(nyaa_crc32s_normalized):
+        print(f"WARNING: Mapping size mismatch! normalized_to_original: {len(normalized_to_original)}, nyaa_crc32s_normalized: {len(nyaa_crc32s_normalized)}")
+        print("This could indicate duplicate normalized CRC32s or mapping issues.")
+        # Show which normalized CRC32s are missing from the mapping
+        missing_from_mapping = nyaa_crc32s_normalized - set(normalized_to_original.keys())
+        if missing_from_mapping:
+            mapping_issues = list(missing_from_mapping)
+            print(f"Normalized CRC32s missing from mapping (first 5): {mapping_issues[:5]}")
+    
+    return normalized_to_original, mapping_issues
+
+
+def _build_missing_list(missing_normalized_set, normalized_to_original, crc32_to_link):
+    """Build missing episodes list from normalized set.
+    Returns tuple: (missing list, mapping_errors list)"""
+    missing = []
+    missing_normalized = list(missing_normalized_set)
+    mapping_errors = []
+    
+    for norm_crc in missing_normalized:
+        if norm_crc in normalized_to_original:
+            missing.append(normalized_to_original[norm_crc])
+        else:
+            # Try to find the original key by searching (fallback)
+            found = False
+            for orig_key in crc32_to_link.keys():
+                if str(orig_key).strip().upper() == norm_crc:
+                    missing.append(orig_key)
+                    found = True
+                    break
+            if not found:
+                mapping_errors.append(norm_crc)
+                print(f"ERROR: Could not find original key for normalized CRC32 '{norm_crc}'")
+    
+    if mapping_errors:
+        print(f"WARNING: {len(mapping_errors)} missing episodes could not be mapped to original keys!")
+        print("This is a critical error - these episodes will not be included in the missing list.")
+        print(f"Affected normalized CRC32s (first 10): {mapping_errors[:10]}")
+    
+    return missing, mapping_errors
+
+
+def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized, 
+                              crc32_to_link, local_crc32s, missing, missing_normalized):
+    """Print comparison results and troubleshooting information."""
+    # Also check the original comparison for debugging
+    original_missing_count = len([c for c in crc32_to_link.keys() if c not in local_crc32s])
+    print(f"Missing episodes (original comparison): {original_missing_count}")
+    print(f"Missing episodes (normalized comparison): {len(missing)}")
+    print(f"Missing normalized CRC32s: {len(missing_normalized)}")
+    
+    if original_missing_count != len(missing):
+        print(f"WARNING: Comparison mismatch detected! Original: {original_missing_count}, Normalized: {len(missing)}")
+        print("This suggests a data type or format issue. Using normalized comparison.")
+    
+    # Show intersection details
+    intersection = nyaa_crc32s_normalized & local_crc32s_normalized
+    print(f"Intersection (episodes found locally): {len(intersection)}")
+    if intersection:
+        print(f"Sample found episodes (first 3): {list(intersection)[:3]}")
+    
+    # Show difference details
+    difference = nyaa_crc32s_normalized - local_crc32s_normalized
+    print(f"Difference (episodes NOT found locally): {len(difference)}")
+    if difference:
+        print(f"Sample missing episodes (first 3): {list(difference)[:3]}")
+    
+    # Check if sets are suspiciously similar (potential bug indicator)
+    if len(nyaa_crc32s_normalized) > 0 and len(local_crc32s_normalized) > 0:
+        similarity_ratio = len(intersection) / len(nyaa_crc32s_normalized)
+        print(f"Similarity ratio (intersection/nyaa): {similarity_ratio:.2%}")
+        if similarity_ratio > 0.95 and len(difference) == 0:
+            print("WARNING: Almost all Nyaa episodes appear to be found locally!")
+            print("This might indicate a comparison bug or data issue.")
+            print("Please verify that your local files actually contain all these episodes.")
+    
+    # Check for sets being identical (definite bug)
+    if nyaa_crc32s_normalized == local_crc32s_normalized:
+        print("ERROR: Nyaa and local CRC32 sets are IDENTICAL!")
+        print("This indicates a critical bug - the sets should not be the same.")
+        print("Possible causes:")
+        print("  - Local CRC32s are being populated from Nyaa data (wrong source)")
+        print("  - Comparison is using the same set for both sides")
+        print("  - Database corruption or incorrect data")
+    
+    print("=== END TROUBLESHOOTING INFO ===\n")
+
+
 def _calculate_and_find_missing(folder, conn, args, last_run):
     """Calculate local CRC32s and find missing episodes."""
     crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
@@ -1103,7 +1260,32 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
     local_crc32s = calculate_local_crc32(folder, conn)
     print(f"Found {len(local_crc32s)} local CRC32 hashes.")
 
-    missing = [crc32 for crc32 in crc32_to_link if crc32 not in local_crc32s]
+    # Print troubleshooting header
+    _print_troubleshooting_header(crc32_to_link, local_crc32s)
+    
+    # Normalize CRC32 sets
+    nyaa_crc32s_normalized, local_crc32s_normalized = _normalize_crc32_sets(
+        crc32_to_link, local_crc32s
+    )
+    
+    # Find missing using normalized comparison
+    missing_normalized_set = nyaa_crc32s_normalized - local_crc32s_normalized
+    
+    # Build normalized to original mapping
+    normalized_to_original, _ = _build_normalized_to_original_mapping(
+        crc32_to_link, nyaa_crc32s_normalized
+    )
+    
+    # Build missing list
+    missing, _ = _build_missing_list(
+        missing_normalized_set, normalized_to_original, crc32_to_link
+    )
+    
+    # Print comparison results
+    _print_comparison_results(
+        nyaa_crc32s_normalized, local_crc32s_normalized,
+        crc32_to_link, local_crc32s, missing, list(missing_normalized_set)
+    )
 
     print(
         f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
@@ -1345,7 +1527,7 @@ def main():
         # Show detailed help if requested
         if args.help:
             _print_help()
-            return
+            sys.exit(0)
 
         # Only show Docker mode message once, and not for --db or --episodes_update commands
         # Also suppress for help command
@@ -1361,7 +1543,7 @@ def main():
 
         if args.episodes_update:
             update_episodes_index_db(args.url)
-            return
+            sys.exit(0)
 
         # Suppress messages when exporting DB (since it's automated)
         conn = init_db(suppress_messages=args.db)
@@ -1373,6 +1555,9 @@ def main():
             sys.exit(1)
 
         _handle_main_commands(args, conn, folder)
+        
+        # Exit cleanly (code 0) even if shutdown was requested during processing
+        sys.exit(0)
     except KeyboardInterrupt:
         print("\nInterrupted by user, exiting gracefully...")
         sys.exit(130)  # Standard exit code for SIGINT

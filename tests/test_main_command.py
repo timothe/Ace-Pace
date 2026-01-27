@@ -41,7 +41,8 @@ class TestDockerModeBehavior:
         
         with patch('acepace._parse_arguments', return_value=mock_args):
             with patch('builtins.print') as mock_print:
-                acepace.main()
+                with pytest.raises(SystemExit):
+                    acepace.main()
                 
                 # Verify "Running in Docker mode" was NOT printed
                 print_calls = [str(c) for c in mock_print.call_args_list]
@@ -64,7 +65,8 @@ class TestDockerModeBehavior:
         
         with patch('acepace._parse_arguments', return_value=mock_args):
             with patch('builtins.print') as mock_print:
-                acepace.main()
+                with pytest.raises(SystemExit):
+                    acepace.main()
                 
                 # Verify "Running in Docker mode" was NOT printed
                 print_calls = [str(c) for c in mock_print.call_args_list]
@@ -95,7 +97,8 @@ class TestDockerModeBehavior:
         
         with patch('acepace._parse_arguments', return_value=mock_args):
             with patch('builtins.print') as mock_print:
-                acepace.main()
+                with pytest.raises(SystemExit):
+                    acepace.main()
                 
                 # Verify "Running in Docker mode" WAS printed
                 print_calls = [str(c) for c in mock_print.call_args_list]
@@ -126,7 +129,8 @@ class TestDockerModeBehavior:
         
         with patch('acepace._parse_arguments', return_value=mock_args):
             with patch('builtins.print') as mock_print:
-                acepace.main()
+                with pytest.raises(SystemExit):
+                    acepace.main()
                 
                 # Verify "Running in Docker mode" was NOT printed
                 print_calls = [str(c) for c in mock_print.call_args_list]
@@ -159,7 +163,8 @@ class TestEpisodesMetadataStatusSuppression:
         
         with patch('acepace._parse_arguments', return_value=mock_args):
             with patch('acepace._get_folder_from_args', return_value="/media"):
-                acepace.main()
+                with pytest.raises(SystemExit):
+                    acepace.main()
                 
                 # Verify _show_episodes_metadata_status was NOT called
                 mock_show_status.assert_not_called()
@@ -179,7 +184,8 @@ class TestEpisodesMetadataStatusSuppression:
         mock_args.url = "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"
         
         with patch('acepace._parse_arguments', return_value=mock_args):
-            acepace.main()
+            with pytest.raises(SystemExit):
+                acepace.main()
             
             # Verify _show_episodes_metadata_status was NOT called
             mock_show_status.assert_not_called()
@@ -207,7 +213,8 @@ class TestEpisodesMetadataStatusSuppression:
         mock_args.folder = None
         
         with patch('acepace._parse_arguments', return_value=mock_args):
-            acepace.main()
+            with pytest.raises(SystemExit):
+                acepace.main()
             
             # Verify _show_episodes_metadata_status WAS called
             mock_show_status.assert_called_once()
@@ -232,7 +239,8 @@ class TestURLParameterPropagation:
         mock_args.url = test_url
         
         with patch('acepace._parse_arguments', return_value=mock_args):
-            acepace.main()
+            with pytest.raises(SystemExit):
+                acepace.main()
             
             # Verify update_episodes_index_db was called with URL
             mock_update.assert_called_once_with(test_url)
@@ -260,7 +268,8 @@ class TestURLParameterPropagation:
         mock_args.folder = None
         
         with patch('acepace._parse_arguments', return_value=mock_args):
-            acepace.main()
+            with pytest.raises(SystemExit):
+                acepace.main()
             
             # Verify _handle_rename_command was called with URL
             mock_rename.assert_called_once()

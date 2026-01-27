@@ -1,22 +1,23 @@
 #!/bin/sh
 
-# Track exit code
-EXIT_CODE=0
-
 # Signal handler for graceful shutdown
+# Signal numbers: 15 = SIGTERM, 2 = SIGINT
+# Python processes run in foreground and will receive signals directly
+# This handler ensures clean exit if signal arrives between commands
 cleanup() {
-    echo "Received shutdown signal, cleaning up..."
-    # Kill any background processes
-    kill 0 2>/dev/null || true
-    exit ${EXIT_CODE}
+    echo "Received shutdown signal, exiting gracefully..."
+    exit 0
 }
 
-# Set up signal handlers
-trap cleanup SIGTERM SIGINT
+# Set up signal handlers using signal numbers (POSIX compatible)
+# Note: When Python runs in foreground, it receives signals directly
+# This trap handles signals that arrive when no Python process is running
+trap 'cleanup' 15 2
 
 # Run episodes update if requested
 if [ "$EPISODES_UPDATE" = "true" ]; then
-    python /app/acepace.py --episodes_update ${NYAA_URL:+--url "$NYAA_URL"} || EXIT_CODE=$?
+    python /app/acepace.py --episodes_update ${NYAA_URL:+--url "$NYAA_URL"}
+    EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Episodes update failed with exit code $EXIT_CODE"
         exit $EXIT_CODE
@@ -25,7 +26,8 @@ fi
 
 # Export database if requested
 if [ "$DB" = "true" ]; then
-    python /app/acepace.py --db || EXIT_CODE=$?
+    python /app/acepace.py --db
+    EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then
         echo "Database export failed with exit code $EXIT_CODE"
         exit $EXIT_CODE
@@ -35,7 +37,8 @@ fi
 # Always run missing episodes report first (updates Ace-Pace_Missing.csv)
 python /app/acepace.py \
     --folder /media \
-    ${NYAA_URL:+--url "$NYAA_URL"} || EXIT_CODE=$?
+    ${NYAA_URL:+--url "$NYAA_URL"}
+EXIT_CODE=$?
 if [ $EXIT_CODE -ne 0 ]; then
     echo "Missing episodes report failed with exit code $EXIT_CODE"
     exit $EXIT_CODE
@@ -43,6 +46,7 @@ fi
 
 # If DOWNLOAD is set to true, download missing episodes after generating report
 if [ "$DOWNLOAD" = "true" ]; then
+    # Use exec to replace shell process so Python becomes PID 1 and receives signals directly
     exec python /app/acepace.py \
         --folder /media \
         ${NYAA_URL:+--url "$NYAA_URL"} \
