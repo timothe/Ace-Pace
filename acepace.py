@@ -6,6 +6,8 @@ import re
 import argparse
 import zlib
 import os
+import signal
+import sys
 from bs4 import BeautifulSoup  # type: ignore
 import requests  # type: ignore
 
@@ -14,6 +16,19 @@ from clients import get_client
 
 # Check if running in Docker (non-interactive mode)
 IS_DOCKER = "RUN_DOCKER" in os.environ
+
+# Global flag for graceful shutdown
+_shutdown_requested = False
+
+# Shutdown message constant
+_SHUTDOWN_MESSAGE = "Shutdown requested, stopping fetch operation..."
+
+
+def _signal_handler(signum, frame):
+    """Handle shutdown signals gracefully."""
+    global _shutdown_requested
+    _shutdown_requested = True
+    print("\nShutdown signal received, finishing current operation...")
 
 # Define regex to extract CRC32 from filename text (commonly in [xxxxx])
 CRC32_REGEX = re.compile(r"\[([A-Fa-f0-9]{8})\]")
@@ -27,6 +42,12 @@ VIDEO_EXTENSIONS = {".mkv", ".mp4", ".avi"}
 # Constants for repeated string literals
 HTML_PARSER = "html.parser"
 NYAA_BASE_URL = "https://nyaa.si"
+ONE_PACE_MARKER = "[One Pace]"
+
+# HTTP and network constants
+HTTP_OK = 200
+REQUEST_DELAY_SECONDS = 0.2
+CRC32_CHUNK_SIZE = 8192
 
 # Config directory and file names
 CONFIG_DIR_DOCKER = "/config"
@@ -113,6 +134,9 @@ def init_db(suppress_messages=False):
 
 # --- New: Episodes metadata DB ---
 def init_episodes_db():
+    """Initialize the episodes index database.
+    Creates the episodes_index and metadata tables if they don't exist.
+    Returns: Database connection object."""
     episodes_db_path = get_config_path(EPISODES_DB_NAME)
     conn = sqlite3.connect(episodes_db_path)
     c = conn.cursor()
@@ -138,6 +162,11 @@ def init_episodes_db():
 
 
 def get_episodes_metadata(conn, key):
+    """Get metadata value from episodes database.
+    Args:
+        conn: Database connection
+        key: Metadata key
+    Returns: Metadata value or None if not found."""
     c = conn.cursor()
     c.execute("SELECT value FROM metadata WHERE key = ?", (key,))
     row = c.fetchone()
@@ -145,6 +174,11 @@ def get_episodes_metadata(conn, key):
 
 
 def set_episodes_metadata(conn, key, value):
+    """Set metadata value in episodes database.
+    Args:
+        conn: Database connection
+        key: Metadata key
+        value: Metadata value"""
     c = conn.cursor()
     c.execute(
         "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)", (key, value)
@@ -172,7 +206,7 @@ def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
     Only accepts episodes with 1080p quality."""
     m = CRC32_REGEX.findall(fname_text)
     found = False
-    if m and "[One Pace]" in fname_text and _is_valid_quality(fname_text):
+    if m and ONE_PACE_MARKER in fname_text and _is_valid_quality(fname_text):
         crc32 = m[-1].upper()
         if crc32 not in seen_crc32:
             # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
@@ -251,7 +285,7 @@ def _process_torrent_page(page_link, seen_crc32, episodes):
     """Process a torrent page to extract CRC32 information from file list."""
     try:
         torrent_resp = requests.get(page_link)
-        if torrent_resp.status_code != 200:
+        if torrent_resp.status_code != HTTP_OK:
             print(f"Failed to fetch torrent page {page_link}")
             return False
         t_soup = BeautifulSoup(torrent_resp.text, HTML_PARSER)
@@ -281,6 +315,31 @@ def _process_episode_row(row, seen_crc32, episodes):
         return _process_torrent_page(page_link, seen_crc32, episodes)
 
 
+def _fetch_episodes_page(base_url, page, soup=None):
+    """Fetch a single page of episodes.
+    Returns tuple: (page_soup, success) where success indicates if page was fetched."""
+    if page == 1 and soup is not None:
+        return soup, True
+    
+    resp = requests.get(f"{base_url}&p={page}")
+    if resp.status_code != HTTP_OK:
+        print(f"Failed to fetch page {page}, status code: {resp.status_code}")
+        return None, False
+    return BeautifulSoup(resp.text, HTML_PARSER), True
+
+
+def _process_episodes_page_rows(page_soup, seen_crc32, episodes):
+    """Process all rows from an episodes page."""
+    table = page_soup.find("table", class_="torrent-list")
+    if not table:
+        return
+    rows = table.find_all("tr")  # type: ignore
+    for row in rows:
+        if _shutdown_requested:
+            break
+        _process_episode_row(row, seen_crc32, episodes)
+
+
 def fetch_episodes_metadata(base_url=None):
     """
     Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
@@ -295,37 +354,33 @@ def fetch_episodes_metadata(base_url=None):
     
     episodes = []
     seen_crc32 = set()
-    page = 1
     print(f"Browsing {base_url}...")
 
-    # --- Get total number of pages by parsing first page's pagination controls ---
-    resp = requests.get(f"{base_url}&p=1")
-    if resp.status_code != 200:
-        print(f"Failed to fetch page 1, status code: {resp.status_code}")
+    # Get total number of pages by parsing first page's pagination controls
+    soup, success = _fetch_episodes_page(base_url, 1)
+    if not success:
         return episodes
-    soup = BeautifulSoup(resp.text, HTML_PARSER)
     total_pages = _get_total_pages(soup)
 
-    # Now loop from page 1 to total_pages
+    # Loop from page 1 to total_pages
+    page = 1
     while page <= total_pages:
-        print(f"Fetching page {page}/{total_pages}...")
-        if page == 1:
-            # We've already fetched page 1 above
-            page_soup = soup
-        else:
-            resp = requests.get(f"{base_url}&p={page}")
-            if resp.status_code != 200:
-                print(f"Failed to fetch page {page}, status code: {resp.status_code}")
-                break
-            page_soup = BeautifulSoup(resp.text, HTML_PARSER)
-        table = page_soup.find("table", class_="torrent-list")
-        if not table:
+        if _shutdown_requested:
+            print(_SHUTDOWN_MESSAGE)
             break
-        rows = table.find_all("tr")  # type: ignore
-        for row in rows:
-            _process_episode_row(row, seen_crc32, episodes)
+            
+        print(f"Fetching page {page}/{total_pages}...")
+        page_soup, success = _fetch_episodes_page(base_url, page, soup if page == 1 else None)
+        if not success:
+            break
+        
+        _process_episodes_page_rows(page_soup, seen_crc32, episodes)
+        
+        if _shutdown_requested:
+            break
         page += 1
-        time.sleep(0.2)
+        time.sleep(REQUEST_DELAY_SECONDS)
+    
     print(f"Fetched {len(episodes)} unique episodes with CRC32s.")
     return episodes
 
@@ -340,6 +395,10 @@ def update_episodes_index_db(base_url=None):
     c = conn.cursor()
     count = 0
     for crc32, title, page_link in episodes:
+        # Check for shutdown request during processing
+        if _shutdown_requested:
+            print("Shutdown requested, committing partial update...")
+            break
         c.execute(
             "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link) VALUES (?, ?, ?)",
             (crc32, title, page_link),
@@ -354,6 +413,8 @@ def update_episodes_index_db(base_url=None):
 
 
 def load_crc32_to_title_from_index():
+    """Load CRC32 to title mapping from episodes index database.
+    Returns: Dictionary mapping CRC32 to episode title."""
     conn = init_episodes_db()
     c = conn.cursor()
     c.execute("SELECT crc32, title FROM episodes_index")
@@ -363,6 +424,11 @@ def load_crc32_to_title_from_index():
 
 
 def get_metadata(conn, key):
+    """Get metadata value from database.
+    Args:
+        conn: Database connection
+        key: Metadata key
+    Returns: Metadata value or None if not found."""
     c = conn.cursor()
     c.execute("SELECT value FROM metadata WHERE key = ?", (key,))
     row = c.fetchone()
@@ -370,6 +436,11 @@ def get_metadata(conn, key):
 
 
 def set_metadata(conn, key, value):
+    """Set metadata value in database.
+    Args:
+        conn: Database connection
+        key: Metadata key
+        value: Metadata value"""
     c = conn.cursor()
     c.execute(
         "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)", (key, value)
@@ -377,10 +448,9 @@ def set_metadata(conn, key, value):
     conn.commit()
 
 
-def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
-    """Process a single table row to extract CRC32 information.
-    Only accepts episodes with 1080p quality.
-    Returns tuple: (success: bool, filename_text: str or None)"""
+def _extract_links_from_row(row):
+    """Extract title link and magnet link from a table row.
+    Returns tuple: (title_link, magnet_link) or (None, "") if not found."""
     links = row.find_all("a", href=True)
     title_link = None
     magnet_link = ""
@@ -390,57 +460,142 @@ def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
         href = a.get("href", "")
         if href.startswith("magnet:"):
             magnet_link = href
-    if not title_link:
-        return False, None  # Skip rows without a valid title link
-    filename_text = title_link.text
-    link = NYAA_BASE_URL + title_link["href"]
+    return title_link, magnet_link
+
+
+def _process_title_with_crc32(filename_text, link, magnet_link, crc32_to_link, crc32_to_text, crc32_to_magnet):
+    """Process a title that has CRC32 in it.
+    Returns True if successfully processed, False otherwise."""
     matches = CRC32_REGEX.findall(filename_text)
     if matches:
-        # Only accept episodes with valid quality (1080p only) and One Pace marker
-        if "[One Pace]" in filename_text and _is_valid_quality(filename_text):
-            crc32 = matches[-1].upper()
-            crc32_to_link[crc32] = link
-            crc32_to_text[crc32] = filename_text
-            crc32_to_magnet[crc32] = magnet_link
-            return True, filename_text
-    return False, filename_text
+        crc32 = matches[-1].upper()
+        crc32_to_link[crc32] = link
+        crc32_to_text[crc32] = filename_text
+        crc32_to_magnet[crc32] = magnet_link
+        return True
+    return False
+
+
+def _process_torrent_page_for_crc32(link, magnet_link, crc32_to_link, crc32_to_text, crc32_to_magnet):
+    """Fetch torrent page and extract CRC32 from file list.
+    Returns True if CRC32 found, False otherwise."""
+    try:
+        torrent_resp = requests.get(link)
+        if torrent_resp.status_code == HTTP_OK:
+            t_soup = BeautifulSoup(torrent_resp.text, HTML_PARSER)
+            filenames = _extract_filenames_from_torrent_page(t_soup)
+            for fname in filenames:
+                fname_str = str(fname)
+                if ONE_PACE_MARKER in fname_str and _is_valid_quality(fname_str):
+                    fname_matches = CRC32_REGEX.findall(fname_str)
+                    if fname_matches:
+                        crc32 = fname_matches[-1].upper()
+                        crc32_to_link[crc32] = link
+                        crc32_to_text[crc32] = fname_str
+                        crc32_to_magnet[crc32] = magnet_link
+                        return True
+    except (requests.RequestException, AttributeError, TypeError):
+        pass
+    return False
+
+
+def _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet):
+    """Process a single table row to extract CRC32 information.
+    Only accepts episodes with 1080p quality.
+    If CRC32 not in title, fetches torrent page to extract from file list.
+    Returns tuple: (success: bool, filename_text: str or None, should_warn: bool)
+    where should_warn indicates if a warning should be shown (only when CRC32 is missing, not when quality is wrong)."""
+    title_link, magnet_link = _extract_links_from_row(row)
+    if not title_link:
+        return False, None, False
+    
+    filename_text = title_link.text
+    link = NYAA_BASE_URL + title_link["href"]
+    
+    # Check if it's a One Pace episode first
+    if ONE_PACE_MARKER not in filename_text:
+        return False, filename_text, False
+    
+    # Check quality first - if not 1080p, silently skip (don't warn)
+    if not _is_valid_quality(filename_text):
+        return False, filename_text, False
+    
+    # Quality is valid (1080p), now check for CRC32
+    if _process_title_with_crc32(filename_text, link, magnet_link, crc32_to_link, crc32_to_text, crc32_to_magnet):
+        return True, filename_text, False
+    
+    # CRC32 not in title, try fetching torrent page
+    if _process_torrent_page_for_crc32(link, magnet_link, crc32_to_link, crc32_to_text, crc32_to_magnet):
+        return True, filename_text, False
+    
+    # CRC32 not found in title or torrent page, but quality is valid - should warn
+    return False, filename_text, True
+
+
+def _fetch_crc32_page(base_url, page):
+    """Fetch a single page for CRC32 links.
+    Returns tuple: (soup, success) where success indicates if page was fetched."""
+    print(f"Fetching page {page}...")
+    resp = requests.get(f"{base_url}&p={page}")
+    if resp.status_code != HTTP_OK:
+        print(f"Failed to fetch page {page}, status code: {resp.status_code}")
+        return None, False
+    return BeautifulSoup(resp.text, HTML_PARSER), True
+
+
+def _process_crc32_page_rows(soup, crc32_to_link, crc32_to_text, crc32_to_magnet):
+    """Process all rows from a CRC32 links page.
+    Returns True if any episodes were found, False otherwise."""
+    table = soup.find("table", class_="torrent-list")
+    if not table:
+        print("No table found, stopping.")
+        return False
+
+    rows = table.find_all("tr")  # type: ignore
+    if not rows:
+        print("No rows found, stopping.")
+        return False
+
+    found_in_page = False
+    for row in rows:
+        if _shutdown_requested:
+            print(_SHUTDOWN_MESSAGE)
+            break
+        success, filename_text, should_warn = _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet)
+        if success:
+            found_in_page = True
+        elif should_warn and filename_text:
+            print(f"Warning: No CRC32 found in title '{filename_text}'")
+    
+    return found_in_page
 
 
 def fetch_crc32_links(base_url):
+    """Fetch CRC32 links from Nyaa.si search URL.
+    Only accepts episodes with 1080p quality.
+    Args:
+        base_url: Nyaa.si search URL
+    Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
     crc32_to_link = {}
     crc32_to_text = {}
     crc32_to_magnet = {}
     page = 1
     last_checked_page = 0
+    
     while True:
-        print(f"Fetching page {page}...")
-        resp = requests.get(f"{base_url}&p={page}")
-        if resp.status_code != 200:
-            print(f"Failed to fetch page {page}, status code: {resp.status_code}")
+        if _shutdown_requested:
+            print(_SHUTDOWN_MESSAGE)
             break
-
-        soup = BeautifulSoup(resp.text, HTML_PARSER)
-        table = soup.find("table", class_="torrent-list")
-        if not table:
-            print("No table found, stopping.")
+        
+        soup, success = _fetch_crc32_page(base_url, page)
+        if not success:
             break
-
-        rows = table.find_all("tr")  # type: ignore
-        if not rows:
-            print("No rows found, stopping.")
+        
+        found_in_page = _process_crc32_page_rows(soup, crc32_to_link, crc32_to_text, crc32_to_magnet)
+        
+        if _shutdown_requested or not found_in_page:
             break
-
-        found_in_page = False
-        for row in rows:
-            success, filename_text = _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet)
-            if success:
-                found_in_page = True
-            elif filename_text:
-                print(f"Warning: No CRC32 found in title '{filename_text}'")
-
-        if not found_in_page:
-            break  # No more entries found
-
+        
         last_checked_page = page
         page += 1
 
@@ -463,10 +618,14 @@ def _extract_matching_titles_from_rows(rows, crc32):
 
 
 def fetch_title_by_crc32(crc32):
+    """Search on Nyaa for the given CRC32 and return the episode title.
+    Args:
+        crc32: CRC32 checksum to search for
+    Returns: Episode title if exactly one match found, None otherwise."""
     # Search on Nyaa for the given CRC32
     search_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q={crc32}&o=asc"
     resp = requests.get(search_url)
-    if resp.status_code != 200:
+    if resp.status_code != HTTP_OK:
         print(f"Failed to fetch search results for CRC32 {crc32}")
         return None
     soup = BeautifulSoup(resp.text, HTML_PARSER)
@@ -487,39 +646,72 @@ def fetch_title_by_crc32(crc32):
         return None
 
 
+def _calculate_file_crc32(file_path):
+    """Calculate CRC32 for a single file.
+    Returns the CRC32 as a string, or None if calculation was interrupted."""
+    with open(file_path, "rb") as f:
+        crc = 0
+        while chunk := f.read(CRC32_CHUNK_SIZE):
+            if _shutdown_requested:
+                return None
+            crc = zlib.crc32(chunk, crc)
+        return f"{crc & 0xFFFFFFFF:08X}"
+
+
+def _process_video_file(file_path, c, conn, local_crc32s):
+    """Process a single video file: check cache or calculate CRC32.
+    Returns True if file was processed successfully."""
+    normalized_path = normalize_file_path(file_path)
+    
+    # Check if already in DB
+    c.execute("SELECT crc32 FROM crc32_cache WHERE file_path = ?", (normalized_path,))
+    row = c.fetchone()
+    if row:
+        local_crc32s.add(row[0])
+        return True
+    
+    # Calculate CRC32
+    parent_folder = os.path.basename(os.path.dirname(file_path))
+    file_name = os.path.basename(file_path)
+    print(f"Calculating CRC32 for {parent_folder}/{file_name}...")
+    
+    crc32 = _calculate_file_crc32(file_path)
+    if crc32 is None:
+        return False  # Calculation interrupted
+    
+    local_crc32s.add(crc32)
+    c.execute(
+        "INSERT OR REPLACE INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
+        (normalized_path, crc32),
+    )
+    conn.commit()
+    return True
+
+
 def calculate_local_crc32(folder, conn):
+    """Calculate CRC32 checksums for all video files in the given folder.
+    Uses cached values from database when available.
+    Args:
+        folder: Folder path to scan for video files
+        conn: Database connection
+    Returns: Set of CRC32 checksums found in the folder."""
     local_crc32s = set()
     c = conn.cursor()
+    
     for root, dirs, files in os.walk(folder):
+        if _shutdown_requested:
+            print("Shutdown requested, stopping file processing...")
+            break
+        
         for file in files:
+            if _shutdown_requested:
+                break
+            
             ext = os.path.splitext(file)[1].lower()
             if ext in VIDEO_EXTENSIONS:
                 file_path = os.path.join(root, file)
-                # Normalize path for consistent storage and lookup
-                normalized_path = normalize_file_path(file_path)
-                # Check if normalized_path already in DB
-                c.execute(
-                    "SELECT crc32 FROM crc32_cache WHERE file_path = ?", (normalized_path,)
-                )
-                row = c.fetchone()
-                if row:
-                    crc32 = row[0]
-                    local_crc32s.add(crc32)
-                    continue
-
-                parent_folder = os.path.basename(root)
-                print(f"Calculating CRC32 for {parent_folder}/{file}...")
-                with open(file_path, "rb") as f:
-                    crc = 0
-                    while chunk := f.read(8192):
-                        crc = zlib.crc32(chunk, crc)
-                    crc32 = f"{crc & 0xFFFFFFFF:08X}"
-                local_crc32s.add(crc32)
-                c.execute(
-                    "INSERT OR REPLACE INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
-                    (normalized_path, crc32),
-                )
-                conn.commit()
+                _process_video_file(file_path, c, conn, local_crc32s)
+    
     return local_crc32s
 
 
@@ -570,6 +762,11 @@ def _execute_rename(rename_plan, conn):
 
 
 def rename_local_files(conn):
+    """Rename local files based on CRC32 matching titles from episodes index.
+    Matches local video files with episodes in the database and renames them
+    to match the official episode titles.
+    Args:
+        conn: Database connection"""
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
     entries = c.fetchall()
@@ -605,6 +802,9 @@ def rename_local_files(conn):
 
 
 def export_db_to_csv(conn):
+    """Export local CRC32 database to CSV file.
+    Args:
+        conn: Database connection"""
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
     rows = c.fetchall()
@@ -1135,39 +1335,50 @@ def _handle_main_commands(args, conn, folder):
 
 
 def main():
-    args = _parse_arguments()
+    # Register signal handlers for graceful shutdown
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+    
+    try:
+        args = _parse_arguments()
 
-    # Show detailed help if requested
-    if args.help:
-        _print_help()
-        return
+        # Show detailed help if requested
+        if args.help:
+            _print_help()
+            return
 
-    # Only show Docker mode message once, and not for --db or --episodes_update commands
-    # Also suppress for help command
-    if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
-        print("Running in Docker mode (non-interactive)")
+        # Only show Docker mode message once, and not for --db or --episodes_update commands
+        # Also suppress for help command
+        if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
+            print("Running in Docker mode (non-interactive)")
 
-    if not _validate_url(args.url):
-        return
+        if not _validate_url(args.url):
+            sys.exit(1)
 
-    # Only show episodes metadata status for main command (not for --db or --episodes_update)
-    if not args.db and not args.episodes_update:
-        _show_episodes_metadata_status()
+        # Only show episodes metadata status for main command (not for --db or --episodes_update)
+        if not args.db and not args.episodes_update:
+            _show_episodes_metadata_status()
 
-    if args.episodes_update:
-        update_episodes_index_db(args.url)
-        return
+        if args.episodes_update:
+            update_episodes_index_db(args.url)
+            return
 
-    # Suppress messages when exporting DB (since it's automated)
-    conn = init_db(suppress_messages=args.db)
+        # Suppress messages when exporting DB (since it's automated)
+        conn = init_db(suppress_messages=args.db)
 
-    # Folder selection logic: Always prompt if folder is required but not given
-    needs_folder = not args.download  # All commands except --download need folder
-    folder = _get_folder_from_args(args, conn, needs_folder)
-    if folder is None:
-        return
+        # Folder selection logic: Always prompt if folder is required but not given
+        needs_folder = not args.download  # All commands except --download need folder
+        folder = _get_folder_from_args(args, conn, needs_folder)
+        if folder is None:
+            sys.exit(1)
 
-    _handle_main_commands(args, conn, folder)
+        _handle_main_commands(args, conn, folder)
+    except KeyboardInterrupt:
+        print("\nInterrupted by user, exiting gracefully...")
+        sys.exit(130)  # Standard exit code for SIGINT
+    except Exception as e:
+        print(f"Error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

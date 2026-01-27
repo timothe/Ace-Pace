@@ -11,6 +11,40 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import acepace
 
 
+def _create_nyaa_html_page(episode_titles):
+    """Helper function to create Nyaa HTML page with given episode titles.
+    Args:
+        episode_titles: List of episode title strings
+    Returns: HTML string"""
+    rows = "\n".join([
+        f'                    <tr>\n                        <td>\n                            <a href="/view/{12345 + i}" title="{title}">{title}</a>\n                        </td>\n                    </tr>'
+        for i, title in enumerate(episode_titles)
+    ])
+    return f"""
+    <html>
+        <body>
+            <table class="torrent-list">
+{rows}
+            </table>
+            <ul class="pagination">
+                <li><a href="?p=1">1</a></li>
+            </ul>
+        </body>
+    </html>
+    """
+
+
+def _create_mock_response(html_content):
+    """Helper function to create a mock HTTP response.
+    Args:
+        html_content: HTML content string
+    Returns: MagicMock response object"""
+    mock_response = MagicMock()
+    mock_response.status_code = 200
+    mock_response.text = html_content
+    return mock_response
+
+
 class TestEpisodeMetadataFetching:
     """Tests for fetching episode metadata from Nyaa."""
 
@@ -271,36 +305,16 @@ class TestUpdateEpisodesIndex:
 
 
 class TestEpisodeQualityFiltering:
-    """Tests for ensuring only 1080p (or 720p fallback) episodes are extracted."""
+    """Tests for ensuring only 1080p episodes are extracted."""
 
     @patch('acepace.requests.get')
     def test_fetch_episodes_prefers_1080p(self, mock_get):
         """Test that 1080p episodes are extracted when available."""
-        html = """
-        <html>
-            <body>
-                <table class="torrent-list">
-                    <tr>
-                        <td>
-                            <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [1080p][E5F6A7B8].mkv">[One Pace] Episode 2 [1080p][E5F6A7B8].mkv</a>
-                        </td>
-                    </tr>
-                </table>
-                <ul class="pagination">
-                    <li><a href="?p=1">1</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+        html = _create_nyaa_html_page([
+            "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv",
+            "[One Pace] Episode 2 [1080p][E5F6A7B8].mkv"
+        ])
+        mock_get.return_value = _create_mock_response(html)
         
         episodes = acepace.fetch_episodes_metadata()
         
@@ -311,75 +325,28 @@ class TestEpisodeQualityFiltering:
             assert "[One Pace]" in title
 
     @patch('acepace.requests.get')
-    def test_fetch_episodes_accepts_720p_as_fallback(self, mock_get):
-        """Test that 720p episodes are accepted when 1080p is not available."""
-        html = """
-        <html>
-            <body>
-                <table class="torrent-list">
-                    <tr>
-                        <td>
-                            <a href="/view/12345" title="[One Pace] Episode 1 [720p][A1B2C3D4].mkv">[One Pace] Episode 1 [720p][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6A7B8].mkv">[One Pace] Episode 2 [720p][E5F6A7B8].mkv</a>
-                        </td>
-                    </tr>
-                </table>
-                <ul class="pagination">
-                    <li><a href="?p=1">1</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+    def test_fetch_episodes_rejects_720p(self, mock_get):
+        """Test that 720p episodes are rejected (only 1080p accepted)."""
+        html = _create_nyaa_html_page([
+            "[One Pace] Episode 1 [720p][A1B2C3D4].mkv",
+            "[One Pace] Episode 2 [720p][E5F6A7B8].mkv"
+        ])
+        mock_get.return_value = _create_mock_response(html)
         
         episodes = acepace.fetch_episodes_metadata()
         
-        # All episodes should be 720p
-        assert len(episodes) == 2
-        for crc32, title, _ in episodes:
-            assert "[720p]" in title.upper() or "720P" in title.upper()
-            assert "[One Pace]" in title
+        # All 720p episodes should be rejected
+        assert len(episodes) == 0
 
     @patch('acepace.requests.get')
     def test_fetch_episodes_excludes_lower_quality(self, mock_get):
-        """Test that episodes with quality lower than 720p are excluded."""
-        html = """
-        <html>
-            <body>
-                <table class="torrent-list">
-                    <tr>
-                        <td>
-                            <a href="/view/12345" title="[One Pace] Episode 1 [480p][A1B2C3D4].mkv">[One Pace] Episode 1 [480p][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [360p][E5F6A7B8].mkv">[One Pace] Episode 2 [360p][E5F6A7B8].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12347" title="[One Pace] Episode 3 [240p][A9B0C1D2].mkv">[One Pace] Episode 3 [240p][A9B0C1D2].mkv</a>
-                        </td>
-                    </tr>
-                </table>
-                <ul class="pagination">
-                    <li><a href="?p=1">1</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+        """Test that episodes with quality other than 1080p are excluded."""
+        html = _create_nyaa_html_page([
+            "[One Pace] Episode 1 [480p][A1B2C3D4].mkv",
+            "[One Pace] Episode 2 [360p][E5F6A7B8].mkv",
+            "[One Pace] Episode 3 [240p][A9B0C1D2].mkv"
+        ])
+        mock_get.return_value = _create_mock_response(html)
         
         episodes = acepace.fetch_episodes_metadata()
         
@@ -387,131 +354,69 @@ class TestEpisodeQualityFiltering:
         assert len(episodes) == 0
 
     @patch('acepace.requests.get')
-    def test_fetch_episodes_prefers_1080p_over_720p_same_episode(self, mock_get):
-        """Test that when both 1080p and 720p versions exist for same episode, 1080p is preferred."""
-        html = """
-        <html>
-            <body>
-                <table class="torrent-list">
-                    <tr>
-                        <td>
-                            <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12346" title="[One Pace] Episode 1 [720p][A1B2C3D4].mkv">[One Pace] Episode 1 [720p][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                </table>
-                <ul class="pagination">
-                    <li><a href="?p=1">1</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+    def test_fetch_episodes_only_accepts_1080p_same_episode(self, mock_get):
+        """Test that when both 1080p and 720p versions exist for same episode, only 1080p is accepted."""
+        html = _create_nyaa_html_page([
+            "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv",
+            "[One Pace] Episode 1 [720p][A1B2C3D4].mkv"
+        ])
+        mock_get.return_value = _create_mock_response(html)
         
         episodes = acepace.fetch_episodes_metadata()
         
-        # Should only have one entry (deduplicated by CRC32)
-        # But we need to verify it's the 1080p version
+        # Should only have one entry (1080p version, 720p is rejected)
         assert len(episodes) == 1
         crc32, title, _ = episodes[0]
         assert crc32 == "A1B2C3D4"
-        # The first one encountered should be kept (1080p in this case)
-        # Since CRC32 deduplication happens, we need to check which one was kept
+        # Only 1080p should be kept
         assert "[1080p]" in title.upper() or "1080P" in title.upper()
+        assert "[720p]" not in title.upper() and "720P" not in title.upper()
 
     @patch('acepace.requests.get')
-    def test_fetch_episodes_mixed_qualities_only_keeps_valid(self, mock_get):
-        """Test that mixed quality episodes only keeps 1080p and 720p."""
-        html = """
-        <html>
-            <body>
-                <table class="torrent-list">
-                    <tr>
-                        <td>
-                            <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [720p][E5F6A7B8].mkv">[One Pace] Episode 2 [720p][E5F6A7B8].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12347" title="[One Pace] Episode 3 [480p][A9B0C1D2].mkv">[One Pace] Episode 3 [480p][A9B0C1D2].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12348" title="[One Pace] Episode 4 [1080p][A3B4C5D6].mkv">[One Pace] Episode 4 [1080p][A3B4C5D6].mkv</a>
-                        </td>
-                    </tr>
-                </table>
-                <ul class="pagination">
-                    <li><a href="?p=1">1</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+    def test_fetch_episodes_mixed_qualities_only_keeps_1080p(self, mock_get):
+        """Test that mixed quality episodes only keeps 1080p."""
+        html = _create_nyaa_html_page([
+            "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv",
+            "[One Pace] Episode 2 [720p][E5F6A7B8].mkv",
+            "[One Pace] Episode 3 [480p][A9B0C1D2].mkv",
+            "[One Pace] Episode 4 [1080p][A3B4C5D6].mkv"
+        ])
+        mock_get.return_value = _create_mock_response(html)
         
         episodes = acepace.fetch_episodes_metadata()
         
-        # Should only have 1080p and 720p episodes (3 total, excluding 480p)
-        assert len(episodes) == 3
+        # Should only have 1080p episodes (2 total, excluding 720p and 480p)
+        assert len(episodes) == 2
         for crc32, title, _ in episodes:
             title_upper = title.upper()
             has_1080p = "[1080P]" in title_upper or "1080P" in title_upper
-            has_720p = "[720P]" in title_upper or "720P" in title_upper
-            assert has_1080p or has_720p, f"Episode {title} should be 1080p or 720p"
-            # Verify no lower quality
+            assert has_1080p, f"Episode {title} should be 1080p"
+            # Verify no other qualities
+            assert "[720P]" not in title_upper
             assert "[480P]" not in title_upper
             assert "[360P]" not in title_upper
             assert "[240P]" not in title_upper
 
     @patch('acepace.requests.get')
     def test_fetch_episodes_handles_case_insensitive_quality(self, mock_get):
-        """Test that quality detection is case-insensitive."""
-        html = """
-        <html>
-            <body>
-                <table class="torrent-list">
-                    <tr>
-                        <td>
-                            <a href="/view/12345" title="[One Pace] Episode 1 [1080P][A1B2C3D4].mkv">[One Pace] Episode 1 [1080P][A1B2C3D4].mkv</a>
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            <a href="/view/12346" title="[One Pace] Episode 2 [720P][E5F6A7B8].mkv">[One Pace] Episode 2 [720P][E5F6A7B8].mkv</a>
-                        </td>
-                    </tr>
-                </table>
-                <ul class="pagination">
-                    <li><a href="?p=1">1</a></li>
-                </ul>
-            </body>
-        </html>
-        """
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.text = html
-        mock_get.return_value = mock_response
+        """Test that quality detection is case-insensitive (1080p only)."""
+        html = _create_nyaa_html_page([
+            "[One Pace] Episode 1 [1080P][A1B2C3D4].mkv",
+            "[One Pace] Episode 2 [720P][E5F6A7B8].mkv"
+        ])
+        mock_get.return_value = _create_mock_response(html)
         
         episodes = acepace.fetch_episodes_metadata()
         
-        # Should accept both uppercase and lowercase quality markers
-        assert len(episodes) == 2
+        # Should only accept 1080P (case-insensitive), reject 720P
+        assert len(episodes) == 1
+        crc32, title, _ = episodes[0]
+        assert crc32 == "A1B2C3D4"
+        # Verify case-insensitive quality detection works for 1080p
+        title_upper = title.upper()
+        assert "[1080P]" in title_upper
+        # Verify 720p is rejected
+        assert "[720P]" not in title_upper
 
     @patch('acepace.requests.get')
     def test_fetch_episodes_excludes_episodes_without_quality_marker(self, mock_get):
@@ -659,10 +564,7 @@ class TestQualityFilteringHelper:
 
     def test_quality_filtering_accepts_1080p(self):
         """Test that 1080p quality is accepted."""
-        # We need to test the internal _is_valid_quality function
-        # Since it's nested, we'll test it through fetch_episodes_metadata
-        # But we can also test the regex directly
-        from acepace import QUALITY_REGEX
+        from acepace import _is_valid_quality
         
         test_cases = [
             "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv",
@@ -671,14 +573,11 @@ class TestQualityFilteringHelper:
         ]
         
         for test_case in test_cases:
-            matches = QUALITY_REGEX.findall(test_case)
-            assert len(matches) > 0
-            quality_num = int(matches[0].lower().replace('p', ''))
-            assert quality_num == 1080
+            assert _is_valid_quality(test_case) is True
 
-    def test_quality_filtering_accepts_720p(self):
-        """Test that 720p quality is accepted."""
-        from acepace import QUALITY_REGEX
+    def test_quality_filtering_rejects_720p(self):
+        """Test that 720p quality is rejected (only 1080p accepted)."""
+        from acepace import _is_valid_quality
         
         test_cases = [
             "[One Pace] Episode 1 [720p][A1B2C3D4].mkv",
@@ -686,30 +585,25 @@ class TestQualityFilteringHelper:
         ]
         
         for test_case in test_cases:
-            matches = QUALITY_REGEX.findall(test_case)
-            assert len(matches) > 0
-            quality_num = int(matches[0].lower().replace('p', ''))
-            assert quality_num == 720
+            assert _is_valid_quality(test_case) is False
 
-    def test_quality_filtering_rejects_lower_quality(self):
-        """Test that qualities lower than 720p are rejected."""
-        from acepace import QUALITY_REGEX
+    def test_quality_filtering_rejects_non_1080p(self):
+        """Test that qualities other than 1080p are rejected."""
+        from acepace import _is_valid_quality
         
         test_cases = [
+            "[One Pace] Episode 1 [720p][A1B2C3D4].mkv",
             "[One Pace] Episode 1 [480p][A1B2C3D4].mkv",
             "[One Pace] Episode 1 [360p][A1B2C3D4].mkv",
             "[One Pace] Episode 1 [240p][A1B2C3D4].mkv",
         ]
         
         for test_case in test_cases:
-            matches = QUALITY_REGEX.findall(test_case)
-            assert len(matches) > 0
-            quality_num = int(matches[0].lower().replace('p', ''))
-            assert quality_num < 720
+            assert _is_valid_quality(test_case) is False
 
     def test_quality_filtering_rejects_higher_quality(self):
         """Test that qualities higher than 1080p are rejected (4K, etc.)."""
-        from acepace import QUALITY_REGEX
+        from acepace import _is_valid_quality
         
         test_cases = [
             "[One Pace] Episode 1 [2160p][A1B2C3D4].mkv",  # 4K
@@ -717,10 +611,7 @@ class TestQualityFilteringHelper:
         ]
         
         for test_case in test_cases:
-            matches = QUALITY_REGEX.findall(test_case)
-            assert len(matches) > 0
-            quality_num = int(matches[0].lower().replace('p', ''))
-            assert quality_num not in [720, 1080]
+            assert _is_valid_quality(test_case) is False
 
 
 class TestURLParameterConsistency:
@@ -769,14 +660,14 @@ class TestURLParameterConsistency:
         test_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc"
         
         # Test fetch_episodes_metadata
-        episodes = acepace.fetch_episodes_metadata(test_url)
+        acepace.fetch_episodes_metadata(test_url)
         
         # Reset mock for second test
         mock_get.reset_mock()
         mock_get.side_effect = [mock_response1, mock_response2]
         
         # Test fetch_crc32_links
-        crc32_to_link, _, _, _ = acepace.fetch_crc32_links(test_url)
+        _, _, _, _ = acepace.fetch_crc32_links(test_url)
         
         # Both should use the same URL
         assert mock_get.call_count > 0

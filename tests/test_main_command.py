@@ -9,6 +9,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import acepace
 
+# Test constants
+TEST_HOST_IP = "localhost"  # Test host for testing environment variable handling
+
 
 class TestDockerModeBehavior:
     """Tests for Docker mode specific behavior."""
@@ -362,7 +365,7 @@ class TestDockerDownloadDefaults:
         
         with patch.dict('os.environ', {
             'TORRENT_CLIENT': 'qbittorrent',
-            'TORRENT_HOST': '192.168.1.100',
+            'TORRENT_HOST': TEST_HOST_IP,
             'TORRENT_PORT': '8080',
             'TORRENT_USER': 'admin'
         }):
@@ -372,6 +375,6 @@ class TestDockerDownloadDefaults:
             mock_get_client.assert_called_once()
             call_args = mock_get_client.call_args
             assert call_args[0][0] == "qbittorrent"  # From env var
-            assert call_args[0][1] == "192.168.1.100"  # From env var
+            assert call_args[0][1] == TEST_HOST_IP  # From env var
             assert call_args[0][2] == 8080  # From env var
             assert call_args[0][3] == "admin"  # From env var

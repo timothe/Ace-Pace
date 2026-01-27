@@ -12,6 +12,55 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import acepace
 
 
+def _create_test_row(title):
+    """Helper function to create a test HTML row with given title.
+    Args:
+        title: Episode title to use in the row
+    Returns: BeautifulSoup row element"""
+    row_html = f"""
+    <tr>
+        <td>
+            <a href="/view/12345" title="{title}">{title}</a>
+            <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
+        </td>
+    </tr>
+    """
+    soup = BeautifulSoup(row_html, "html.parser")
+    return soup.find("tr")
+
+
+def _process_row_with_assertions(title, expected_success, expected_crc32_in_link=None, expected_text_in_values=None):
+    """Helper function to process a row and assert results.
+    Args:
+        title: Episode title
+        expected_success: Expected success value (True/False)
+        expected_crc32_in_link: CRC32 that should be in link dict (None to skip check)
+        expected_text_in_values: Text that should be in text dict values (None to skip check)
+    Returns: Tuple of (success, should_warn, crc32_to_link, crc32_to_text)"""
+    row = _create_test_row(title)
+    crc32_to_link = {}
+    crc32_to_text = {}
+    crc32_to_magnet = {}
+    
+    success, _, should_warn = acepace._process_crc32_row(
+        row, crc32_to_link, crc32_to_text, crc32_to_magnet
+    )
+    
+    assert success is expected_success
+    assert should_warn is False
+    
+    if expected_crc32_in_link is not None:
+        if expected_success:
+            assert expected_crc32_in_link in crc32_to_link
+        else:
+            assert expected_crc32_in_link not in crc32_to_link
+    
+    if expected_text_in_values is not None:
+        assert expected_text_in_values in crc32_to_text.values()
+    
+    return success, should_warn, crc32_to_link, crc32_to_text
+
+
 class TestPathNormalization:
     """Tests for file path normalization functionality."""
 
@@ -187,172 +236,60 @@ class TestQualityFiltering:
 
     def test_process_crc32_row_accepts_1080p(self):
         """Test that _process_crc32_row accepts 1080p episodes."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+        _process_row_with_assertions(
+            "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv",
+            expected_success=True,
+            expected_crc32_in_link="A1B2C3D4",
+            expected_text_in_values="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv"
         )
-        
-        assert success is True
-        assert "A1B2C3D4" in crc32_to_link
-        assert "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv" in crc32_to_text.values()
 
-    def test_process_crc32_row_accepts_720p(self):
-        """Test that _process_crc32_row accepts 720p episodes."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="[One Pace] Episode 1 [720p][A1B2C3D4].mkv">[One Pace] Episode 1 [720p][A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+    def test_process_crc32_row_rejects_720p(self):
+        """Test that _process_crc32_row rejects 720p episodes."""
+        _process_row_with_assertions(
+            "[One Pace] Episode 1 [720p][A1B2C3D4].mkv",
+            expected_success=False,
+            expected_crc32_in_link="A1B2C3D4"
         )
-        
-        assert success is True
-        assert "A1B2C3D4" in crc32_to_link
 
     def test_process_crc32_row_rejects_480p(self):
         """Test that _process_crc32_row rejects 480p episodes."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="[One Pace] Episode 1 [480p][A1B2C3D4].mkv">[One Pace] Episode 1 [480p][A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+        _process_row_with_assertions(
+            "[One Pace] Episode 1 [480p][A1B2C3D4].mkv",
+            expected_success=False,
+            expected_crc32_in_link="A1B2C3D4"
         )
-        
-        assert success is False
-        assert "A1B2C3D4" not in crc32_to_link
 
     def test_process_crc32_row_rejects_2160p(self):
         """Test that _process_crc32_row rejects 2160p (4K) episodes."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="[One Pace] Episode 1 [2160p][A1B2C3D4].mkv">[One Pace] Episode 1 [2160p][A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+        _process_row_with_assertions(
+            "[One Pace] Episode 1 [2160p][A1B2C3D4].mkv",
+            expected_success=False,
+            expected_crc32_in_link="A1B2C3D4"
         )
-        
-        assert success is False
-        assert "A1B2C3D4" not in crc32_to_link
 
     def test_process_crc32_row_rejects_no_quality(self):
         """Test that _process_crc32_row rejects episodes without quality marker."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="[One Pace] Episode 1 [A1B2C3D4].mkv">[One Pace] Episode 1 [A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+        _process_row_with_assertions(
+            "[One Pace] Episode 1 [A1B2C3D4].mkv",
+            expected_success=False,
+            expected_crc32_in_link="A1B2C3D4"
         )
-        
-        assert success is False
-        assert "A1B2C3D4" not in crc32_to_link
 
     def test_process_crc32_row_rejects_no_one_pace_marker(self):
         """Test that _process_crc32_row rejects episodes without [One Pace] marker."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="Episode 1 [1080p][A1B2C3D4].mkv">Episode 1 [1080p][A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+        _process_row_with_assertions(
+            "Episode 1 [1080p][A1B2C3D4].mkv",
+            expected_success=False,
+            expected_crc32_in_link="A1B2C3D4"
         )
-        
-        assert success is False
-        assert "A1B2C3D4" not in crc32_to_link
 
     def test_process_crc32_row_case_insensitive_quality(self):
         """Test that quality filtering is case insensitive."""
-        row_html = """
-        <tr>
-            <td>
-                <a href="/view/12345" title="[One Pace] Episode 1 [1080P][A1B2C3D4].mkv">[One Pace] Episode 1 [1080P][A1B2C3D4].mkv</a>
-                <a href="magnet:?xt=urn:btih:abc123">Magnet</a>
-            </td>
-        </tr>
-        """
-        soup = BeautifulSoup(row_html, "html.parser")
-        row = soup.find("tr")
-        
-        crc32_to_link = {}
-        crc32_to_text = {}
-        crc32_to_magnet = {}
-        
-        success, filename_text = acepace._process_crc32_row(
-            row, crc32_to_link, crc32_to_text, crc32_to_magnet
+        _process_row_with_assertions(
+            "[One Pace] Episode 1 [1080P][A1B2C3D4].mkv",
+            expected_success=True,
+            expected_crc32_in_link="A1B2C3D4"
         )
-        
-        assert success is True
-        assert "A1B2C3D4" in crc32_to_link
 
     @patch('acepace.requests.get')
     def test_fetch_crc32_links_filters_by_quality(self, mock_get):
@@ -404,10 +341,10 @@ class TestQualityFiltering:
         mock_get.side_effect = [mock_response1, mock_response2]
         
         base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
-        crc32_to_link, crc32_to_text, crc32_to_magnet, _ = acepace.fetch_crc32_links(base_url)
+        crc32_to_link, _, _, _ = acepace.fetch_crc32_links(base_url)
         
-        # Should only have 1080p and 720p episodes, not 480p
-        assert len(crc32_to_link) == 2
-        assert "A1B2C3D4" in crc32_to_link  # 1080p
-        assert "E5F6A7B8" in crc32_to_link  # 720p
-        assert "A9B0C1D2" not in crc32_to_link  # 480p should be filtered out
+        # Should only have 1080p episodes, not 720p or 480p
+        assert len(crc32_to_link) == 1
+        assert "A1B2C3D4" in crc32_to_link  # 1080p - should be included
+        assert "E5F6A7B8" not in crc32_to_link  # 720p - should be excluded
+        assert "A9B0C1D2" not in crc32_to_link  # 480p - should be excluded
