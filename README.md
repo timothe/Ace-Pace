@@ -38,6 +38,7 @@ docker run --rm \
   -e TORRENT_HOST=127.0.0.1 \
   -e TORRENT_PORT=9091 \
   -e NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc \
+  -e DEBUG=true \
   timothe/ace-pace:latest
 ```
 
@@ -78,6 +79,10 @@ The following environment variables can be used to configure Ace-Pace in Docker:
 - `TORRENT_PORT` - BitTorrent client port (default: `9091` for Transmission, `8080` for qBittorrent)
 - `TORRENT_USER` - BitTorrent client username (optional)
 - `TORRENT_PASSWORD` - BitTorrent client password (optional)
+- `DEBUG` - Enable debug output for troubleshooting (default: `false`)
+  - Set to `true`, `1`, `yes`, or `on` to enable detailed debug information
+  - When enabled, shows troubleshooting info, sample CRC32s, comparison details, and processing statistics
+  - Useful for diagnosing issues with missing episode detection or data processing
 - `TZ` - Timezone (default: `Europe/London`)
 
 ### Docker Volume Mounts
@@ -131,6 +136,47 @@ This will generate:
 - `coverage.xml` - Used by SonarQube for test coverage analysis
 - `htmlcov/` - HTML coverage report (open `htmlcov/index.html` in a browser)
 - Terminal output showing coverage summary
+
+## 🐛 Debug Mode
+
+Ace-Pace includes a debug mode that provides detailed troubleshooting information. This is useful when diagnosing issues with missing episode detection or data processing.
+
+### Enabling Debug Mode
+
+**In Python (local execution):**
+```bash
+DEBUG=true python acepace.py --folder /path/to/videos
+```
+
+**In Docker:**
+```bash
+docker run --rm \
+  -v /path/to/OnePaceLibrary:/media:rw \
+  -v /path/to/config:/config:rw \
+  timothe/ace-pace:latest
+```
+
+**In Docker Compose:**
+Add to your `docker-compose.yml`:
+```yaml
+environment:
+  - DEBUG=true
+```
+
+### Debug Output
+
+When debug mode is enabled, you'll see additional information including:
+- Episode fetching progress and page counts
+- CRC32 normalization and comparison details
+- Sample CRC32s from both Nyaa and local sources
+- File processing statistics (cached vs calculated)
+- Mapping issues and comparison mismatches
+- Intersection and difference analysis
+- Processing statistics for each operation
+
+All debug output is prefixed with "DEBUG:" for easy filtering.
+
+**Note:** Debug mode defaults to `false` (disabled). Set `DEBUG` to `true`, `1`, `yes`, or `on` to enable. The value is case-insensitive.
 
 ## 🛠️ How to Use
 

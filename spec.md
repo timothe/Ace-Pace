@@ -188,6 +188,11 @@ Ace-Pace/
   - `EPISODES_UPDATE`: Set to "true" to update episodes index on container start (default: not set/false)
   - `DB`: Set to "true" to export database on container start (default: not set/false)
   - `RUN_DOCKER`: Flag to enable Docker mode (non-interactive)
+  - `DEBUG`: Enable debug output for troubleshooting (default: `false`)
+    - Set to `true`, `1`, `yes`, or `on` to enable detailed debug information
+    - When enabled, shows troubleshooting info, sample CRC32s, comparison details, and processing statistics
+    - Useful for diagnosing issues with missing episode detection or data processing
+    - Works in both Docker and local Python execution
 
 ## Command-Line Interface
 
@@ -242,6 +247,21 @@ Ace-Pace/
 6. Script matches local files by CRC32 (using normalized paths)
 7. Script generates rename plan and prompts for confirmation (auto-confirms in Docker mode)
 8. Script renames files and updates database with normalized paths
+
+### Debug Mode
+- **DEBUG Environment Variable**: Controls verbose troubleshooting output
+  - Default: `false` (no debug output)
+  - Set to `true`, `1`, `yes`, or `on` to enable
+  - When enabled, provides detailed information about:
+    - Episode fetching progress and page counts
+    - CRC32 normalization and comparison details
+    - Sample CRC32s from both Nyaa and local sources
+    - File processing statistics (cached vs calculated)
+    - Mapping issues and comparison mismatches
+    - Intersection and difference analysis
+  - Useful for diagnosing issues with missing episode detection
+  - Works in both Docker and local Python execution
+  - All debug output is prefixed with "DEBUG:" for easy filtering
 
 ### Docker Workflow
 1. Container starts with `RUN_DOCKER` environment variable set
@@ -519,3 +539,10 @@ When working on this project:
     - Host: localhost
     - Port: 9091 (transmission) or 8080 (qbittorrent)
 22. **Download logging** - Log connection parameters used for download in Docker mode for transparency
+
+23. **Debug mode** - Use `DEBUG` environment variable to control troubleshooting output
+    - Defaults to `false` (no debug output)
+    - Set to `true`, `1`, `yes`, or `on` to enable
+    - All debug output uses `debug_print()` function which checks `DEBUG_MODE` flag
+    - Debug output includes troubleshooting info, sample data, processing statistics, and comparison details
+    - Useful for diagnosing issues without cluttering normal output

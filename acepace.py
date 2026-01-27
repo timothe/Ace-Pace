@@ -17,11 +17,22 @@ from clients import get_client
 # Check if running in Docker (non-interactive mode)
 IS_DOCKER = "RUN_DOCKER" in os.environ
 
+# Check if debug mode is enabled (via DEBUG environment variable)
+# Defaults to False if not set or empty
+DEBUG_MODE = os.getenv("DEBUG", "").lower() in ("true", "1", "yes", "on")
+
 # Global flag for graceful shutdown
 _shutdown_requested = False
 
 # Shutdown message constant
 _SHUTDOWN_MESSAGE = "Shutdown requested, stopping fetch operation..."
+
+
+def debug_print(*args, **kwargs):
+    """Print debug messages only if DEBUG mode is enabled.
+    Works exactly like print() but only outputs when DEBUG environment variable is set."""
+    if DEBUG_MODE:
+        print(*args, **kwargs)
 
 
 def _signal_handler(signum, frame):
@@ -359,8 +370,10 @@ def fetch_episodes_metadata(base_url=None):
     # Get total number of pages by parsing first page's pagination controls
     soup, success = _fetch_episodes_page(base_url, 1)
     if not success:
+        debug_print("DEBUG: Failed to fetch first page for episodes metadata")
         return episodes
     total_pages = _get_total_pages(soup)
+    debug_print(f"DEBUG: Found {total_pages} total pages to process for episodes metadata")
 
     # Loop from page 1 to total_pages
     page = 1
@@ -390,8 +403,10 @@ def update_episodes_index_db(base_url=None):
     Args:
         base_url: Base URL for Nyaa search. If None, uses default.
     """
+    debug_print(f"DEBUG: Starting update_episodes_index_db with URL: {base_url}")
     conn = init_episodes_db()
     episodes = fetch_episodes_metadata(base_url)
+    debug_print(f"DEBUG: Fetched {len(episodes)} episodes from Nyaa")
     c = conn.cursor()
     count = 0
     for crc32, title, page_link in episodes:
@@ -409,6 +424,7 @@ def update_episodes_index_db(base_url=None):
     set_episodes_metadata(conn, "episodes_db_last_update", now_str)
     print(f"Episodes index updated with {count} entries.")
     print(f"Last update: {now_str}")
+    debug_print(f"DEBUG: Updated {count} entries in episodes_index database")
     conn.close()
 
 
@@ -563,7 +579,7 @@ def _process_crc32_page_rows(soup, crc32_to_link, crc32_to_text, crc32_to_magnet
         if success:
             found_count += 1
         elif should_warn and filename_text:
-            print(f"Warning: No CRC32 found in title '{filename_text}'")
+            debug_print(f"Warning: No CRC32 found in title '{filename_text}'")
     
     return found_count
 
@@ -579,12 +595,16 @@ def fetch_crc32_links(base_url):
     crc32_to_text = {}
     crc32_to_magnet = {}
     
+    debug_print(f"DEBUG: Starting fetch_crc32_links with URL: {base_url}")
+    
     # Get total number of pages by parsing first page's pagination controls
     soup, success = _fetch_crc32_page(base_url, 1)
     if not success:
+        debug_print("DEBUG: Failed to fetch first page for CRC32 links")
         return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
     
     total_pages = _get_total_pages(soup)
+    debug_print(f"DEBUG: Found {total_pages} total pages to process for CRC32 links")
     last_checked_page = 0
     
     # Loop from page 1 to total_pages (similar to fetch_episodes_metadata)
@@ -604,7 +624,8 @@ def fetch_crc32_links(base_url):
         if not success:
             break
         
-        _process_crc32_page_rows(page_soup, crc32_to_link, crc32_to_text, crc32_to_magnet)
+        episodes_found = _process_crc32_page_rows(page_soup, crc32_to_link, crc32_to_text, crc32_to_magnet)
+        debug_print(f"DEBUG: Page {page}/{total_pages}: Found {episodes_found} valid episodes (total so far: {len(crc32_to_link)})")
         
         if _shutdown_requested:
             break
@@ -613,6 +634,8 @@ def fetch_crc32_links(base_url):
         page += 1
         if page <= total_pages:  # Don't sleep after last page
             time.sleep(REQUEST_DELAY_SECONDS)
+    
+    debug_print(f"DEBUG: Completed fetch_crc32_links: {len(crc32_to_link)} total episodes found across {last_checked_page} pages")
 
     return crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page
 
@@ -654,10 +677,10 @@ def fetch_title_by_crc32(crc32):
         print(f"Found {crc32} on Nyaa!")
         return matched_titles[0]
     elif len(matched_titles) == 0:
-        print(f"Warning: No title found for {crc32}")
+        debug_print(f"Warning: No title found for {crc32}")
         return None
     else:
-        print(f"Warning: Multiple titles found for CRC32 {crc32}: {matched_titles}")
+        debug_print(f"Warning: Multiple titles found for CRC32 {crc32}: {matched_titles}")
         return None
 
 
@@ -683,6 +706,7 @@ def _process_video_file(file_path, c, conn, local_crc32s):
     row = c.fetchone()
     if row:
         local_crc32s.add(row[0])
+        debug_print(f"DEBUG: Using cached CRC32 for {os.path.basename(file_path)}: {row[0]}")
         return True
     
     # Calculate CRC32
@@ -692,14 +716,50 @@ def _process_video_file(file_path, c, conn, local_crc32s):
     
     crc32 = _calculate_file_crc32(file_path)
     if crc32 is None:
+        debug_print(f"DEBUG: CRC32 calculation interrupted for {file_path}")
         return False  # Calculation interrupted
     
+    debug_print(f"DEBUG: Calculated CRC32 for {file_name}: {crc32}")
     local_crc32s.add(crc32)
     c.execute(
         "INSERT OR REPLACE INTO crc32_cache (file_path, crc32) VALUES (?, ?)",
         (normalized_path, crc32),
     )
     conn.commit()
+    return True
+
+
+def _process_single_file_for_crc32(file_path, c, conn, local_crc32s):
+    """Process a single file for CRC32 calculation.
+    Returns tuple: (success: bool, was_cached: bool)"""
+    normalized_path = normalize_file_path(file_path)
+    # Check if already in DB
+    c.execute("SELECT crc32 FROM crc32_cache WHERE file_path = ?", (normalized_path,))
+    row = c.fetchone()
+    was_cached = bool(row)
+    
+    if _process_video_file(file_path, c, conn, local_crc32s):
+        return True, was_cached
+    return False, was_cached
+
+
+def _process_files_in_directory(root, files, c, conn, local_crc32s, stats):
+    """Process files in a directory, updating stats.
+    Returns True if processing should continue, False if shutdown requested."""
+    for file in files:
+        if _shutdown_requested:
+            return False
+        
+        ext = os.path.splitext(file)[1].lower()
+        if ext in VIDEO_EXTENSIONS:
+            file_path = os.path.join(root, file)
+            success, was_cached = _process_single_file_for_crc32(file_path, c, conn, local_crc32s)
+            if success:
+                stats['processed'] += 1
+                if was_cached:
+                    stats['cached'] += 1
+                else:
+                    stats['calculated'] += 1
     return True
 
 
@@ -712,20 +772,20 @@ def calculate_local_crc32(folder, conn):
     Returns: Set of CRC32 checksums found in the folder."""
     local_crc32s = set()
     c = conn.cursor()
+    stats = {'processed': 0, 'cached': 0, 'calculated': 0}
+    
+    debug_print(f"DEBUG: Starting calculate_local_crc32 for folder: {folder}")
     
     for root, dirs, files in os.walk(folder):
         if _shutdown_requested:
             print("Shutdown requested, stopping file processing...")
             break
         
-        for file in files:
-            if _shutdown_requested:
-                break
-            
-            ext = os.path.splitext(file)[1].lower()
-            if ext in VIDEO_EXTENSIONS:
-                file_path = os.path.join(root, file)
-                _process_video_file(file_path, c, conn, local_crc32s)
+        if not _process_files_in_directory(root, files, c, conn, local_crc32s, stats):
+            break
+    
+    debug_print(f"DEBUG: Processed {stats['processed']} video files ({stats['cached']} from cache, {stats['calculated']} calculated)")
+    debug_print(f"DEBUG: Found {len(local_crc32s)} unique CRC32s")
     
     return local_crc32s
 
@@ -1117,25 +1177,25 @@ def _print_report_header(conn, folder, args):
 
 def _print_troubleshooting_header(crc32_to_link, local_crc32s):
     """Print initial troubleshooting information header."""
-    print("\n=== TROUBLESHOOTING INFO ===")
-    print(f"Episodes from Nyaa (crc32_to_link keys): {len(crc32_to_link)}")
-    print(f"Local CRC32s: {len(local_crc32s)}")
+    debug_print("\n=== DEBUG: TROUBLESHOOTING INFO ===")
+    debug_print(f"Episodes from Nyaa (crc32_to_link keys): {len(crc32_to_link)}")
+    debug_print(f"Local CRC32s: {len(local_crc32s)}")
     
     # Check for empty sets
     if len(crc32_to_link) == 0:
-        print("WARNING: No episodes fetched from Nyaa! Check URL and quality filtering.")
+        debug_print("WARNING: No episodes fetched from Nyaa! Check URL and quality filtering.")
     if len(local_crc32s) == 0:
-        print("WARNING: No local CRC32s found! Check folder path and file extensions.")
+        debug_print("WARNING: No local CRC32s found! Check folder path and file extensions.")
     
     # Show sample CRC32s from both sources (first 5)
     if crc32_to_link:
         sample_nyaa = list(crc32_to_link.keys())[:5]
-        print(f"Sample Nyaa CRC32s (first 5): {sample_nyaa}")
-        print(f"Sample Nyaa CRC32 types: {[type(c).__name__ for c in sample_nyaa]}")
+        debug_print(f"Sample Nyaa CRC32s (first 5): {sample_nyaa}")
+        debug_print(f"Sample Nyaa CRC32 types: {[type(c).__name__ for c in sample_nyaa]}")
     if local_crc32s:
         sample_local = list(local_crc32s)[:5]
-        print(f"Sample local CRC32s (first 5): {sample_local}")
-        print(f"Sample local CRC32 types: {[type(c).__name__ for c in sample_local]}")
+        debug_print(f"Sample local CRC32s (first 5): {sample_local}")
+        debug_print(f"Sample local CRC32 types: {[type(c).__name__ for c in sample_local]}")
 
 
 def _normalize_crc32_sets(crc32_to_link, local_crc32s):
@@ -1144,15 +1204,15 @@ def _normalize_crc32_sets(crc32_to_link, local_crc32s):
     nyaa_crc32s_normalized = {str(c).strip().upper() for c in crc32_to_link.keys()}
     local_crc32s_normalized = {str(c).strip().upper() for c in local_crc32s}
     
-    print("\nAfter normalization:")
-    print(f"Nyaa CRC32s: {len(nyaa_crc32s_normalized)}")
-    print(f"Local CRC32s: {len(local_crc32s_normalized)}")
+    debug_print("\nAfter normalization:")
+    debug_print(f"Nyaa CRC32s: {len(nyaa_crc32s_normalized)}")
+    debug_print(f"Local CRC32s: {len(local_crc32s_normalized)}")
     
     # Check for matches using normalized sets
     matches_normalized = nyaa_crc32s_normalized & local_crc32s_normalized
-    print(f"Matches after normalization: {len(matches_normalized)}")
+    debug_print(f"Matches after normalization: {len(matches_normalized)}")
     if matches_normalized:
-        print(f"Sample matches (first 3): {list(matches_normalized)[:3]}")
+        debug_print(f"Sample matches (first 3): {list(matches_normalized)[:3]}")
     
     return nyaa_crc32s_normalized, local_crc32s_normalized
 
@@ -1170,13 +1230,13 @@ def _build_normalized_to_original_mapping(crc32_to_link, nyaa_crc32s_normalized)
     mapping_issues = []
     # Verify the mapping is correct
     if len(normalized_to_original) != len(nyaa_crc32s_normalized):
-        print(f"WARNING: Mapping size mismatch! normalized_to_original: {len(normalized_to_original)}, nyaa_crc32s_normalized: {len(nyaa_crc32s_normalized)}")
-        print("This could indicate duplicate normalized CRC32s or mapping issues.")
+        debug_print(f"WARNING: Mapping size mismatch! normalized_to_original: {len(normalized_to_original)}, nyaa_crc32s_normalized: {len(nyaa_crc32s_normalized)}")
+        debug_print("This could indicate duplicate normalized CRC32s or mapping issues.")
         # Show which normalized CRC32s are missing from the mapping
         missing_from_mapping = nyaa_crc32s_normalized - set(normalized_to_original.keys())
         if missing_from_mapping:
             mapping_issues = list(missing_from_mapping)
-            print(f"Normalized CRC32s missing from mapping (first 5): {mapping_issues[:5]}")
+            debug_print(f"Normalized CRC32s missing from mapping (first 5): {mapping_issues[:5]}")
     
     return normalized_to_original, mapping_issues
 
@@ -1201,12 +1261,12 @@ def _build_missing_list(missing_normalized_set, normalized_to_original, crc32_to
                     break
             if not found:
                 mapping_errors.append(norm_crc)
-                print(f"ERROR: Could not find original key for normalized CRC32 '{norm_crc}'")
+                debug_print(f"ERROR: Could not find original key for normalized CRC32 '{norm_crc}'")
     
     if mapping_errors:
-        print(f"WARNING: {len(mapping_errors)} missing episodes could not be mapped to original keys!")
-        print("This is a critical error - these episodes will not be included in the missing list.")
-        print(f"Affected normalized CRC32s (first 10): {mapping_errors[:10]}")
+        debug_print(f"WARNING: {len(mapping_errors)} missing episodes could not be mapped to original keys!")
+        debug_print("This is a critical error - these episodes will not be included in the missing list.")
+        debug_print(f"Affected normalized CRC32s (first 10): {mapping_errors[:10]}")
     
     return missing, mapping_errors
 
@@ -1216,45 +1276,45 @@ def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized,
     """Print comparison results and troubleshooting information."""
     # Also check the original comparison for debugging
     original_missing_count = len([c for c in crc32_to_link.keys() if c not in local_crc32s])
-    print(f"Missing episodes (original comparison): {original_missing_count}")
-    print(f"Missing episodes (normalized comparison): {len(missing)}")
-    print(f"Missing normalized CRC32s: {len(missing_normalized)}")
+    debug_print(f"Missing episodes (original comparison): {original_missing_count}")
+    debug_print(f"Missing episodes (normalized comparison): {len(missing)}")
+    debug_print(f"Missing normalized CRC32s: {len(missing_normalized)}")
     
     if original_missing_count != len(missing):
-        print(f"WARNING: Comparison mismatch detected! Original: {original_missing_count}, Normalized: {len(missing)}")
-        print("This suggests a data type or format issue. Using normalized comparison.")
+        debug_print(f"WARNING: Comparison mismatch detected! Original: {original_missing_count}, Normalized: {len(missing)}")
+        debug_print("This suggests a data type or format issue. Using normalized comparison.")
     
     # Show intersection details
     intersection = nyaa_crc32s_normalized & local_crc32s_normalized
-    print(f"Intersection (episodes found locally): {len(intersection)}")
+    debug_print(f"Intersection (episodes found locally): {len(intersection)}")
     if intersection:
-        print(f"Sample found episodes (first 3): {list(intersection)[:3]}")
+        debug_print(f"Sample found episodes (first 3): {list(intersection)[:3]}")
     
     # Show difference details
     difference = nyaa_crc32s_normalized - local_crc32s_normalized
-    print(f"Difference (episodes NOT found locally): {len(difference)}")
+    debug_print(f"Difference (episodes NOT found locally): {len(difference)}")
     if difference:
-        print(f"Sample missing episodes (first 3): {list(difference)[:3]}")
+        debug_print(f"Sample missing episodes (first 3): {list(difference)[:3]}")
     
     # Check if sets are suspiciously similar (potential bug indicator)
     if len(nyaa_crc32s_normalized) > 0 and len(local_crc32s_normalized) > 0:
         similarity_ratio = len(intersection) / len(nyaa_crc32s_normalized)
-        print(f"Similarity ratio (intersection/nyaa): {similarity_ratio:.2%}")
+        debug_print(f"Similarity ratio (intersection/nyaa): {similarity_ratio:.2%}")
         if similarity_ratio > 0.95 and len(difference) == 0:
-            print("WARNING: Almost all Nyaa episodes appear to be found locally!")
-            print("This might indicate a comparison bug or data issue.")
-            print("Please verify that your local files actually contain all these episodes.")
+            debug_print("WARNING: Almost all Nyaa episodes appear to be found locally!")
+            debug_print("This might indicate a comparison bug or data issue.")
+            debug_print("Please verify that your local files actually contain all these episodes.")
     
     # Check for sets being identical (definite bug)
     if nyaa_crc32s_normalized == local_crc32s_normalized:
-        print("ERROR: Nyaa and local CRC32 sets are IDENTICAL!")
-        print("This indicates a critical bug - the sets should not be the same.")
-        print("Possible causes:")
-        print("  - Local CRC32s are being populated from Nyaa data (wrong source)")
-        print("  - Comparison is using the same set for both sides")
-        print("  - Database corruption or incorrect data")
+        debug_print("ERROR: Nyaa and local CRC32 sets are IDENTICAL!")
+        debug_print("This indicates a critical bug - the sets should not be the same.")
+        debug_print("Possible causes:")
+        debug_print("  - Local CRC32s are being populated from Nyaa data (wrong source)")
+        debug_print("  - Comparison is using the same set for both sides")
+        debug_print("  - Database corruption or incorrect data")
     
-    print("=== END TROUBLESHOOTING INFO ===\n")
+    debug_print("=== END DEBUG: TROUBLESHOOTING INFO ===\n")
 
 
 def _calculate_and_find_missing(folder, conn, args, last_run):
@@ -1274,6 +1334,11 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
 
     local_crc32s = calculate_local_crc32(folder, conn)
     print(f"Found {len(local_crc32s)} local CRC32 hashes.")
+    
+    debug_print("DEBUG: Starting missing episode detection")
+    debug_print(f"DEBUG: Folder scanned: {folder}")
+    debug_print(f"DEBUG: Episodes from Nyaa: {len(crc32_to_link)}")
+    debug_print(f"DEBUG: Local CRC32s: {len(local_crc32s)}")
 
     # Print troubleshooting header
     _print_troubleshooting_header(crc32_to_link, local_crc32s)
@@ -1531,6 +1596,18 @@ def _handle_main_commands(args, conn, folder):
     # Note: To download missing episodes, use --download flag with --client
 
 
+def _print_header():
+    """Print Ace-Pace header banner."""
+    print("=" * 60)
+    print(" " * 20 + "Ace-Pace")
+    print(" " * 12 + "One Pace Library Manager")
+    print("=" * 60)
+    if IS_DOCKER:
+        print("Running in Docker mode (non-interactive)")
+        print("-" * 60)
+    print()
+
+
 def main():
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGTERM, _signal_handler)
@@ -1544,10 +1621,10 @@ def main():
             _print_help()
             sys.exit(0)
 
-        # Only show Docker mode message once, and not for --db or --episodes_update commands
+        # Print header only for main command (not for --db or --episodes_update)
         # Also suppress for help command
         if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
-            print("Running in Docker mode (non-interactive)")
+            _print_header()
 
         if not _validate_url(args.url):
             sys.exit(1)
