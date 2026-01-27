@@ -242,8 +242,8 @@ class TestURLParameterPropagation:
             with pytest.raises(SystemExit):
                 acepace.main()
             
-            # Verify update_episodes_index_db was called with URL
-            mock_update.assert_called_once_with(test_url)
+            # Verify update_episodes_index_db was called with URL and force_update
+            mock_update.assert_called_once_with(test_url, force_update=True)
 
     @patch('acepace._validate_url')
     @patch('acepace.init_db')

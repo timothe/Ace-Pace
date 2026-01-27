@@ -197,6 +197,12 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
 - `--db` (standalone flag)
   Create a CSV file with the existing local file paths and CRC32 checksums. Useful to check what's detected and debugging.
 
+- `--rename` (standalone flag)
+  Rename local files based on matching titles from One-Pace episodes index. Requires `--folder` to be specified. Optionally use `--url` to specify a custom Nyaa.si search URL.
+
+- `--episodes_update` (standalone flag)
+  Update the episodes metadata database from Nyaa.si. Optionally use `--url` to specify a custom Nyaa.si search URL. This command forces an update even if episodes were recently updated (within the last 10 minutes).
+
 ### 📥 Download commands
 
 - `--client <client_name>`
@@ -235,6 +241,8 @@ python acepace.py --folder "/volume42/media/One Piece/"
 python acepace.py --client transmission --download
 python acepace.py --client qbittorrent --download --host 192.168.1.100 --port 8080 --username myuser --password mypassword --download-folder /downloads/onepace --tag onepace --tag 'one pace' --category 'anime'
 python acepace.py --db
+python acepace.py --folder "/volume42/media/One Piece/" --rename
+python acepace.py --episodes_update --url https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
 ```
 
 ## 📜 Workflow Overview

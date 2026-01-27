@@ -399,12 +399,33 @@ def fetch_episodes_metadata(base_url=None):
     return episodes
 
 
-def update_episodes_index_db(base_url=None):
+def update_episodes_index_db(base_url=None, force_update=False):
     """Update episodes index database from Nyaa.
     Args:
         base_url: Base URL for Nyaa search. If None, uses default.
+        force_update: If True, force update even if recently updated. If False, skip if updated within last 10 minutes.
     """
-    debug_print(f"DEBUG: Starting update_episodes_index_db with URL: {base_url}")
+    debug_print(f"DEBUG: Starting update_episodes_index_db with URL: {base_url}, force_update: {force_update}")
+    
+    # Check if episodes were recently updated (within last 10 minutes)
+    if not force_update:
+        conn_check = init_episodes_db()
+        last_update_str = get_episodes_metadata(conn_check, "episodes_db_last_update")
+        conn_check.close()
+        
+        if last_update_str:
+            try:
+                last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+                time_diff = datetime.now() - last_update
+                # Skip update if updated within last 10 minutes to avoid unnecessary double updates
+                if time_diff.total_seconds() < 600:  # 10 minutes = 600 seconds
+                    print(f"Episodes were recently updated ({last_update_str}), skipping update to avoid duplicate fetch.")
+                    print("Set EPISODES_UPDATE=true or use --episodes_update to force update.")
+                    return
+            except (ValueError, TypeError):
+                # If parsing fails, proceed with update
+                pass
+    
     conn = init_episodes_db()
     episodes = fetch_episodes_metadata(base_url)
     debug_print(f"DEBUG: Fetched {len(episodes)} episodes from Nyaa")
@@ -457,6 +478,66 @@ def load_1080p_episodes_from_index():
     return crc32_to_link, crc32_to_text
 
 
+def _extract_magnet_link_from_row(row, crc32_set):
+    """Extract magnet link from a table row if it matches a CRC32 in the set.
+    Args:
+        row: BeautifulSoup table row element
+        crc32_set: Set of CRC32 values to match against
+    Returns: Tuple of (crc32, magnet_link) if found, (None, None) otherwise"""
+    title_link, magnet_link = _extract_links_from_row(row)
+    if not (title_link and magnet_link and 
+            isinstance(magnet_link, str) and 
+            magnet_link.startswith(MAGNET_LINK_PREFIX) and
+            hasattr(title_link, 'text')):
+        return None, None
+    
+    filename_text = title_link.text
+    matches = CRC32_REGEX.findall(filename_text)
+    if not matches:
+        return None, None
+    
+    crc32 = matches[-1].upper()
+    if crc32 in crc32_set:
+        return crc32, magnet_link
+    return None, None
+
+
+def _process_magnet_links_page(page_soup, crc32_set, crc32_to_magnet):
+    """Process a single page to extract magnet links matching CRC32s in the set.
+    Args:
+        page_soup: BeautifulSoup object for the page
+        crc32_set: Set of CRC32 values to match against
+        crc32_to_magnet: Dictionary to update with found magnet links
+    Returns: Number of new magnet links found on this page"""
+    found_count = 0
+    table = page_soup.find("table", class_="torrent-list")
+    if not table:
+        return found_count
+    
+    rows = table.find_all("tr")
+    for row in rows:
+        if _shutdown_requested:
+            break
+        crc32, magnet_link = _extract_magnet_link_from_row(row, crc32_set)
+        if crc32 and magnet_link:
+            crc32_to_magnet[crc32] = magnet_link
+            found_count += 1
+    
+    return found_count
+
+
+def _get_page_soup_for_magnet_links(base_url, page, first_page_soup):
+    """Get BeautifulSoup object for a specific page when fetching magnet links.
+    Args:
+        base_url: Nyaa search URL
+        page: Page number (1-indexed)
+        first_page_soup: BeautifulSoup object for page 1 (already fetched)
+    Returns: Tuple of (soup, success)"""
+    if page == 1:
+        return first_page_soup, True
+    return _fetch_crc32_page(base_url, page)
+
+
 def fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link):
     """Fetch magnet links from Nyaa search results for episodes already in crc32_to_link.
     This is more efficient than fetching all episodes again.
@@ -485,37 +566,12 @@ def fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link):
         if _shutdown_requested:
             break
         
-        if page == 1:
-            page_soup = soup
-        else:
-            page_soup_result, success = _fetch_crc32_page(base_url, page)
-            if not success or page_soup_result is None:
-                break
-            page_soup = page_soup_result
-        
-        if page_soup is None:
+        page_soup, success = _get_page_soup_for_magnet_links(base_url, page, soup)
+        if not success or page_soup is None:
             break
         
-        # Extract magnet links from rows, matching by CRC32
-        table = page_soup.find("table", class_="torrent-list")
-        if table:
-            rows = table.find_all("tr")
-            for row in rows:
-                if _shutdown_requested:
-                    break
-                title_link, magnet_link = _extract_links_from_row(row)
-                if (title_link and magnet_link and 
-                    isinstance(magnet_link, str) and 
-                    magnet_link.startswith(MAGNET_LINK_PREFIX) and
-                    hasattr(title_link, 'text')):
-                    filename_text = title_link.text
-                    # Extract CRC32 from title
-                    matches = CRC32_REGEX.findall(filename_text)
-                    if matches:
-                        crc32 = matches[-1].upper()
-                        if crc32 in crc32_set:
-                            crc32_to_magnet[crc32] = magnet_link
-                            found_count += 1
+        page_found = _process_magnet_links_page(page_soup, crc32_set, crc32_to_magnet)
+        found_count += page_found
         
         page += 1
         if page <= total_pages:
@@ -1404,55 +1460,77 @@ def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized,
     debug_print("=== END DEBUG: TROUBLESHOOTING INFO ===\n")
 
 
-def _calculate_and_find_missing(folder, conn, args, last_run):
-    """Calculate local CRC32s and find missing episodes."""
-    # Check if episodes_index was recently updated (within last 2 minutes)
-    # If so, use database instead of fetching again to avoid double fetch
-    conn_episodes = init_episodes_db()
-    last_update_str = get_episodes_metadata(conn_episodes, "episodes_db_last_update")
-    conn_episodes.close()
+def _should_force_episodes_update(last_update_str):
+    """Determine if episodes should be force updated based on last update time.
+    Args:
+        last_update_str: String timestamp of last update, or None
+    Returns: True if should force update, False if recently updated (within 10 minutes)"""
+    if not last_update_str:
+        return True
     
-    use_database = False
+    try:
+        last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+        time_diff = datetime.now() - last_update
+        # If updated within last 10 minutes, skip to avoid double update
+        if time_diff.total_seconds() < 600:  # 10 minutes = 600 seconds
+            print("EPISODES_UPDATE=true: Episodes were recently updated, using existing database...")
+            return False
+    except (ValueError, TypeError):
+        # If parsing fails, proceed with update
+        pass
+    return True
+
+
+def _handle_episodes_update_decision(episodes_update_env, last_update_str, base_url):
+    """Handle the decision to update episodes based on EPISODES_UPDATE environment variable.
+    Args:
+        episodes_update_env: True if EPISODES_UPDATE environment variable is set
+        last_update_str: String timestamp of last update, or None
+        base_url: Base URL for Nyaa search
+    Returns: True if database should be used, False if should fetch from Nyaa"""
+    if episodes_update_env:
+        # EPISODES_UPDATE=true: Force update episodes even if recently updated
+        if _should_force_episodes_update(last_update_str):
+            print("EPISODES_UPDATE=true: Forcing episodes metadata update...")
+            update_episodes_index_db(base_url, force_update=True)
+        # After update (forced or skipped), always use database
+        return True
+    
+    # EPISODES_UPDATE=false or not set: Use database only, never fetch from Nyaa
     if last_update_str:
-        try:
-            last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
-            time_diff = datetime.now() - last_update
-            # Use database if updated within last 2 minutes (likely from --episodes_update)
-            if time_diff.total_seconds() < 120:
-                use_database = True
-        except (ValueError, TypeError):
-            # If parsing fails, fall through to normal fetch
-            pass
+        return True
     
-    if use_database:
-        # Use database to avoid double fetch
-        print("Using recently updated episodes index database (avoiding duplicate fetch)...")
-        crc32_to_link, crc32_to_text = load_1080p_episodes_from_index()
-        print(f"Loaded {len(crc32_to_link)} 1080p episodes from database.")
-        print("Fetching magnet links from search results...")
-        crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(args.url, crc32_to_link)
-        print(f"Fetched {len(crc32_to_magnet)} magnet links.")
-        last_checked_page = 0  # Not tracking pages when using database
+    # Database doesn't exist, need to fetch (but this shouldn't happen in normal operation)
+    print("Episodes database not found. Fetching from Nyaa...")
+    return False
+
+
+def _load_episodes_from_database(episodes_update_env, base_url):
+    """Load episodes from database and fetch magnet links.
+    Args:
+        episodes_update_env: True if EPISODES_UPDATE environment variable is set
+        base_url: Base URL for Nyaa search
+    Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
+    if episodes_update_env:
+        print("Using episodes index database (EPISODES_UPDATE=true, using updated database)...")
     else:
-        # Normal fetch from Nyaa
-        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
-            fetch_crc32_links(args.url)
-        )
-
-    print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
-
-    if last_run:
-        print("Calculating new local CRC32 hashes...")
-    else:
-        print(
-            "Calculating local CRC32 hashes - this will take a while on first run!..."
-        )
-
-    local_crc32s = calculate_local_crc32(folder, conn)
-    print(f"Found {len(local_crc32s)} local CRC32 hashes.")
+        print("Using episodes index database (EPISODES_UPDATE=false, checking database only)...")
     
+    crc32_to_link, crc32_to_text = load_1080p_episodes_from_index()
+    print(f"Loaded {len(crc32_to_link)} 1080p episodes from database.")
+    print("Fetching magnet links from search results...")
+    crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link)
+    print(f"Fetched {len(crc32_to_magnet)} magnet links.")
+    return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
+
+
+def _calculate_missing_episodes(crc32_to_link, local_crc32s):
+    """Calculate missing episodes by comparing Nyaa episodes with local CRC32s.
+    Args:
+        crc32_to_link: Dictionary mapping CRC32 to page_link
+        local_crc32s: Set of local CRC32 checksums
+    Returns: List of missing CRC32s"""
     debug_print("DEBUG: Starting missing episode detection")
-    debug_print(f"DEBUG: Folder scanned: {folder}")
     debug_print(f"DEBUG: Episodes from Nyaa: {len(crc32_to_link)}")
     debug_print(f"DEBUG: Local CRC32s: {len(local_crc32s)}")
 
@@ -1482,6 +1560,50 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
         nyaa_crc32s_normalized, local_crc32s_normalized,
         crc32_to_link, local_crc32s, missing, list(missing_normalized_set)
     )
+    
+    return missing
+
+
+def _calculate_and_find_missing(folder, conn, args, last_run):
+    """Calculate local CRC32s and find missing episodes."""
+    # Check EPISODES_UPDATE environment variable
+    episodes_update_env = os.getenv("EPISODES_UPDATE", "").lower() in ("true", "1", "yes", "on")
+    
+    # Check if episodes_index exists and has data
+    conn_episodes = init_episodes_db()
+    last_update_str = get_episodes_metadata(conn_episodes, "episodes_db_last_update")
+    
+    # Determine whether to use database or fetch from Nyaa
+    use_database = _handle_episodes_update_decision(episodes_update_env, last_update_str, args.url)
+    conn_episodes.close()
+    
+    # Load episodes (from database or fetch from Nyaa)
+    if use_database:
+        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url)
+    else:
+        # Normal fetch from Nyaa (only when database doesn't exist and EPISODES_UPDATE=false)
+        print("Fetching episodes metadata from Nyaa...")
+        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
+            fetch_crc32_links(args.url)
+        )
+
+    print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
+
+    # Calculate local CRC32s
+    if last_run:
+        print("Calculating new local CRC32 hashes...")
+    else:
+        print(
+            "Calculating local CRC32 hashes - this will take a while on first run!..."
+        )
+
+    local_crc32s = calculate_local_crc32(folder, conn)
+    print(f"Found {len(local_crc32s)} local CRC32 hashes.")
+    
+    debug_print(f"DEBUG: Folder scanned: {folder}")
+
+    # Calculate missing episodes
+    missing = _calculate_missing_episodes(crc32_to_link, local_crc32s)
 
     print(
         f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
@@ -1752,7 +1874,8 @@ def main():
             _show_episodes_metadata_status()
 
         if args.episodes_update:
-            update_episodes_index_db(args.url)
+            # When --episodes_update is used directly, force update (same behavior as EPISODES_UPDATE=true)
+            update_episodes_index_db(args.url, force_update=True)
             sys.exit(0)
 
         # Suppress messages when exporting DB (since it's automated)
