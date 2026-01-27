@@ -1621,11 +1621,6 @@ def main():
             _print_help()
             sys.exit(0)
 
-        # Print header only for main command (not for --db or --episodes_update)
-        # Also suppress for help command
-        if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
-            _print_header()
-
         if not _validate_url(args.url):
             sys.exit(1)
 

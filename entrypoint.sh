@@ -14,6 +14,15 @@ cleanup() {
 # This trap handles signals that arrive when no Python process is running
 trap 'cleanup' 15 2
 
+# Print Ace-Pace header at the very beginning
+echo "============================================================"
+echo "                    Ace-Pace"
+echo "            One Pace Library Manager"
+echo "============================================================"
+echo "Running in Docker mode (non-interactive)"
+echo "------------------------------------------------------------"
+echo ""
+
 # Run episodes update if requested
 if [ "$EPISODES_UPDATE" = "true" ]; then
     python /app/acepace.py --episodes_update ${NYAA_URL:+--url "$NYAA_URL"}
