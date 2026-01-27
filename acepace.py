@@ -545,59 +545,74 @@ def _fetch_crc32_page(base_url, page):
 
 def _process_crc32_page_rows(soup, crc32_to_link, crc32_to_text, crc32_to_magnet):
     """Process all rows from a CRC32 links page.
-    Returns True if any episodes were found, False otherwise."""
+    Returns the number of episodes found on this page."""
     table = soup.find("table", class_="torrent-list")
     if not table:
-        print("No table found, stopping.")
-        return False
+        return 0
 
     rows = table.find_all("tr")  # type: ignore
     if not rows:
-        print("No rows found, stopping.")
-        return False
+        return 0
 
-    found_in_page = False
+    found_count = 0
     for row in rows:
         if _shutdown_requested:
             print(_SHUTDOWN_MESSAGE)
             break
         success, filename_text, should_warn = _process_crc32_row(row, crc32_to_link, crc32_to_text, crc32_to_magnet)
         if success:
-            found_in_page = True
+            found_count += 1
         elif should_warn and filename_text:
             print(f"Warning: No CRC32 found in title '{filename_text}'")
     
-    return found_in_page
+    return found_count
 
 
 def fetch_crc32_links(base_url):
     """Fetch CRC32 links from Nyaa.si search URL.
     Only accepts episodes with 1080p quality.
+    Uses pagination to fetch all pages, similar to fetch_episodes_metadata.
     Args:
         base_url: Nyaa.si search URL
     Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
     crc32_to_link = {}
     crc32_to_text = {}
     crc32_to_magnet = {}
-    page = 1
+    
+    # Get total number of pages by parsing first page's pagination controls
+    soup, success = _fetch_crc32_page(base_url, 1)
+    if not success:
+        return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
+    
+    total_pages = _get_total_pages(soup)
     last_checked_page = 0
     
-    while True:
+    # Loop from page 1 to total_pages (similar to fetch_episodes_metadata)
+    page = 1
+    while page <= total_pages:
         if _shutdown_requested:
             print(_SHUTDOWN_MESSAGE)
             break
         
-        soup, success = _fetch_crc32_page(base_url, page)
+        # Use cached soup for page 1, fetch for others
+        if page == 1:
+            page_soup = soup
+            success = True
+        else:
+            page_soup, success = _fetch_crc32_page(base_url, page)
+        
         if not success:
             break
         
-        found_in_page = _process_crc32_page_rows(soup, crc32_to_link, crc32_to_text, crc32_to_magnet)
+        _process_crc32_page_rows(page_soup, crc32_to_link, crc32_to_text, crc32_to_magnet)
         
-        if _shutdown_requested or not found_in_page:
+        if _shutdown_requested:
             break
         
         last_checked_page = page
         page += 1
+        if page <= total_pages:  # Don't sleep after last page
+            time.sleep(REQUEST_DELAY_SECONDS)
 
     return crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page
 

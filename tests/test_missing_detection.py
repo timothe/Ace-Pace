@@ -155,11 +155,15 @@ class TestMissingEpisodeDetection:
 
     @patch('acepace.requests.get')
     def test_fetch_crc32_links_stops_on_empty_page(self, mock_get):
-        """Test that fetching stops when no matches found."""
-        # First page has results
+        """Test that fetching processes all pages based on pagination."""
+        # First page has results and pagination showing 2 pages
         html_with_results = """
         <html>
             <body>
+                <ul class="pagination">
+                    <li><a href="?p=1">1</a></li>
+                    <li><a href="?p=2">2</a></li>
+                </ul>
                 <table class="torrent-list">
                     <tr>
                         <td>
@@ -171,7 +175,7 @@ class TestMissingEpisodeDetection:
         </html>
         """
         
-        # Second page has no results
+        # Second page has no results (empty table)
         html_empty = """
         <html>
             <body>
@@ -189,14 +193,15 @@ class TestMissingEpisodeDetection:
         mock_response2.status_code = 200
         mock_response2.text = html_empty
         
+        # Page 1 is fetched once (for pagination), page 2 is fetched in the loop
         mock_get.side_effect = [mock_response1, mock_response2]
         
         base_url = "https://nyaa.si/?f=0&c=0_0&q=one+pace"
         crc32_to_link, _, _, last_page = acepace.fetch_crc32_links(base_url)
         
-        # Should stop after first page (no results on second)
+        # Should process both pages (pagination shows 2 pages)
         assert len(crc32_to_link) == 1
-        assert last_page == 1
+        assert last_page == 2  # Processed both pages
 
     @patch('acepace.requests.get')
     def test_fetch_title_by_crc32(self, mock_get):
