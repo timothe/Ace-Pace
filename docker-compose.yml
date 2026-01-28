@@ -6,8 +6,7 @@ services:
     volumes:
       - /path/to/OnePaceLibrary:/media:rw
       - /path/to/config:/config:rw
-    # networks:
-    #   - "proxy"
+    # network_mode: host
     environment:
       - TZ=Europe/London
       # Export database to CSV on container start (default: false)
@@ -36,7 +35,3 @@ services:
       #- TORRENT_PASSWORD=password
       # Enable debug output for troubleshooting (default: false)
       #- DEBUG=true
-
-# networks:
-#   proxy:
-#     driver: bridge

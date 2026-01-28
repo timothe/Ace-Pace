@@ -478,6 +478,58 @@ def load_1080p_episodes_from_index():
     return crc32_to_link, crc32_to_text
 
 
+def _validate_row_links(title_link, magnet_link):
+    """Validate that row links are valid and properly formatted."""
+    return (title_link and magnet_link and 
+            isinstance(magnet_link, str) and 
+            magnet_link.startswith(MAGNET_LINK_PREFIX) and
+            hasattr(title_link, 'text'))
+
+
+def _is_valid_one_pace_episode(filename_text):
+    """Check if filename is a valid One Pace episode with 1080p quality."""
+    if ONE_PACE_MARKER not in filename_text:
+        return False
+    return _is_valid_quality(filename_text)
+
+
+def _extract_crc32_from_text(text):
+    """Extract CRC32 from text if present."""
+    matches = CRC32_REGEX.findall(text)
+    if matches:
+        return matches[-1].upper()
+    return None
+
+
+def _check_crc32_in_title(filename_text, crc32_set, magnet_link):
+    """Check if CRC32 is in the title and matches the set."""
+    crc32 = _extract_crc32_from_text(filename_text)
+    if crc32 and crc32 in crc32_set:
+        return crc32, magnet_link
+    return None, None
+
+
+def _fetch_crc32_from_torrent_page(link, crc32_set, magnet_link):
+    """Fetch torrent page and extract CRC32 from file list."""
+    try:
+        torrent_resp = requests.get(link)
+        if torrent_resp.status_code != HTTP_OK:
+            return None, None
+        
+        t_soup = BeautifulSoup(torrent_resp.text, HTML_PARSER)
+        filenames = _extract_filenames_from_torrent_page(t_soup)
+        for fname in filenames:
+            fname_str = str(fname)
+            if ONE_PACE_MARKER in fname_str and _is_valid_quality(fname_str):
+                crc32 = _extract_crc32_from_text(fname_str)
+                if crc32 and crc32 in crc32_set:
+                    return crc32, magnet_link
+    except (requests.RequestException, AttributeError, TypeError):
+        pass
+    
+    return None, None
+
+
 def _extract_magnet_link_from_row(row, crc32_set):
     """Extract magnet link from a table row if it matches a CRC32 in the set.
     First checks title, then visits torrent page if CRC32 not in title.
@@ -486,46 +538,24 @@ def _extract_magnet_link_from_row(row, crc32_set):
         crc32_set: Set of CRC32 values to match against
     Returns: Tuple of (crc32, magnet_link) if found, (None, None) otherwise"""
     title_link, magnet_link = _extract_links_from_row(row)
-    if not (title_link and magnet_link and 
-            isinstance(magnet_link, str) and 
-            magnet_link.startswith(MAGNET_LINK_PREFIX) and
-            hasattr(title_link, 'text')):
+    if not _validate_row_links(title_link, magnet_link):
         return None, None
+    
+    # Type guard: after validation, title_link is guaranteed to be non-None
+    assert title_link is not None and magnet_link is not None
     
     filename_text = title_link.text
-    link = NYAA_BASE_URL + title_link["href"]
-    
-    # Check if it's a One Pace episode with 1080p quality
-    if ONE_PACE_MARKER not in filename_text:
-        return None, None
-    if not _is_valid_quality(filename_text):
+    if not _is_valid_one_pace_episode(filename_text):
         return None, None
     
     # Check if CRC32 is in title
-    matches = CRC32_REGEX.findall(filename_text)
-    if matches:
-        crc32 = matches[-1].upper()
-        if crc32 in crc32_set:
-            return crc32, magnet_link
+    crc32, found_magnet = _check_crc32_in_title(filename_text, crc32_set, magnet_link)
+    if crc32:
+        return crc32, found_magnet
     
     # CRC32 not in title, try fetching torrent page to extract from file list
-    try:
-        torrent_resp = requests.get(link)
-        if torrent_resp.status_code == HTTP_OK:
-            t_soup = BeautifulSoup(torrent_resp.text, HTML_PARSER)
-            filenames = _extract_filenames_from_torrent_page(t_soup)
-            for fname in filenames:
-                fname_str = str(fname)
-                if ONE_PACE_MARKER in fname_str and _is_valid_quality(fname_str):
-                    fname_matches = CRC32_REGEX.findall(fname_str)
-                    if fname_matches:
-                        crc32 = fname_matches[-1].upper()
-                        if crc32 in crc32_set:
-                            return crc32, magnet_link
-    except (requests.RequestException, AttributeError, TypeError):
-        pass
-    
-    return None, None
+    link = NYAA_BASE_URL + title_link["href"]
+    return _fetch_crc32_from_torrent_page(link, crc32_set, magnet_link)
 
 
 def _process_magnet_links_page(page_soup, crc32_set, crc32_to_magnet):
@@ -1166,30 +1196,101 @@ def _load_magnet_links():
     return magnets
 
 
+def _load_existing_magnet_links_from_csv():
+    """Load existing magnet links from the missing CSV file, mapping CRC32 to magnet link.
+    Returns: Dictionary mapping CRC32 to magnet_link"""
+    missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
+    crc32_to_magnet = {}
+    
+    if not os.path.exists(missing_csv_path):
+        return crc32_to_magnet
+    
+    try:
+        with open(missing_csv_path, "r", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                title = row.get("Title", "").strip()
+                magnet_link = row.get("Magnet Link", "").strip()
+                
+                # Extract CRC32 from title
+                matches = CRC32_REGEX.findall(title)
+                if matches and magnet_link.startswith(MAGNET_LINK_PREFIX):
+                    crc32 = matches[-1].upper()
+                    crc32_to_magnet[crc32] = magnet_link
+    except (IOError, csv.Error, KeyError) as e:
+        debug_print(f"DEBUG: Error loading existing magnet links from CSV: {e}")
+    
+    return crc32_to_magnet
+
+
+def _setup_docker_connection(args):
+    """Setup connection parameters for Docker mode."""
+    host, port, username, password, download_folder, client = _get_docker_connection_params(args)
+    # Log connection parameters in Docker mode
+    print("Download configuration:")
+    print(f"  Client: {client}")
+    print(f"  Host: {host}")
+    print(f"  Port: {port}")
+    if username:
+        print(f"  Username: {username}")
+    if download_folder:
+        print(f"  Download folder: {download_folder}")
+    if args.dry_run:
+        print("  Mode: DRY RUN (no torrents will be added)")
+    return host, port, username, password, download_folder, client
+
+
+def _setup_non_docker_connection(args):
+    """Setup connection parameters for non-Docker mode."""
+    client = _get_client_from_args_or_env(args)
+    if not client:
+        print("Error: --client is required when using --download.")
+        return None, None, None, None, None, None
+    host, port, username, password, download_folder = _get_non_docker_connection_params(args)
+    if args.dry_run:
+        print("DRY RUN MODE: Testing connection without adding torrents...")
+    return host, port, username, password, download_folder, client
+
+
+def _execute_download_dry_run(client_obj, magnets, client, download_folder, tags, category):
+    """Execute download in dry-run mode."""
+    print(f"DRY RUN: Would add {len(magnets)} missing episode(s) to {client}...")
+    print("DRY RUN: Testing connection and validating magnet links...")
+    client_obj.add_torrents(
+        magnets,
+        download_folder=download_folder,
+        tags=tags,
+        category=category,
+        dry_run=True,
+    )
+    print(f"DRY RUN: Successfully validated connection to {client}.")
+    print(f"DRY RUN: {len(magnets)} magnet link(s) would be added (no torrents were actually added).")
+
+
+def _execute_download(client_obj, magnets, client, download_folder, tags, category):
+    """Execute actual download."""
+    print(f"Adding {len(magnets)} missing episode(s) to {client}...")
+    client_obj.add_torrents(
+        magnets,
+        download_folder=download_folder,
+        tags=tags,
+        category=category,
+    )
+    print(f"Successfully added {len(magnets)} episode(s) to {client}.")
+
+
 def _handle_download_command(args):
     """Handle the download command."""
     # Get connection parameters based on Docker mode
     if IS_DOCKER:
-        host, port, username, password, download_folder, client = _get_docker_connection_params(args)
-        # Log connection parameters in Docker mode
-        print("Download configuration:")
-        print(f"  Client: {client}")
-        print(f"  Host: {host}")
-        print(f"  Port: {port}")
-        if username:
-            print(f"  Username: {username}")
-        if download_folder:
-            print(f"  Download folder: {download_folder}")
-        if args.dry_run:
-            print("  Mode: DRY RUN (no torrents will be added)")
+        result = _setup_docker_connection(args)
     else:
-        client = _get_client_from_args_or_env(args)
-        if not client:
-            print("Error: --client is required when using --download.")
-            return False
-        host, port, username, password, download_folder = _get_non_docker_connection_params(args)
-        if args.dry_run:
-            print("DRY RUN MODE: Testing connection without adding torrents...")
+        result = _setup_non_docker_connection(args)
+    
+    if result[0] is None:  # Check if setup failed
+        return False
+    
+    host, port, username, password, download_folder, client = result
 
     magnets = _load_magnet_links()
     if magnets is None:
@@ -1198,26 +1299,9 @@ def _handle_download_command(args):
     try:
         client_obj = get_client(client, host, port, username, password)
         if args.dry_run:
-            print(f"DRY RUN: Would add {len(magnets)} missing episode(s) to {client}...")
-            print("DRY RUN: Testing connection and validating magnet links...")
-            client_obj.add_torrents(
-                magnets,
-                download_folder=download_folder,
-                tags=args.tag,
-                category=args.category,
-                dry_run=True,
-            )
-            print(f"DRY RUN: Successfully validated connection to {client}.")
-            print(f"DRY RUN: {len(magnets)} magnet link(s) would be added (no torrents were actually added).")
+            _execute_download_dry_run(client_obj, magnets, client, download_folder, args.tag, args.category)
         else:
-            print(f"Adding {len(magnets)} missing episode(s) to {client}...")
-            client_obj.add_torrents(
-                magnets,
-                download_folder=download_folder,
-                tags=args.tag,
-                category=args.category,
-            )
-            print(f"Successfully added {len(magnets)} episode(s) to {client}.")
+            _execute_download(client_obj, magnets, client, download_folder, args.tag, args.category)
     except ConnectionError as e:
         print(f"Connection Error: {e}")
         print(f"Please verify that {client} is running and accessible at {host}:{port}")
@@ -1548,11 +1632,12 @@ def _handle_episodes_update_decision(episodes_update_env, last_update_str, base_
     return False
 
 
-def _load_episodes_from_database(episodes_update_env, base_url):
-    """Load episodes from database and fetch magnet links.
+def _load_episodes_from_database(episodes_update_env, base_url, fetch_magnets=True):
+    """Load episodes from database and optionally fetch magnet links.
     Args:
         episodes_update_env: True if EPISODES_UPDATE environment variable is set
         base_url: Base URL for Nyaa search
+        fetch_magnets: If True, fetch magnet links for all episodes. If False, return empty dict.
     Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
     if episodes_update_env:
         print("Using episodes index database (EPISODES_UPDATE=true, using updated database)...")
@@ -1561,15 +1646,20 @@ def _load_episodes_from_database(episodes_update_env, base_url):
     
     crc32_to_link, crc32_to_text = load_1080p_episodes_from_index()
     print(f"Loaded {len(crc32_to_link)} 1080p episodes from database.")
-    print("Fetching magnet links from search results...")
-    crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link)
-    print(f"Fetched {len(crc32_to_magnet)} magnet links.")
-    # Restrict to episodes we have magnet links for. The index can include episodes
-    # discovered via torrent-page visits (CRC32 not in search row title); we only get
-    # magnets from search rows. Using the full index would overcount "on Nyaa" and
-    # inflate the missing count. Restricting to crc32_to_magnet matches fetch_crc32_links.
-    crc32_to_link = {c: crc32_to_link[c] for c in crc32_to_magnet if c in crc32_to_link}
-    crc32_to_text = {c: crc32_to_text.get(c, f"[CRC32: {c}]") for c in crc32_to_magnet}
+    
+    if fetch_magnets:
+        print("Fetching magnet links from search results...")
+        crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link)
+        print(f"Fetched {len(crc32_to_magnet)} magnet links.")
+        # Restrict to episodes we have magnet links for. The index can include episodes
+        # discovered via torrent-page visits (CRC32 not in search row title); we only get
+        # magnets from search rows. Using the full index would overcount "on Nyaa" and
+        # inflate the missing count. Restricting to crc32_to_magnet matches fetch_crc32_links.
+        crc32_to_link = {c: crc32_to_link[c] for c in crc32_to_magnet if c in crc32_to_link}
+        crc32_to_text = {c: crc32_to_text.get(c, f"[CRC32: {c}]") for c in crc32_to_magnet}
+    else:
+        crc32_to_magnet = {}
+    
     return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
 
 
@@ -1627,7 +1717,14 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
     conn_episodes.close()
     
     # Load episodes (from database or fetch from Nyaa)
-    if use_database:
+    # When using database without EPISODES_UPDATE, don't fetch magnet links yet
+    # We'll fetch them only for missing episodes after determining which are missing
+    if use_database and not episodes_update_env:
+        # Load episodes from database without fetching magnet links
+        crc32_to_link, crc32_to_text, _, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url, fetch_magnets=False)
+        crc32_to_magnet = {}
+    elif use_database:
+        # EPISODES_UPDATE=true: fetch all magnet links as before
         crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url)
     else:
         # Normal fetch from Nyaa (only when database doesn't exist and EPISODES_UPDATE=false)
@@ -1653,6 +1750,28 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
 
     # Calculate missing episodes
     missing = _calculate_missing_episodes(crc32_to_link, local_crc32s)
+
+    # When using database without EPISODES_UPDATE, only fetch magnet links for missing episodes
+    if use_database and not episodes_update_env:
+        # Load existing magnet links from CSV file
+        existing_magnets = _load_existing_magnet_links_from_csv()
+        debug_print(f"DEBUG: Loaded {len(existing_magnets)} existing magnet links from CSV")
+        
+        # Determine which missing episodes need magnet links
+        missing_without_magnets = [crc32 for crc32 in missing if crc32 not in existing_magnets]
+        
+        if missing_without_magnets:
+            print(f"Fetching magnet links for {len(missing_without_magnets)} missing episodes without magnet links...")
+            # Create a subset of crc32_to_link for missing episodes only
+            missing_crc32_to_link = {crc32: crc32_to_link[crc32] for crc32 in missing_without_magnets if crc32 in crc32_to_link}
+            # Fetch magnet links only for missing episodes without one
+            fetched_magnets = fetch_magnet_links_for_episodes_from_search(args.url, missing_crc32_to_link)
+            # Merge with existing magnets
+            crc32_to_magnet = {**existing_magnets, **fetched_magnets}
+            print(f"Fetched {len(fetched_magnets)} new magnet links.")
+        else:
+            print("All missing episodes already have magnet links in CSV.")
+            crc32_to_magnet = existing_magnets
 
     print(
         f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
