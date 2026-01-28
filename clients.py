@@ -237,13 +237,23 @@ class TransmissionClient(Client):
 
     def _add_torrents_dry_run(self, magnets):
         """Handle dry-run mode for adding torrents."""
+        if not magnets:
+            print("DRY RUN: No magnet links to process.")
+            return
+        
         print("DRY RUN: Validating magnet links...")
         
-        total = len(magnets)
+        # Filter out empty/None magnets before processing to ensure consistent indexing
+        valid_magnets = [m for m in magnets if m and m.strip()]
+        if len(valid_magnets) != len(magnets):
+            skipped = len(magnets) - len(valid_magnets)
+            print(f"DRY RUN: Warning - {skipped} empty or invalid magnet link(s) skipped.")
+        
+        total = len(valid_magnets)
         valid_count = 0
         invalid_count = 0
         
-        for idx, magnet in enumerate(magnets, 1):
+        for idx, magnet in enumerate(valid_magnets, 1):
             if self._process_torrent_dry_run(magnet, idx, total):
                 valid_count += 1
             else:

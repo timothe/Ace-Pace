@@ -69,8 +69,6 @@ EPISODES_DB_NAME = "episodes_index.db"
 MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
 DB_CSV_FILENAME = "Ace-Pace_DB.csv"
 CSV_COLUMN_MAGNET_LINK = "Magnet Link"
-CSV_COLUMN_TITLE = "Title"
-CSV_COLUMN_PAGE_LINK = "Page Link"
 
 
 def get_config_dir():
@@ -1255,8 +1253,8 @@ def _load_magnet_links():
         print(f"No magnet links found in '{missing_csv_path}'.")
         return None
 
-    # Convert to list and return
-    magnets = list(magnets_set)
+    # Convert to list and return (sorted for consistent ordering)
+    magnets = sorted(list(magnets_set))
     duplicates = total_magnets - len(magnets_set)
     if duplicates > 0:
         print(f"Deduplicated {duplicates} duplicate magnet links (grouped episodes share same magnet).")
@@ -1438,7 +1436,7 @@ def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_m
     error_count = 0
     with open(missing_csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
-        writer.writerow([CSV_COLUMN_TITLE, CSV_COLUMN_PAGE_LINK, CSV_COLUMN_MAGNET_LINK])
+        writer.writerow(["Title", "Page Link", CSV_COLUMN_MAGNET_LINK])
         for crc32 in missing:
             try:
                 title = crc32_to_text.get(crc32, f"[CRC32: {crc32}]")
