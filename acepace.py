@@ -480,6 +480,7 @@ def load_1080p_episodes_from_index():
 
 def _extract_magnet_link_from_row(row, crc32_set):
     """Extract magnet link from a table row if it matches a CRC32 in the set.
+    First checks title, then visits torrent page if CRC32 not in title.
     Args:
         row: BeautifulSoup table row element
         crc32_set: Set of CRC32 values to match against
@@ -492,13 +493,38 @@ def _extract_magnet_link_from_row(row, crc32_set):
         return None, None
     
     filename_text = title_link.text
-    matches = CRC32_REGEX.findall(filename_text)
-    if not matches:
+    link = NYAA_BASE_URL + title_link["href"]
+    
+    # Check if it's a One Pace episode with 1080p quality
+    if ONE_PACE_MARKER not in filename_text:
+        return None, None
+    if not _is_valid_quality(filename_text):
         return None, None
     
-    crc32 = matches[-1].upper()
-    if crc32 in crc32_set:
-        return crc32, magnet_link
+    # Check if CRC32 is in title
+    matches = CRC32_REGEX.findall(filename_text)
+    if matches:
+        crc32 = matches[-1].upper()
+        if crc32 in crc32_set:
+            return crc32, magnet_link
+    
+    # CRC32 not in title, try fetching torrent page to extract from file list
+    try:
+        torrent_resp = requests.get(link)
+        if torrent_resp.status_code == HTTP_OK:
+            t_soup = BeautifulSoup(torrent_resp.text, HTML_PARSER)
+            filenames = _extract_filenames_from_torrent_page(t_soup)
+            for fname in filenames:
+                fname_str = str(fname)
+                if ONE_PACE_MARKER in fname_str and _is_valid_quality(fname_str):
+                    fname_matches = CRC32_REGEX.findall(fname_str)
+                    if fname_matches:
+                        crc32 = fname_matches[-1].upper()
+                        if crc32 in crc32_set:
+                            return crc32, magnet_link
+    except (requests.RequestException, AttributeError, TypeError):
+        pass
+    
     return None, None
 
 
