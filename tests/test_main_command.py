@@ -387,3 +387,119 @@ class TestDockerDownloadDefaults:
             assert call_args[0][1] == TEST_HOST_IP  # From env var
             assert call_args[0][2] == 8080  # From env var
             assert call_args[0][3] == "admin"  # From env var
+
+
+class TestDryRunMode:
+    """Tests for dry run mode in download command."""
+
+    @patch('acepace._load_magnet_links')
+    @patch('acepace.get_client')
+    def test_dry_run_mode_calls_add_torrents_with_dry_run_flag(self, mock_get_client, mock_load_magnets):
+        """Test that dry run mode passes dry_run=True to add_torrents."""
+        mock_load_magnets.return_value = ["magnet:?xt=urn:btih:test123"]
+        mock_client_obj = MagicMock()
+        mock_get_client.return_value = mock_client_obj
+        
+        mock_args = MagicMock()
+        mock_args.client = "transmission"
+        mock_args.host = "localhost"
+        mock_args.port = 9091
+        mock_args.username = None
+        mock_args.password = None
+        mock_args.download_folder = None
+        mock_args.tag = None
+        mock_args.category = None
+        mock_args.dry_run = True
+        
+        acepace._handle_download_command(mock_args)
+        
+        # Verify add_torrents was called with dry_run=True
+        mock_client_obj.add_torrents.assert_called_once()
+        call_kwargs = mock_client_obj.add_torrents.call_args[1]
+        assert call_kwargs['dry_run'] is True
+
+    @patch('acepace.IS_DOCKER', True)
+    @patch('acepace._load_magnet_links')
+    @patch('acepace.get_client')
+    def test_docker_dry_run_mode_logs_dry_run(self, mock_get_client, mock_load_magnets):
+        """Test that Docker mode logs dry run status."""
+        mock_load_magnets.return_value = ["magnet:?xt=urn:btih:test123"]
+        mock_client_obj = MagicMock()
+        mock_get_client.return_value = mock_client_obj
+        
+        mock_args = MagicMock()
+        mock_args.client = None
+        mock_args.host = None
+        mock_args.port = None
+        mock_args.username = None
+        mock_args.password = None
+        mock_args.download_folder = None
+        mock_args.tag = None
+        mock_args.category = None
+        mock_args.dry_run = True
+        
+        with patch.dict('os.environ', {}, clear=False):
+            for key in ['TORRENT_CLIENT', 'TORRENT_HOST', 'TORRENT_PORT', 'TORRENT_USER', 'TORRENT_PASSWORD']:
+                if key in os.environ:
+                    del os.environ[key]
+            
+            with patch('builtins.print') as mock_print:
+                acepace._handle_download_command(mock_args)
+                
+                # Verify dry run mode was logged
+                print_calls = [str(c) for c in mock_print.call_args_list]
+                assert any("DRY RUN" in str(call) for call in print_calls)
+                assert any("Mode: DRY RUN" in str(call) for call in print_calls)
+
+    @patch('acepace.IS_DOCKER', False)
+    @patch('acepace._load_magnet_links')
+    @patch('acepace.get_client')
+    def test_non_docker_dry_run_mode_logs_dry_run(self, mock_get_client, mock_load_magnets):
+        """Test that non-Docker mode logs dry run status."""
+        mock_load_magnets.return_value = ["magnet:?xt=urn:btih:test123"]
+        mock_client_obj = MagicMock()
+        mock_get_client.return_value = mock_client_obj
+        
+        mock_args = MagicMock()
+        mock_args.client = "transmission"
+        mock_args.host = "localhost"
+        mock_args.port = 9091
+        mock_args.username = None
+        mock_args.password = None
+        mock_args.download_folder = None
+        mock_args.tag = None
+        mock_args.category = None
+        mock_args.dry_run = True
+        
+        with patch('builtins.print') as mock_print:
+            acepace._handle_download_command(mock_args)
+            
+            # Verify dry run mode was logged
+            print_calls = [str(c) for c in mock_print.call_args_list]
+            assert any("DRY RUN MODE" in str(call) for call in print_calls)
+
+    @patch('acepace._load_magnet_links')
+    @patch('acepace.get_client')
+    def test_dry_run_mode_does_not_add_torrents(self, mock_get_client, mock_load_magnets):
+        """Test that dry run mode does not actually add torrents."""
+        mock_load_magnets.return_value = ["magnet:?xt=urn:btih:test123"]
+        mock_client_obj = MagicMock()
+        mock_get_client.return_value = mock_client_obj
+        
+        mock_args = MagicMock()
+        mock_args.client = "transmission"
+        mock_args.host = "localhost"
+        mock_args.port = 9091
+        mock_args.username = None
+        mock_args.password = None
+        mock_args.download_folder = None
+        mock_args.tag = None
+        mock_args.category = None
+        mock_args.dry_run = True
+        
+        acepace._handle_download_command(mock_args)
+        
+        # Verify add_torrents was called with dry_run=True
+        mock_client_obj.add_torrents.assert_called_once()
+        call_kwargs = mock_client_obj.add_torrents.call_args[1]
+        assert call_kwargs['dry_run'] is True

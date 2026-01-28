@@ -34,6 +34,7 @@ docker run --rm \
   -e DB=true \
   -e EPISODES_UPDATE=true \
   -e DOWNLOAD=false \
+  -e DRY_RUN=false \
   -e TORRENT_CLIENT=transmission \
   -e TORRENT_HOST=127.0.0.1 \
   -e TORRENT_PORT=9091 \
@@ -74,6 +75,10 @@ The following environment variables can be used to configure Ace-Pace in Docker:
 - `DB` - Set to `true` to generate CSV database export on container start (default: `false`)
 - `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa on container start (default: `false`)
 - `DOWNLOAD` - Set to `true` to automatically download missing episodes after generating report (default: `false`)
+- `DRY_RUN` - Set to `true` to test connection to BitTorrent client without actually adding torrents (default: `false`)
+  - Only effective when `DOWNLOAD=true`
+  - Validates magnet links and checks existing torrents but does not add any downloads
+  - Useful for verifying configuration before enabling actual downloads
 - `TORRENT_CLIENT` - BitTorrent client type: `transmission` or `qbittorrent` (default: `transmission`)
 - `TORRENT_HOST` - BitTorrent client host address (default: `localhost`)
 - `TORRENT_PORT` - BitTorrent client port (default: `9091` for Transmission, `8080` for qBittorrent)
@@ -101,6 +106,7 @@ When the container starts, it executes the following steps in order:
 2. **Database Export** (if `DB=true`): Exports the CRC32 database to CSV
 3. **Missing Episodes Report**: Always runs to generate/update `Ace-Pace_Missing.csv`
 4. **Download** (if `DOWNLOAD=true`): Automatically downloads missing episodes via the configured BitTorrent client
+   - If `DRY_RUN=true`, tests connection and validates magnet links without adding torrents
 
 ### Docker Notes
 
@@ -233,6 +239,9 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
 - `--category <category>`
   Category to add to the torrent in qBittorrent.
 
+- `--dry-run` (standalone flag)
+  Test connection to BitTorrent client without actually adding torrents. Useful for verifying configuration before downloading. When enabled, validates magnet links and checks existing torrents but does not add any new downloads.
+
 ### 📚 Some examples
 
 ```
@@ -240,6 +249,8 @@ python acepace.py --folder "/volume42/media/One Piece/" --url https://nyaa.si/?f
 python acepace.py --folder "/volume42/media/One Piece/"
 python acepace.py --client transmission --download
 python acepace.py --client qbittorrent --download --host 192.168.1.100 --port 8080 --username myuser --password mypassword --download-folder /downloads/onepace --tag onepace --tag 'one pace' --category 'anime'
+python acepace.py --client transmission --download --dry-run
+python acepace.py --client qbittorrent --download --dry-run --host 192.168.1.100 --port 8080
 python acepace.py --db
 python acepace.py --folder "/volume42/media/One Piece/" --rename
 python acepace.py --episodes_update --url https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc

@@ -20,6 +20,8 @@ services:
 
       # Download missing episodes after generating report (default: false)
       #- DOWNLOAD=true
+      # Test connection without adding torrents (default: false, only effective when DOWNLOAD=true)
+      #- DRY_RUN=true
       
       # BitTorrent client type (default: transmission)
       # Options: transmission, qbittorrent

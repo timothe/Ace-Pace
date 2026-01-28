@@ -267,3 +267,108 @@ class TestClientFactory:
         with pytest.raises(ValueError) as exc_info:
             get_client("unknown", "localhost", 8080, "user", "pass")
         assert "Unknown client" in str(exc_info.value)
+
+
+class TestDryRunMode:
+    """Tests for dry run mode functionality."""
+
+    @patch('clients.qbittorrentapi.Client')
+    @patch('clients.time.sleep')
+    def test_qbittorrent_dry_run(self, mock_sleep, mock_client_class, sample_magnet_links):
+        """Test qBittorrent dry run mode validates without adding torrents."""
+        mock_client = MagicMock()
+        mock_client.auth_log_in.return_value = None
+        mock_client.torrents_info.return_value = []  # No existing torrents
+        mock_client_class.return_value = mock_client
+        
+        client = QBittorrentClient("localhost", 8080, "user", "pass")
+        client.add_torrents(sample_magnet_links, download_folder="/downloads", tags=["test"], category="anime", dry_run=True)
+        
+        # Should not call torrents_add in dry run mode
+        mock_client.torrents_add.assert_not_called()
+        # Should call torrents_info to check existing torrents
+        assert mock_client.torrents_info.call_count == len(sample_magnet_links)
+
+    @patch('clients.qbittorrentapi.Client')
+    @patch('clients.time.sleep')
+    def test_qbittorrent_dry_run_with_existing_torrents(self, mock_sleep, mock_client_class, sample_magnet_links):
+        """Test qBittorrent dry run mode handles existing torrents."""
+        mock_client = MagicMock()
+        mock_client.auth_log_in.return_value = None
+        # First torrent exists, second doesn't
+        mock_client.torrents_info.side_effect = [
+            [{"hash": "1234567890abcdef1234567890abcdef12345678"}],  # First exists
+            []  # Second doesn't
+        ]
+        mock_client_class.return_value = mock_client
+        
+        client = QBittorrentClient("localhost", 8080, "user", "pass")
+        client.add_torrents(sample_magnet_links, tags=["test"], dry_run=True)
+        
+        # Should not call torrents_add in dry run mode
+        mock_client.torrents_add.assert_not_called()
+        # Should not add tags to existing torrents in dry run
+        mock_client.torrents_add_tags.assert_not_called()
+
+    @patch('clients.qbittorrentapi.Client')
+    @patch('clients.time.sleep')
+    def test_qbittorrent_dry_run_invalid_magnet(self, mock_sleep, mock_client_class):
+        """Test qBittorrent dry run mode handles invalid magnet links."""
+        mock_client = MagicMock()
+        mock_client.auth_log_in.return_value = None
+        mock_client_class.return_value = mock_client
+        
+        client = QBittorrentClient("localhost", 8080, "user", "pass")
+        invalid_magnets = ["invalid_magnet_link"]
+        
+        client.add_torrents(invalid_magnets, dry_run=True)
+        
+        # Should not call any API methods for invalid magnets
+        mock_client.torrents_add.assert_not_called()
+        mock_client.torrents_info.assert_not_called()
+
+    @patch('clients.requests.Session')
+    @patch('clients.time.sleep')
+    def test_transmission_dry_run(self, mock_sleep, mock_session_class, sample_magnet_links):
+        """Test Transmission dry run mode validates without adding torrents."""
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": "success"}
+        mock_session.post.return_value = mock_response
+        mock_session_class.return_value = mock_session
+        
+        client = TransmissionClient("localhost", 9091, None, None)
+        client.session_id = "test_session_id"
+        client.add_torrents(sample_magnet_links, download_folder="/downloads", dry_run=True)
+        
+        # Should not make torrent-add requests in dry run mode
+        # Only the initial session-get call should be made (in __init__)
+        # Count calls that are torrent-add (not session-get)
+        torrent_add_calls = [call for call in mock_session.post.call_args_list 
+                            if len(call[1].get('json', {}).get('method', '')) > 0 
+                            and call[1]['json'].get('method') == 'torrent-add']
+        assert len(torrent_add_calls) == 0
+
+    @patch('clients.requests.Session')
+    @patch('clients.time.sleep')
+    def test_transmission_dry_run_invalid_magnet(self, mock_sleep, mock_session_class):
+        """Test Transmission dry run mode handles invalid magnet links."""
+        mock_session = MagicMock()
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {"result": "success"}
+        mock_session.post.return_value = mock_response
+        mock_session_class.return_value = mock_session
+        
+        client = TransmissionClient("localhost", 9091, None, None)
+        client.session_id = "test_session_id"
+        invalid_magnets = ["invalid_magnet_link"]
+        
+        client.add_torrents(invalid_magnets, dry_run=True)
+        
+        # Should not make any torrent-add requests for invalid magnets
+        torrent_add_calls = [call for call in mock_session.post.call_args_list 
+                            if len(call[1].get('json', {}).get('method', '')) > 0 
+                            and call[1]['json'].get('method') == 'torrent-add']
+        assert len(torrent_add_calls) == 0

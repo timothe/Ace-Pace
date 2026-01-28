@@ -65,6 +65,7 @@ if [ "$DOWNLOAD" = "true" ]; then
         --folder /media \
         ${NYAA_URL:+--url "$NYAA_URL"} \
         --download \
+        ${DRY_RUN:+--dry-run} \
         ${TORRENT_CLIENT:+--client "$TORRENT_CLIENT"} \
         ${TORRENT_HOST:+--host "$TORRENT_HOST"} \
         ${TORRENT_PORT:+--port "$TORRENT_PORT"} \

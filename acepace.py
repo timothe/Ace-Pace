@@ -1180,12 +1180,16 @@ def _handle_download_command(args):
             print(f"  Username: {username}")
         if download_folder:
             print(f"  Download folder: {download_folder}")
+        if args.dry_run:
+            print("  Mode: DRY RUN (no torrents will be added)")
     else:
         client = _get_client_from_args_or_env(args)
         if not client:
             print("Error: --client is required when using --download.")
             return False
         host, port, username, password, download_folder = _get_non_docker_connection_params(args)
+        if args.dry_run:
+            print("DRY RUN MODE: Testing connection without adding torrents...")
 
     magnets = _load_magnet_links()
     if magnets is None:
@@ -1193,14 +1197,27 @@ def _handle_download_command(args):
 
     try:
         client_obj = get_client(client, host, port, username, password)
-        print(f"Adding {len(magnets)} missing episode(s) to {client}...")
-        client_obj.add_torrents(
-            magnets,
-            download_folder=download_folder,
-            tags=args.tag,
-            category=args.category,
-        )
-        print(f"Successfully added {len(magnets)} episode(s) to {client}.")
+        if args.dry_run:
+            print(f"DRY RUN: Would add {len(magnets)} missing episode(s) to {client}...")
+            print("DRY RUN: Testing connection and validating magnet links...")
+            client_obj.add_torrents(
+                magnets,
+                download_folder=download_folder,
+                tags=args.tag,
+                category=args.category,
+                dry_run=True,
+            )
+            print(f"DRY RUN: Successfully validated connection to {client}.")
+            print(f"DRY RUN: {len(magnets)} magnet link(s) would be added (no torrents were actually added).")
+        else:
+            print(f"Adding {len(magnets)} missing episode(s) to {client}...")
+            client_obj.add_torrents(
+                magnets,
+                download_folder=download_folder,
+                tags=args.tag,
+                category=args.category,
+            )
+            print(f"Successfully added {len(magnets)} episode(s) to {client}.")
     except ConnectionError as e:
         print(f"Connection Error: {e}")
         print(f"Please verify that {client} is running and accessible at {host}:{port}")
@@ -1710,6 +1727,11 @@ AVAILABLE COMMANDS:
                             Reads magnet links from Ace-Pace_Missing.csv and adds
                             them to the specified BitTorrent client (requires --client)
 
+    --dry-run               Test connection to BitTorrent client without adding torrents
+                            Validates magnet links and checks existing torrents but
+                            does not add any downloads. Useful for verifying configuration.
+                            Only effective when used with --download.
+
   BitTorrent Client Options (for --download):
     --client {transmission,qbittorrent}
                             Specify which BitTorrent client to use
@@ -1755,6 +1777,9 @@ EXAMPLES:
 
   # Download missing episodes to qBittorrent
   python acepace.py --download --client qbittorrent --host localhost --port 8080
+
+  # Test connection without downloading (dry run)
+  python acepace.py --download --client transmission --dry-run
 
   # Export database to CSV
   python acepace.py --folder /path/to/videos --db
@@ -1821,6 +1846,11 @@ Use --help for detailed command descriptions.
     parser.add_argument("--download-folder", help="The folder to download the torrents to.")
     parser.add_argument("--tag", action="append", help="Tag to add to the torrent in qBittorrent (can be used multiple times).")
     parser.add_argument("--category", help="Category to add to the torrent in qBittorrent.")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Test connection to BitTorrent client without actually adding torrents. Useful for verifying configuration.",
+    )
     return parser.parse_args()
 
 

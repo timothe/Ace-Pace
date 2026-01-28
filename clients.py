@@ -7,7 +7,7 @@ import re
 
 class Client(abc.ABC):
     @abc.abstractmethod
-    def add_torrents(self, magnets, download_folder=None, tags=None, category=None):
+    def add_torrents(self, magnets, download_folder=None, tags=None, category=None, dry_run=False):
         pass
 
 class QBittorrentClient(Client):
@@ -59,7 +59,52 @@ class QBittorrentClient(Client):
             print(f"Failed to add torrent: {truncated} Error: {e}")
             return False
 
-    def add_torrents(self, magnets, download_folder=None, tags=None, category=None):
+    def add_torrents(self, magnets, download_folder=None, tags=None, category=None, dry_run=False):
+        if dry_run:
+            print("DRY RUN: Validating magnet links and checking existing torrents...")
+            if tags:
+                print(f"DRY RUN: Would create tags: {', '.join(tags)}")
+            
+            total = len(magnets)
+            tags_str = ",".join(tags) if tags else None
+            valid_count = 0
+            existing_count = 0
+            invalid_count = 0
+            
+            for idx, magnet in enumerate(magnets, 1):
+                truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
+                print(f"DRY RUN: Processing {idx}/{total}: {truncated}")
+
+                info_hash = self._extract_info_hash(magnet)
+                if not info_hash:
+                    print(f"DRY RUN: Could not find info hash in magnet link: {truncated}")
+                    invalid_count += 1
+                    continue
+
+                try:
+                    existing_torrent = self.client.torrents_info(torrent_hashes=info_hash)
+                    if existing_torrent:
+                        print(f"DRY RUN: Torrent already exists: {truncated}")
+                        existing_count += 1
+                        if tags_str:
+                            print(f"DRY RUN: Would add tags to existing torrent: {tags_str}")
+                    else:
+                        print(f"DRY RUN: Would add new torrent: {truncated}")
+                        if download_folder:
+                            print(f"DRY RUN: Download folder: {download_folder}")
+                        if tags_str:
+                            print(f"DRY RUN: Tags: {tags_str}")
+                        if category:
+                            print(f"DRY RUN: Category: {category}")
+                        valid_count += 1
+                except Exception as e:
+                    print(f"DRY RUN: Error checking torrent: {truncated} Error: {e}")
+                    invalid_count += 1
+                time.sleep(0.1)
+            
+            print(f"DRY RUN: Summary - {valid_count} would be added, {existing_count} already exist, {invalid_count} invalid")
+            return
+        
         if tags:
             self.client.torrents_create_tags(tags=",".join(tags))
 
@@ -151,7 +196,41 @@ class TransmissionClient(Client):
             print(f"Failed to add torrent: {truncated} Error: {e}")
             return False
 
-    def add_torrents(self, magnets, download_folder=None, tags=None, category=None):
+    def add_torrents(self, magnets, download_folder=None, tags=None, category=None, dry_run=False):
+        if dry_run:
+            print("DRY RUN: Validating magnet links...")
+            if tags or category:
+                print("DRY RUN: Warning - Transmission does not support tags or categories through this script.")
+            
+            total = len(magnets)
+            valid_count = 0
+            invalid_count = 0
+            
+            for idx, magnet in enumerate(magnets, 1):
+                truncated = magnet[:50] + ("..." if len(magnet) > 50 else "")
+                print(f"DRY RUN: Processing {idx}/{total}: {truncated}")
+                
+                # Validate magnet link format
+                if not magnet.startswith("magnet:?"):
+                    print(f"DRY RUN: Invalid magnet link format: {truncated}")
+                    invalid_count += 1
+                    continue
+                
+                # Check if we can parse the magnet link (basic validation)
+                if "xt=urn:btih:" not in magnet:
+                    print(f"DRY RUN: Magnet link missing info hash: {truncated}")
+                    invalid_count += 1
+                    continue
+                
+                print(f"DRY RUN: Would add torrent: {truncated}")
+                if download_folder:
+                    print(f"DRY RUN: Download folder: {download_folder}")
+                valid_count += 1
+                time.sleep(0.1)
+            
+            print(f"DRY RUN: Summary - {valid_count} valid magnet links would be added, {invalid_count} invalid")
+            return
+        
         if tags or category:
             print("Warning: Transmission does not support tags or categories through this script.")
         added_count = 0
