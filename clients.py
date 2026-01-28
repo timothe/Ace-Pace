@@ -5,6 +5,9 @@ import requests  # type: ignore
 import qbittorrentapi  # type: ignore
 import re
 
+# Rate limiting delay between torrent operations (in seconds)
+TORRENT_OPERATION_DELAY = 0.1
+
 class Client(abc.ABC):
     @abc.abstractmethod
     def add_torrents(self, magnets, download_folder=None, tags=None, category=None, dry_run=False):
@@ -107,7 +110,7 @@ class QBittorrentClient(Client):
                 existing_count += 1
             else:
                 invalid_count += 1
-            time.sleep(0.1)
+            time.sleep(TORRENT_OPERATION_DELAY)
         
         print(f"DRY RUN: Summary - {valid_count} would be added, {existing_count} already exist, {invalid_count} invalid")
 
@@ -134,7 +137,7 @@ class QBittorrentClient(Client):
             else:
                 if self._add_new_torrent(magnet, download_folder, tags_str, category, truncated):
                     added_count += 1
-            time.sleep(0.1)
+            time.sleep(TORRENT_OPERATION_DELAY)
         print(f"Added {added_count} new torrents to qBittorrent.")
 
     def add_torrents(self, magnets, download_folder=None, tags=None, category=None, dry_run=False):
@@ -245,7 +248,7 @@ class TransmissionClient(Client):
                 valid_count += 1
             else:
                 invalid_count += 1
-            time.sleep(0.1)
+            time.sleep(TORRENT_OPERATION_DELAY)
         
         print(f"DRY RUN: Summary - {valid_count} valid magnet links would be added, {invalid_count} invalid")
 
@@ -258,7 +261,7 @@ class TransmissionClient(Client):
             print(f"Adding {idx}/{total}: {truncated}")
             if self._add_single_torrent(magnet, download_folder, truncated):
                 added_count += 1
-            time.sleep(0.1)
+            time.sleep(TORRENT_OPERATION_DELAY)
         print(f"Added {added_count} torrents to Transmission.")
 
     def add_torrents(self, magnets, download_folder=None, tags=None, category=None, dry_run=False):

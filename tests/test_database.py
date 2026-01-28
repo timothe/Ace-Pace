@@ -145,11 +145,16 @@ class TestEpisodesIndexOperations:
             conn = acepace.init_episodes_db()
             cursor = conn.cursor()
             
-            # Insert sample data
-            for crc32, title, page_link in sample_episode_data:
+            # Insert sample data (handle both 3-item and 4-item formats for backward compatibility)
+            for episode_data in sample_episode_data:
+                if len(episode_data) == 3:
+                    crc32, title, page_link = episode_data
+                    magnet_link = ""
+                else:
+                    crc32, title, page_link, magnet_link = episode_data
                 cursor.execute(
-                    "INSERT INTO episodes_index (crc32, title, page_link) VALUES (?, ?, ?)",
-                    (crc32, title, page_link)
+                    "INSERT INTO episodes_index (crc32, title, page_link, magnet_link) VALUES (?, ?, ?, ?)",
+                    (crc32, title, page_link, magnet_link)
                 )
             conn.commit()
             conn.close()
@@ -160,5 +165,36 @@ class TestEpisodesIndexOperations:
             assert mapping["A1B2C3D4"] == "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv"
             assert mapping["E5F6A7B8"] == "[One Pace] Episode 2 [1080p][E5F6A7B8].mkv"
             assert mapping["A9B0C1D2"] == "[One Pace] Episode 3 [1080p][A9B0C1D2].mkv"
+            
+            os.remove(os.path.join(temp_dir, 'test.db'))
+    
+    def test_load_1080p_episodes_from_index_includes_magnet_links(self, temp_dir, sample_episode_data):
+        """Test loading 1080p episodes from index includes magnet links."""
+        with patch('acepace.EPISODES_DB_NAME', os.path.join(temp_dir, 'test.db')):
+            conn = acepace.init_episodes_db()
+            cursor = conn.cursor()
+            
+            # Insert sample data with magnet links
+            for episode_data in sample_episode_data:
+                if len(episode_data) == 3:
+                    crc32, title, page_link = episode_data
+                    magnet_link = ""
+                else:
+                    crc32, title, page_link, magnet_link = episode_data
+                cursor.execute(
+                    "INSERT INTO episodes_index (crc32, title, page_link, magnet_link) VALUES (?, ?, ?, ?)",
+                    (crc32, title, page_link, magnet_link)
+                )
+            conn.commit()
+            conn.close()
+            
+            # Load and verify
+            crc32_to_link, crc32_to_text, crc32_to_magnet = acepace.load_1080p_episodes_from_index()
+            assert len(crc32_to_link) == 3
+            assert len(crc32_to_text) == 3
+            assert len(crc32_to_magnet) == 3
+            assert crc32_to_link["A1B2C3D4"] == "https://nyaa.si/view/12345"
+            assert crc32_to_magnet["A1B2C3D4"] == "magnet:?xt=urn:btih:abc123"
+            assert crc32_to_magnet["E5F6A7B8"] == "magnet:?xt=urn:btih:def456"
             
             os.remove(os.path.join(temp_dir, 'test.db'))

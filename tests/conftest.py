@@ -43,9 +43,9 @@ def sample_crc32():
 def sample_episode_data():
     """Sample episode data for testing."""
     return [
-        ("A1B2C3D4", "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv", "https://nyaa.si/view/12345"),
-        ("E5F6A7B8", "[One Pace] Episode 2 [1080p][E5F6A7B8].mkv", "https://nyaa.si/view/12346"),
-        ("A9B0C1D2", "[One Pace] Episode 3 [1080p][A9B0C1D2].mkv", "https://nyaa.si/view/12347"),
+        ("A1B2C3D4", "[One Pace] Episode 1 [1080p][A1B2C3D4].mkv", "https://nyaa.si/view/12345", "magnet:?xt=urn:btih:abc123"),
+        ("E5F6A7B8", "[One Pace] Episode 2 [1080p][E5F6A7B8].mkv", "https://nyaa.si/view/12346", "magnet:?xt=urn:btih:def456"),
+        ("A9B0C1D2", "[One Pace] Episode 3 [1080p][A9B0C1D2].mkv", "https://nyaa.si/view/12347", "magnet:?xt=urn:btih:ghi789"),
     ]
 
 

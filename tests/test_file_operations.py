@@ -33,8 +33,8 @@ class TestFileRenaming:
                 episodes_conn = acepace.init_episodes_db()
                 cursor = episodes_conn.cursor()
                 cursor.execute(
-                    "INSERT INTO episodes_index (crc32, title, page_link) VALUES (?, ?, ?)",
-                    (actual_crc32, "[One Pace] Episode 1 [1080p].mkv", "https://nyaa.si/view/12345")
+                    "INSERT INTO episodes_index (crc32, title, page_link, magnet_link) VALUES (?, ?, ?, ?)",
+                    (actual_crc32, "[One Pace] Episode 1 [1080p].mkv", "https://nyaa.si/view/12345", "")
                 )
                 episodes_conn.commit()
                 episodes_conn.close()

@@ -175,6 +175,41 @@ class TestEpisodeMetadataFetching:
         assert len(episodes) == 1
         assert episodes[0][0] == "A1B2C3D4"
         assert "[One Pace]" in episodes[0][1]
+        # Verify magnet link is included (4th element)
+        assert len(episodes[0]) == 4
+        assert episodes[0][3] == ""  # No magnet link in this test HTML
+
+    @patch('acepace.requests.get')
+    def test_fetch_episodes_metadata_extracts_magnet_links(self, mock_get):
+        """Test that magnet links are extracted from search rows."""
+        html = """
+        <html>
+            <body>
+                <table class="torrent-list">
+                    <tr>
+                        <td>
+                            <a href="/view/12345" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a>
+                            <a href="magnet:?xt=urn:btih:test123456789">Magnet</a>
+                        </td>
+                    </tr>
+                </table>
+                <ul class="pagination">
+                    <li><a href="?p=1">1</a></li>
+                </ul>
+            </body>
+        </html>
+        """
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = html
+        mock_get.return_value = mock_response
+        
+        episodes = acepace.fetch_episodes_metadata()
+        
+        assert len(episodes) == 1
+        crc32, _, _, magnet_link = episodes[0]
+        assert crc32 == "A1B2C3D4"
+        assert magnet_link == "magnet:?xt=urn:btih:test123456789"
 
     @patch('acepace.requests.get')
     def test_fetch_episodes_metadata_crc32_from_file_list(self, mock_get, mock_nyaa_torrent_page):
@@ -320,7 +355,7 @@ class TestEpisodeQualityFiltering:
         
         # All episodes should be 1080p
         assert len(episodes) == 2
-        for crc32, title, _ in episodes:
+        for crc32, title, _, _ in episodes:
             assert "[1080p]" in title.upper() or "1080P" in title.upper()
             assert "[One Pace]" in title
 
@@ -366,7 +401,7 @@ class TestEpisodeQualityFiltering:
         
         # Should only have one entry (1080p version, 720p is rejected)
         assert len(episodes) == 1
-        crc32, title, _ = episodes[0]
+        crc32, title, _, _ = episodes[0]
         assert crc32 == "A1B2C3D4"
         # Only 1080p should be kept
         assert "[1080p]" in title.upper() or "1080P" in title.upper()
@@ -387,7 +422,7 @@ class TestEpisodeQualityFiltering:
         
         # Should only have 1080p episodes (2 total, excluding 720p and 480p)
         assert len(episodes) == 2
-        for crc32, title, _ in episodes:
+        for crc32, title, _, _ in episodes:
             title_upper = title.upper()
             has_1080p = "[1080P]" in title_upper or "1080P" in title_upper
             assert has_1080p, f"Episode {title} should be 1080p"
@@ -410,7 +445,7 @@ class TestEpisodeQualityFiltering:
         
         # Should only accept 1080P (case-insensitive), reject 720P
         assert len(episodes) == 1
-        crc32, title, _ = episodes[0]
+        crc32, title, _, _ = episodes[0]
         assert crc32 == "A1B2C3D4"
         # Verify case-insensitive quality detection works for 1080p
         title_upper = title.upper()
@@ -451,7 +486,7 @@ class TestEpisodeQualityFiltering:
         
         # Should only include episode with quality marker
         assert len(episodes) == 1
-        crc32, title, _ = episodes[0]
+        crc32, title, _, _ = episodes[0]
         assert crc32 == "E5F6A7B8"
         assert "[1080p]" in title.upper() or "1080P" in title.upper()
 
@@ -504,7 +539,7 @@ class TestEpisodeQualityFiltering:
         
         # Should extract 1080p episode from file list
         assert len(episodes) == 1
-        crc32, title, _ = episodes[0]
+        crc32, title, _, _ = episodes[0]
         assert crc32 == "A1B2C3D4"
         assert "[1080p]" in title.upper() or "1080P" in title.upper()
 

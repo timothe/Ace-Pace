@@ -68,6 +68,9 @@ DB_NAME = "crc32_files.db"
 EPISODES_DB_NAME = "episodes_index.db"
 MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
 DB_CSV_FILENAME = "Ace-Pace_DB.csv"
+CSV_COLUMN_MAGNET_LINK = "Magnet Link"
+CSV_COLUMN_TITLE = "Title"
+CSV_COLUMN_PAGE_LINK = "Page Link"
 
 
 def get_config_dir():
@@ -157,10 +160,17 @@ def init_episodes_db():
         CREATE TABLE IF NOT EXISTS episodes_index (
             crc32 TEXT PRIMARY KEY,
             title TEXT,
-            page_link TEXT
+            page_link TEXT,
+            magnet_link TEXT
         )
         """
     )
+    # Add magnet_link column if it doesn't exist (for existing databases)
+    try:
+        c.execute("ALTER TABLE episodes_index ADD COLUMN magnet_link TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists, ignore
+        pass
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS metadata (
@@ -213,7 +223,7 @@ def _is_valid_quality(fname_text):
     return False  # Quality not 1080p
 
 
-def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
+def _process_fname_entry(fname_text, seen_crc32, episodes, page_link, magnet_link=""):
     """Helper to extract CRC32 from fname_text and store if valid and unique.
     Only accepts episodes with 1080p quality."""
     m = CRC32_REGEX.findall(fname_text)
@@ -222,7 +232,7 @@ def _process_fname_entry(fname_text, seen_crc32, episodes, page_link):
         crc32 = m[-1].upper()
         if crc32 not in seen_crc32:
             # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
-            episodes.append((crc32, fname_text, page_link))
+            episodes.append((crc32, fname_text, page_link, magnet_link))
             seen_crc32.add(crc32)
             found = True
     return found
@@ -293,8 +303,9 @@ def _extract_filenames_from_torrent_page(torrent_soup):
     return []
 
 
-def _process_torrent_page(page_link, seen_crc32, episodes):
-    """Process a torrent page to extract CRC32 information from file list."""
+def _process_torrent_page(page_link, seen_crc32, episodes, magnet_link=""):
+    """Process a torrent page to extract CRC32 information from file list.
+    For grouped episodes, all episodes in the group share the same magnet_link."""
     try:
         torrent_resp = requests.get(page_link)
         if torrent_resp.status_code != HTTP_OK:
@@ -304,7 +315,7 @@ def _process_torrent_page(page_link, seen_crc32, episodes):
         filenames = _extract_filenames_from_torrent_page(t_soup)
         found = False
         for fname in filenames:
-            if _process_fname_entry(str(fname), seen_crc32, episodes, page_link):
+            if _process_fname_entry(str(fname), seen_crc32, episodes, page_link, magnet_link):
                 found = True
         return found
     except (requests.RequestException, AttributeError, TypeError):
@@ -313,7 +324,7 @@ def _process_torrent_page(page_link, seen_crc32, episodes):
 
 def _process_episode_row(row, seen_crc32, episodes):
     """Process a single table row to extract episode information."""
-    title_link = _extract_title_link_from_row(row)
+    title_link, magnet_link = _extract_links_from_row(row)
     if not title_link:
         return False
     
@@ -322,9 +333,11 @@ def _process_episode_row(row, seen_crc32, episodes):
     matches = CRC32_REGEX.findall(title)
     
     if matches:
-        return _process_fname_entry(title, seen_crc32, episodes, page_link)
+        return _process_fname_entry(title, seen_crc32, episodes, page_link, magnet_link or "")
     else:
-        return _process_torrent_page(page_link, seen_crc32, episodes)
+        # CRC32 not in title, need to visit torrent page
+        # The magnet_link from the row applies to all episodes in the group
+        return _process_torrent_page(page_link, seen_crc32, episodes, magnet_link or "")
 
 
 def _fetch_episodes_page(base_url, page, soup=None):
@@ -354,12 +367,13 @@ def _process_episodes_page_rows(page_soup, seen_crc32, episodes):
 
 def fetch_episodes_metadata(base_url=None):
     """
-    Fetch all One Pace episodes from Nyaa, collecting CRC32, title, and page link.
+    Fetch all One Pace episodes from Nyaa, collecting CRC32, title, page link, and magnet link.
     If CRC32 not in title, fetch the torrent page and try to extract CRC32s from file list.
+    For grouped episodes (multiple episodes in one torrent), all episodes share the same magnet link.
     Args:
         base_url: Base URL for Nyaa search. If None, uses default without quality filter.
                   Note: Quality filtering (1080p only) is always applied regardless of URL.
-    Returns: List of (crc32, title, page_link)
+    Returns: List of (crc32, title, page_link, magnet_link)
     """
     if base_url is None:
         base_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace"
@@ -399,6 +413,33 @@ def fetch_episodes_metadata(base_url=None):
     return episodes
 
 
+def _should_skip_episodes_update(force_update, last_update_str):
+    """Check if episodes update should be skipped due to recent update.
+    Args:
+        force_update: If True, never skip
+        last_update_str: String timestamp of last update, or None
+    Returns: True if should skip, False if should proceed"""
+    if force_update:
+        return False
+    
+    if not last_update_str:
+        return False
+    
+    try:
+        last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
+        time_diff = datetime.now() - last_update
+        # Skip update if updated within last 10 minutes to avoid unnecessary double updates
+        if time_diff.total_seconds() < 600:  # 10 minutes = 600 seconds
+            print(f"Episodes were recently updated ({last_update_str}), skipping update to avoid duplicate fetch.")
+            print("Set EPISODES_UPDATE=true or use --episodes_update to force update.")
+            return True
+    except (ValueError, TypeError):
+        # If parsing fails, proceed with update
+        pass
+    
+    return False
+
+
 def update_episodes_index_db(base_url=None, force_update=False):
     """Update episodes index database from Nyaa.
     Args:
@@ -408,40 +449,40 @@ def update_episodes_index_db(base_url=None, force_update=False):
     debug_print(f"DEBUG: Starting update_episodes_index_db with URL: {base_url}, force_update: {force_update}")
     
     # Check if episodes were recently updated (within last 10 minutes)
-    if not force_update:
-        conn_check = init_episodes_db()
-        last_update_str = get_episodes_metadata(conn_check, "episodes_db_last_update")
-        conn_check.close()
-        
-        if last_update_str:
-            try:
-                last_update = datetime.strptime(last_update_str, "%Y-%m-%d %H:%M:%S")
-                time_diff = datetime.now() - last_update
-                # Skip update if updated within last 10 minutes to avoid unnecessary double updates
-                if time_diff.total_seconds() < 600:  # 10 minutes = 600 seconds
-                    print(f"Episodes were recently updated ({last_update_str}), skipping update to avoid duplicate fetch.")
-                    print("Set EPISODES_UPDATE=true or use --episodes_update to force update.")
-                    return
-            except (ValueError, TypeError):
-                # If parsing fails, proceed with update
-                pass
-    
     conn = init_episodes_db()
+    if not force_update:
+        last_update_str = get_episodes_metadata(conn, "episodes_db_last_update")
+        
+        if _should_skip_episodes_update(force_update, last_update_str):
+            conn.close()
+            return
     episodes = fetch_episodes_metadata(base_url)
     debug_print(f"DEBUG: Fetched {len(episodes)} episodes from Nyaa")
     c = conn.cursor()
-    count = 0
-    for crc32, title, page_link in episodes:
+    
+    # Prepare data for batch insert (allowing for shutdown during processing)
+    episode_rows = []
+    for episode_data in episodes:
         # Check for shutdown request during processing
         if _shutdown_requested:
             print("Shutdown requested, committing partial update...")
             break
-        c.execute(
-            "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link) VALUES (?, ?, ?)",
-            (crc32, title, page_link),
+        # Handle both old format (3 items) and new format (4 items) for backward compatibility
+        if len(episode_data) == 3:
+            crc32, title, page_link = episode_data
+            magnet_link = ""
+        else:
+            crc32, title, page_link, magnet_link = episode_data
+        episode_rows.append((crc32, title, page_link, magnet_link or ""))
+    
+    # Batch insert for better performance
+    if episode_rows:
+        c.executemany(
+            "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link, magnet_link) VALUES (?, ?, ?, ?)",
+            episode_rows
         )
-        count += 1
     conn.commit()
+    count = len(episode_rows)
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_episodes_metadata(conn, "episodes_db_last_update", now_str)
     print(f"Episodes index updated with {count} entries.")
@@ -463,19 +504,33 @@ def load_crc32_to_title_from_index():
 
 def load_1080p_episodes_from_index():
     """Load only 1080p episodes from episodes_index database.
-    Returns: Tuple of (crc32_to_link, crc32_to_text) dictionaries with only 1080p episodes."""
+    Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet) dictionaries with only 1080p episodes."""
     conn = init_episodes_db()
     c = conn.cursor()
-    c.execute("SELECT crc32, title, page_link FROM episodes_index")
+    # Handle both old schema (without magnet_link) and new schema (with magnet_link)
+    try:
+        c.execute("SELECT crc32, title, page_link, magnet_link FROM episodes_index")
+        has_magnet_column = True
+    except sqlite3.OperationalError:
+        # Old schema, magnet_link column doesn't exist yet
+        c.execute("SELECT crc32, title, page_link FROM episodes_index")
+        has_magnet_column = False
     crc32_to_link = {}
     crc32_to_text = {}
-    for crc32, title, page_link in c.fetchall():
+    crc32_to_magnet = {}
+    for row in c.fetchall():
+        if has_magnet_column:
+            crc32, title, page_link, magnet_link = row
+        else:
+            crc32, title, page_link = row
+            magnet_link = ""
         # Only include 1080p episodes (same filter as fetch_crc32_links)
         if _is_valid_quality(title):
             crc32_to_link[crc32] = page_link
             crc32_to_text[crc32] = title
+            crc32_to_magnet[crc32] = magnet_link or ""
     conn.close()
-    return crc32_to_link, crc32_to_text
+    return crc32_to_link, crc32_to_text, crc32_to_magnet
 
 
 def _validate_row_links(title_link, magnet_link):
@@ -1035,7 +1090,7 @@ def _execute_rename(rename_plan, conn):
                 "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (normalized_new, normalized_old)
             )
             conn.commit()
-        except Exception as e:
+        except (sqlite3.Error, OSError) as e:
             print(f"Failed to rename {old} to {new}: {e}")
 
 
@@ -1179,52 +1234,34 @@ def _get_non_docker_connection_params(args):
 
 
 def _load_magnet_links():
-    """Load magnet links from the missing CSV file."""
+    """Load magnet links from the missing CSV file.
+    Deduplicates magnet links so grouped episodes (sharing same magnet) are only added once."""
     missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
     if not os.path.exists(missing_csv_path):
         print(f"Missing file '{missing_csv_path}' not found. Run the script first!")
         return None
 
-    magnets = []
+    magnets_set = set()
+    total_magnets = 0
     with open(missing_csv_path, "r", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            magnet_link = row.get("Magnet Link", "").strip()
+            magnet_link = row.get(CSV_COLUMN_MAGNET_LINK, "").strip()
             if magnet_link.startswith(MAGNET_LINK_PREFIX):
-                magnets.append(magnet_link)
+                total_magnets += 1
+                magnets_set.add(magnet_link)
 
-    if not magnets:
+    if not magnets_set:
         print(f"No magnet links found in '{missing_csv_path}'.")
         return None
 
+    # Convert to list and return
+    magnets = list(magnets_set)
+    duplicates = total_magnets - len(magnets_set)
+    if duplicates > 0:
+        print(f"Deduplicated {duplicates} duplicate magnet links (grouped episodes share same magnet).")
+    
     return magnets
-
-
-def _load_existing_magnet_links_from_csv():
-    """Load existing magnet links from the missing CSV file, mapping CRC32 to magnet link.
-    Returns: Dictionary mapping CRC32 to magnet_link"""
-    missing_csv_path = get_config_path(MISSING_CSV_FILENAME)
-    crc32_to_magnet = {}
-    
-    if not os.path.exists(missing_csv_path):
-        return crc32_to_magnet
-    
-    try:
-        with open(missing_csv_path, "r", encoding="utf-8") as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                title = row.get("Title", "").strip()
-                magnet_link = row.get("Magnet Link", "").strip()
-                
-                # Extract CRC32 from title
-                matches = CRC32_REGEX.findall(title)
-                if matches and magnet_link.startswith(MAGNET_LINK_PREFIX):
-                    crc32 = matches[-1].upper()
-                    crc32_to_magnet[crc32] = magnet_link
-    except (IOError, csv.Error, KeyError) as e:
-        debug_print(f"DEBUG: Error loading existing magnet links from CSV: {e}")
-    
-    return crc32_to_magnet
 
 
 def _setup_docker_connection(args):
@@ -1401,7 +1438,7 @@ def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_m
     error_count = 0
     with open(missing_csv_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f, quoting=csv.QUOTE_ALL)
-        writer.writerow(["Title", "Page Link", "Magnet Link"])
+        writer.writerow([CSV_COLUMN_TITLE, CSV_COLUMN_PAGE_LINK, CSV_COLUMN_MAGNET_LINK])
         for crc32 in missing:
             try:
                 title = crc32_to_text.get(crc32, f"[CRC32: {crc32}]")
@@ -1409,7 +1446,7 @@ def _save_missing_episodes_csv(missing, crc32_to_text, crc32_to_link, crc32_to_m
                 magnet = crc32_to_magnet.get(crc32, "")
                 writer.writerow([title, page_link, magnet])
                 saved_count += 1
-            except Exception as e:
+            except (IOError, OSError, csv.Error) as e:
                 error_count += 1
                 print(f"ERROR: Failed to save missing episode with CRC32 '{crc32}': {e}")
                 # Still write a row with available information
@@ -1637,32 +1674,55 @@ def _handle_episodes_update_decision(episodes_update_env, last_update_str, base_
 
 
 def _load_episodes_from_database(episodes_update_env, base_url, fetch_magnets=True):
-    """Load episodes from database and optionally fetch magnet links.
+    """Load episodes from database, including magnet links stored in database.
     Args:
         episodes_update_env: True if EPISODES_UPDATE environment variable is set
-        base_url: Base URL for Nyaa search
-        fetch_magnets: If True, fetch magnet links for all episodes. If False, return empty dict.
+        base_url: Base URL for Nyaa search (unused now, kept for compatibility)
+        fetch_magnets: If True, fetch missing magnet links from Nyaa. If False, use only database.
     Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
     if episodes_update_env:
         print("Using episodes index database (EPISODES_UPDATE=true, using updated database)...")
     else:
         print("Using episodes index database (EPISODES_UPDATE=false, checking database only)...")
     
-    crc32_to_link, crc32_to_text = load_1080p_episodes_from_index()
+    crc32_to_link, crc32_to_text, crc32_to_magnet = load_1080p_episodes_from_index()
     print(f"Loaded {len(crc32_to_link)} 1080p episodes from database.")
     
+    # Count how many episodes have magnet links in database
+    episodes_with_magnets_count = sum(1 for m in crc32_to_magnet.values() if m)
+    print(f"Found {episodes_with_magnets_count} episodes with magnet links in database.")
+    
     if fetch_magnets:
-        print("Fetching magnet links from search results...")
-        crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link)
-        print(f"Fetched {len(crc32_to_magnet)} magnet links.")
-        # Restrict to episodes we have magnet links for. The index can include episodes
-        # discovered via torrent-page visits (CRC32 not in search row title); we only get
-        # magnets from search rows. Using the full index would overcount "on Nyaa" and
-        # inflate the missing count. Restricting to crc32_to_magnet matches fetch_crc32_links.
-        crc32_to_link = {c: crc32_to_link[c] for c in crc32_to_magnet if c in crc32_to_link}
-        crc32_to_text = {c: crc32_to_text.get(c, f"[CRC32: {c}]") for c in crc32_to_magnet}
-    else:
-        crc32_to_magnet = {}
+        # Find episodes missing magnet links
+        missing_magnets = {crc32: crc32_to_link[crc32] for crc32 in crc32_to_link 
+                          if not crc32_to_magnet.get(crc32)}
+        if missing_magnets:
+            print(f"Fetching {len(missing_magnets)} missing magnet links from search results...")
+            fetched_magnets = fetch_magnet_links_for_episodes_from_search(base_url, missing_magnets)
+            # Update database magnet links with newly fetched ones
+            crc32_to_magnet.update(fetched_magnets)
+            print(f"Fetched {len(fetched_magnets)} new magnet links.")
+            
+            # Update database with newly fetched magnet links (batch update for efficiency)
+            conn = init_episodes_db()
+            c = conn.cursor()
+            c.executemany(
+                "UPDATE episodes_index SET magnet_link = ? WHERE crc32 = ?",
+                [(magnet_link, crc32) for crc32, magnet_link in fetched_magnets.items()]
+            )
+            conn.commit()
+            conn.close()
+    
+    # Restrict to episodes we have magnet links for (matches previous behavior)
+    # This ensures we only count episodes that can actually be downloaded
+    # Filter to only episodes with non-empty magnet links that exist in crc32_to_link
+    episodes_with_magnets = {c: m for c, m in crc32_to_magnet.items() if m and c in crc32_to_link}
+    # Update all dictionaries to only include episodes with magnet links
+    # Note: All keys in episodes_with_magnets are guaranteed to exist in crc32_to_link and crc32_to_text
+    # since they're loaded together from the same database query
+    crc32_to_link = {c: crc32_to_link[c] for c in episodes_with_magnets}
+    crc32_to_text = {c: crc32_to_text[c] for c in episodes_with_magnets}
+    crc32_to_magnet = episodes_with_magnets
     
     return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
 
@@ -1721,15 +1781,11 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
     conn_episodes.close()
     
     # Load episodes (from database or fetch from Nyaa)
-    # When using database without EPISODES_UPDATE, don't fetch magnet links yet
-    # We'll fetch them only for missing episodes after determining which are missing
-    if use_database and not episodes_update_env:
-        # Load episodes from database without fetching magnet links
-        crc32_to_link, crc32_to_text, _, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url, fetch_magnets=False)
-        crc32_to_magnet = {}
-    elif use_database:
-        # EPISODES_UPDATE=true: fetch all magnet links as before
-        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url)
+    # Magnet links are now stored in the database, so we load them directly
+    if use_database:
+        # Load episodes from database, including magnet links
+        # fetch_magnets=True will fetch any missing magnet links from Nyaa
+        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url, fetch_magnets=True)
     else:
         # Normal fetch from Nyaa (only when database doesn't exist and EPISODES_UPDATE=false)
         print("Fetching episodes metadata from Nyaa...")
@@ -1752,37 +1808,10 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
     
     debug_print(f"DEBUG: Folder scanned: {folder}")
 
-    # Calculate missing episodes
+    # Calculate missing episodes (only those with magnet links can be downloaded)
     missing = _calculate_missing_episodes(crc32_to_link, local_crc32s)
-
-    # When using database without EPISODES_UPDATE, only fetch magnet links for missing episodes
-    if use_database and not episodes_update_env:
-        # Load existing magnet links from CSV file
-        existing_magnets = _load_existing_magnet_links_from_csv()
-        debug_print(f"DEBUG: Loaded {len(existing_magnets)} existing magnet links from CSV")
-        
-        # Determine which missing episodes need magnet links
-        missing_without_magnets = [crc32 for crc32 in missing if crc32 not in existing_magnets]
-        
-        if missing_without_magnets:
-            print(f"Fetching magnet links for {len(missing_without_magnets)} missing episodes without magnet links...")
-            # Create a subset of crc32_to_link for missing episodes only
-            missing_crc32_to_link = {crc32: crc32_to_link[crc32] for crc32 in missing_without_magnets if crc32 in crc32_to_link}
-            # Fetch magnet links only for missing episodes without one
-            fetched_magnets = fetch_magnet_links_for_episodes_from_search(args.url, missing_crc32_to_link)
-            # Merge with existing magnets
-            crc32_to_magnet = {**existing_magnets, **fetched_magnets}
-            print(f"Fetched {len(fetched_magnets)} new magnet links.")
-        else:
-            print("All missing episodes already have magnet links in CSV.")
-            crc32_to_magnet = existing_magnets
-    
-    # Restrict to episodes we have magnet links for (matches previous behavior)
-    # This ensures we only count episodes that can actually be downloaded
-    crc32_to_link = {c: crc32_to_link[c] for c in crc32_to_magnet if c in crc32_to_link}
-    crc32_to_text = {c: crc32_to_text.get(c, f"[CRC32: {c}]") for c in crc32_to_magnet}
-    # Recalculate missing episodes based on episodes with magnet links
-    missing = [crc32 for crc32 in missing if crc32 in crc32_to_magnet]
+    # Filter to only missing episodes that have magnet links (redundant check removed)
+    missing = [crc32 for crc32 in missing if crc32_to_magnet.get(crc32)]
 
     print(
         f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"

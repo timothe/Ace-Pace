@@ -97,12 +97,13 @@ The following volumes should be mounted for persistent data:
 - `/media` - Mount your One-Pace library directory here (read-write)
 - `/config` - Mount a directory for persistent configuration and data files (read-write)
   - Contains: `crc32_files.db`, `episodes_index.db`, `Ace-Pace_Missing.csv`, `Ace-Pace_DB.csv`
+  - `episodes_index.db` now stores magnet links for all episodes, reducing the need to fetch them repeatedly
 
 ### Docker Execution Flow
 
 When the container starts, it executes the following steps in order:
 
-1. **Episodes Update** (if `EPISODES_UPDATE=true`): Updates the episodes metadata database from Nyaa
+1. **Episodes Update** (if `EPISODES_UPDATE=true`): Updates the episodes metadata database from Nyaa, including magnet links for all episodes
 2. **Database Export** (if `DB=true`): Exports the CRC32 database to CSV
 3. **Missing Episodes Report**: Always runs to generate/update `Ace-Pace_Missing.csv`
 4. **Download** (if `DOWNLOAD=true`): Automatically downloads missing episodes via the configured BitTorrent client
