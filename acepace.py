@@ -1521,6 +1521,12 @@ def _load_episodes_from_database(episodes_update_env, base_url):
     print("Fetching magnet links from search results...")
     crc32_to_magnet = fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link)
     print(f"Fetched {len(crc32_to_magnet)} magnet links.")
+    # Restrict to episodes we have magnet links for. The index can include episodes
+    # discovered via torrent-page visits (CRC32 not in search row title); we only get
+    # magnets from search rows. Using the full index would overcount "on Nyaa" and
+    # inflate the missing count. Restricting to crc32_to_magnet matches fetch_crc32_links.
+    crc32_to_link = {c: crc32_to_link[c] for c in crc32_to_magnet if c in crc32_to_link}
+    crc32_to_text = {c: crc32_to_text.get(c, f"[CRC32: {c}]") for c in crc32_to_magnet}
     return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
 
 
