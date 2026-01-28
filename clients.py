@@ -230,7 +230,6 @@ class TransmissionClient(Client):
                 print(f"DRY RUN: Magnet link missing info hash: {truncated}")
             return False
         
-        print(f"DRY RUN: Would add torrent: {truncated}")
         return True
 
     def _add_torrents_dry_run(self, magnets):

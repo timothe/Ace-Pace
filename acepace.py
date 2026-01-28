@@ -607,27 +607,31 @@ def fetch_magnet_links_for_episodes_from_search(base_url, crc32_to_link):
     if not crc32_set:
         return crc32_to_magnet
     
-    # Get total number of pages
-    soup, success = _fetch_crc32_page(base_url, 1)
-    if not success:
+    # Get total number of pages (fetch page 1 silently first to get total pages)
+    resp = requests.get(f"{base_url}&p=1")
+    if resp.status_code != HTTP_OK:
         return crc32_to_magnet
-    
+    soup = BeautifulSoup(resp.text, HTML_PARSER)
     total_pages = _get_total_pages(soup)
     print(f"Fetching magnet links from {total_pages} pages...")
     
     # Process pages to extract magnet links for episodes we need
+    # Continue searching until we've found all requested episodes or searched all pages
     page = 1
-    found_count = 0
-    while page <= total_pages and found_count < len(crc32_set):
+    while page <= total_pages and len(crc32_to_magnet) < len(crc32_set):
         if _shutdown_requested:
             break
         
-        page_soup, success = _get_page_soup_for_magnet_links(base_url, page, soup)
+        if page == 1:
+            page_soup = soup
+            success = True
+        else:
+            page_soup, success = _get_page_soup_for_magnet_links(base_url, page, soup)
+        
         if not success or page_soup is None:
             break
         
-        page_found = _process_magnet_links_page(page_soup, crc32_set, crc32_to_magnet)
-        found_count += page_found
+        _process_magnet_links_page(page_soup, crc32_set, crc32_to_magnet)
         
         page += 1
         if page <= total_pages:
@@ -1772,6 +1776,13 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
         else:
             print("All missing episodes already have magnet links in CSV.")
             crc32_to_magnet = existing_magnets
+    
+    # Restrict to episodes we have magnet links for (matches previous behavior)
+    # This ensures we only count episodes that can actually be downloaded
+    crc32_to_link = {c: crc32_to_link[c] for c in crc32_to_magnet if c in crc32_to_link}
+    crc32_to_text = {c: crc32_to_text.get(c, f"[CRC32: {c}]") for c in crc32_to_magnet}
+    # Recalculate missing episodes based on episodes with magnet links
+    missing = [crc32 for crc32 in missing if crc32 in crc32_to_magnet]
 
     print(
         f"\nSummary: {len(missing)} missing episodes out of {len(crc32_to_link)} total found on Nyaa.\n"
