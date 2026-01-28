@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# Signal handler for graceful shutdown
+# Signal numbers: 15 = SIGTERM, 2 = SIGINT
+# Python processes run in foreground and will receive signals directly
+# This handler ensures clean exit if signal arrives between commands
+cleanup() {
+    echo "Received shutdown signal, exiting gracefully..."
+    exit 0
+}
+
+# Set up signal handlers using signal numbers (POSIX compatible)
+# Note: When Python runs in foreground, it receives signals directly
+# This trap handles signals that arrive when no Python process is running
+trap 'cleanup' 15 2
+
+# Print Ace-Pace header at the very beginning
+echo "============================================================"
+echo "                    Ace-Pace"
+echo "            One Pace Library Manager"
+echo "============================================================"
+echo "Running in Docker mode (non-interactive)"
+echo "------------------------------------------------------------"
+echo ""
+
+# Run episodes update if requested
+if [ "$EPISODES_UPDATE" = "true" ]; then
+    python /app/acepace.py --episodes_update ${NYAA_URL:+--url "$NYAA_URL"}
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Episodes update failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    fi
+fi
+
+# Export database if requested
+if [ "$DB" = "true" ]; then
+    python /app/acepace.py --db
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Database export failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    fi
+fi
+
+# Run missing episodes report
+# Always run unless ONLY exporting DB (same as non-Docker: main command always runs)
+# When EPISODES_UPDATE=true, the Python code will use the database to avoid double fetch
+# Skip report only if DB=true AND no other operations
+if [ "$DB" != "true" ] || [ "$EPISODES_UPDATE" = "true" ] || [ "$DOWNLOAD" = "true" ]; then
+    python /app/acepace.py \
+        --folder /media \
+        ${NYAA_URL:+--url "$NYAA_URL"}
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Missing episodes report failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    fi
+fi
+
+# If DOWNLOAD is set to true, download missing episodes after generating report
+if [ "$DOWNLOAD" = "true" ]; then
+    # Use exec to replace shell process so Python becomes PID 1 and receives signals directly
+    exec python /app/acepace.py \
+        --folder /media \
+        ${NYAA_URL:+--url "$NYAA_URL"} \
+        --download \
+        ${DRY_RUN:+--dry-run} \
+        ${TORRENT_CLIENT:+--client "$TORRENT_CLIENT"} \
+        ${TORRENT_HOST:+--host "$TORRENT_HOST"} \
+        ${TORRENT_PORT:+--port "$TORRENT_PORT"} \
+        ${TORRENT_USER:+--username "$TORRENT_USER"} \
+        ${TORRENT_PASSWORD:+--password "$TORRENT_PASSWORD"}
+fi
+
+# Exit with success code if we reach here
+exit 0
