@@ -33,5 +33,6 @@ services:
       #- TORRENT_USER=admin
       # BitTorrent client password (default: empty, not required)
       #- TORRENT_PASSWORD=password
+      
       # Enable debug output for troubleshooting (default: false)
       #- DEBUG=true

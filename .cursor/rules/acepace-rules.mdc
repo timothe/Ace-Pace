@@ -1,3 +1,8 @@
+---
+description: Ace-Pace development rules — tests, lint, git workflow, and project conventions
+alwaysApply: true
+---
+
 # Ace-Pace Project Rules
 
 This file contains the development rules, guidelines, and technical reference for the Ace-Pace project. These rules should be followed by all AI agents working on this codebase.
@@ -35,7 +40,7 @@ When working on this project, you MUST:
 
 - **Keep commits atomic**: commit only the files you touched and list each path explicitly
   - For tracked files: `git commit -m "<scoped message>" -- path/to/file1 path/to/file2`
-  - For brand-new files: `git restore --staged :/ && git add "path/to/file1" "path/to/file2" && git commit -m "<scoped message>" -- path/to/file1 path/to/file2`
+  - For brand-new files: `git restore --staged :/ && git add "path/to/file1" "path/to/file2" && git commit -m "<scoped message>" -- path/to/file1 path/to/file2
 
 - **Quote any git paths** containing brackets or parentheses (e.g., `src/app/[candidate]/**`) when staging or committing so the shell does not treat them as globs or subshells.
 
@@ -58,7 +63,7 @@ When working on this project, you MUST:
 - Follow PEP 8 Python style guide
 - Maintain cognitive complexity ≤ 15 per function
 - Use descriptive variable names
-- Add docstrings for functions
+- Use docstrings for functions
 - Keep functions focused and single-purpose
 - Use `_` prefix for private/internal helper functions
 - Comprehensive test suite exists in `tests/` directory (100+ tests)
@@ -165,7 +170,7 @@ When working on this project, you MUST:
 - `main()`: Entry point for the application
 - `init_db(suppress_messages=False)`: Initializes the local CRC32 cache database
 - `init_episodes_db()`: Initializes the episodes index database
-- `get_config_dir()`: Gets config directory path based on Docker mode (`/config` in Docker, `.` locally)
+- `get_config_dir()`: Gets config directory based on Docker mode (`/config` in Docker, `.` locally)
 - `get_config_path(filename)`: Gets full path to a config file in the appropriate config directory
 - `normalize_file_path(file_path)`: Normalizes file path for consistent storage and lookup
   - **CRITICAL**: Always use this before storing/querying file paths in database

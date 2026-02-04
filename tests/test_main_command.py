@@ -13,6 +13,27 @@ import acepace
 TEST_HOST_IP = "localhost"  # Test host for testing environment variable handling
 
 
+class TestReleaseDateHeader:
+    """Tests for release date in header (from acepace.py mtime)."""
+
+    @patch('acepace._get_release_date', return_value='2025-02-04')
+    def test_print_header_includes_release_date(self, mock_release_date):
+        """Header shows Release line when _get_release_date returns a date."""
+        with patch('acepace.IS_DOCKER', False), patch('builtins.print') as mock_print:
+            acepace._print_header()
+        printed = " ".join(str(c) for c in mock_print.call_args_list)
+        assert "Release" in printed
+        assert "2025-02-04" in printed
+
+    def test_get_release_date_returns_string_from_mtime(self):
+        """_get_release_date returns YYYY-MM-DD from acepace.py mtime."""
+        result = acepace._get_release_date()
+        assert isinstance(result, str)
+        if result:
+            assert len(result) == 10
+            assert result[4] == "-" and result[7] == "-"
+
+
 class TestDockerModeBehavior:
     """Tests for Docker mode specific behavior."""
 
@@ -78,9 +99,10 @@ class TestDockerModeBehavior:
     @patch('acepace.init_db')
     @patch('acepace._get_folder_from_args')
     @patch('acepace._handle_main_commands')
-    def test_docker_mode_message_shown_for_main_command(self, mock_handle, mock_folder, mock_init_db,
-                                                         mock_show_status, mock_validate):
-        """Test that Docker mode message is shown for main command (not --db or --episodes_update)."""
+    def test_docker_mode_message_not_printed_by_python_for_main_command(self, mock_handle, mock_folder,
+                                                                         mock_init_db, mock_show_status,
+                                                                         mock_validate):
+        """In Docker, entrypoint.sh prints the header once; Python must not print it again."""
         mock_validate.return_value = True
         mock_init_db.return_value = MagicMock()
         mock_folder.return_value = "/media"
@@ -100,9 +122,9 @@ class TestDockerModeBehavior:
                 with pytest.raises(SystemExit):
                     acepace.main()
                 
-                # Verify "Running in Docker mode" WAS printed
+                # Python must NOT print header in Docker (entrypoint.sh already did)
                 print_calls = [str(c) for c in mock_print.call_args_list]
-                assert any("Running in Docker mode" in str(call) for call in print_calls)
+                assert not any("Running in Docker mode" in str(call) for call in print_calls)
 
     @patch('acepace.IS_DOCKER', False)
     @patch('acepace._validate_url')

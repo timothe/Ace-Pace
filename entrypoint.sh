@@ -14,10 +14,12 @@ cleanup() {
 # This trap handles signals that arrive when no Python process is running
 trap 'cleanup' 15 2
 
-# Print Ace-Pace header at the very beginning
+# Print Ace-Pace header (release date = mtime of acepace.py, no repo commits)
+RELEASE_DATE=$(stat -c %y /app/acepace.py 2>/dev/null | cut -d' ' -f1 || true)
 echo "============================================================"
 echo "                    Ace-Pace"
 echo "            One Pace Library Manager"
+if [ -n "$RELEASE_DATE" ]; then echo "                  Release $RELEASE_DATE"; fi
 echo "============================================================"
 echo "Running in Docker mode (non-interactive)"
 echo "------------------------------------------------------------"

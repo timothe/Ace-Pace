@@ -71,6 +71,15 @@ DB_CSV_FILENAME = "Ace-Pace_DB.csv"
 CSV_COLUMN_MAGNET_LINK = "Magnet Link"
 
 
+def _get_release_date():
+    """Release date from modification time of this file (no repo commits, no extra file)."""
+    try:
+        mtime = os.path.getmtime(os.path.abspath(__file__))
+        return datetime.fromtimestamp(mtime).strftime("%Y-%m-%d")
+    except (OSError, ValueError):
+        return ""
+
+
 def get_config_dir():
     """Get the config directory path based on Docker mode.
     Returns the config directory path, creating it if necessary."""
@@ -2060,6 +2069,9 @@ def _print_header():
     print("=" * 60)
     print(" " * 20 + "Ace-Pace")
     print(" " * 12 + "One Pace Library Manager")
+    release = _get_release_date()
+    if release:
+        print(" " * (26 - len(release) // 2) + f"Release {release}")
     print("=" * 60)
     if IS_DOCKER:
         print("Running in Docker mode (non-interactive)")
@@ -2081,8 +2093,8 @@ def main():
             sys.exit(0)
 
         # Print header only for main command (not for --db or --episodes_update)
-        # Also suppress for help command
-        if IS_DOCKER and not args.db and not args.episodes_update and not args.help:
+        # In Docker, entrypoint.sh already prints the header once; skip here to avoid duplicate
+        if not IS_DOCKER and not args.db and not args.episodes_update and not args.help:
             _print_header()
 
         if not _validate_url(args.url):
