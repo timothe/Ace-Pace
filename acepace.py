@@ -1875,10 +1875,12 @@ AVAILABLE COMMANDS:
                             with episodes available on Nyaa to find missing episodes.
                             Outputs results to Ace-Pace_Missing.csv
 
-    --episodes_update       Update episodes metadata database from Nyaa
-                            Fetches all One Pace episodes from Nyaa and stores their
-                            CRC32, title, and page link in the episodes index database.
-                            This should be run periodically to keep the database current.
+    --episodes_update       Update episodes from Nyaa and generate missing report
+                            First fetches all One Pace episodes from Nyaa and stores
+                            CRC32, title, page link, and magnet link in the episodes index.
+                            Then runs the missing episodes report (same as main command):
+                            scans local folder, compares with Nyaa, outputs Ace-Pace_Missing.csv.
+                            In Docker mode, --folder defaults to /media if not set.
 
     --rename                Rename local files based on CRC32 matching
                             Matches local video files with episodes in the database
@@ -2003,7 +2005,7 @@ Use --help for detailed command descriptions.
     parser.add_argument(
         "--episodes_update",
         action="store_true",
-        help="Update episodes metadata database from Nyaa.",
+        help="Update episodes from Nyaa, then run missing episodes report (like main command).",
     )
     parser.add_argument("--host", default="localhost", help="The BitTorrent client host.")
     parser.add_argument("--port", type=int, help="The BitTorrent client port.")
@@ -2105,8 +2107,14 @@ def main():
             _show_episodes_metadata_status()
 
         if args.episodes_update:
-            # When --episodes_update is used directly, force update (same behavior as EPISODES_UPDATE=true)
+            # When --episodes_update is used: update episodes from Nyaa, then run missing episodes report (like main command)
             update_episodes_index_db(args.url, force_update=True)
+            conn = init_db(suppress_messages=False)
+            needs_folder = True  # Missing report requires folder
+            folder = _get_folder_from_args(args, conn, needs_folder)
+            if folder is None:
+                sys.exit(1)
+            _generate_missing_episodes_report(conn, folder, args)
             sys.exit(0)
 
         # Suppress messages when exporting DB (since it's automated)
