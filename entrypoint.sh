@@ -61,12 +61,15 @@ fi
 
 # If DOWNLOAD is set to true, download missing episodes after generating report
 if [ "$DOWNLOAD" = "true" ]; then
+    # Only add --dry-run when DRY_RUN is explicitly true (not when set to "false" or empty)
+    DRY_RUN_ARG=""
+    [ "$DRY_RUN" = "true" ] || [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "yes" ] || [ "$DRY_RUN" = "on" ] && DRY_RUN_ARG="--dry-run"
     # Use exec to replace shell process so Python becomes PID 1 and receives signals directly
     exec python /app/acepace.py \
         --folder /media \
         ${NYAA_URL:+--url "$NYAA_URL"} \
         --download \
-        ${DRY_RUN:+--dry-run} \
+        ${DRY_RUN_ARG:+$DRY_RUN_ARG} \
         ${TORRENT_CLIENT:+--client "$TORRENT_CLIENT"} \
         ${TORRENT_HOST:+--host "$TORRENT_HOST"} \
         ${TORRENT_PORT:+--port "$TORRENT_PORT"} \
