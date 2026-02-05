@@ -75,10 +75,11 @@ The following environment variables can be used to configure Ace-Pace in Docker:
 - `DB` - Set to `true` to generate CSV database export on container start (default: `false`)
 - `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa on container start (default: `false`)
 - `DOWNLOAD` - Set to `true` to automatically download missing episodes after generating report (default: `false`)
-- `DRY_RUN` - Set to `true` to test connection to BitTorrent client without actually adding torrents (default: `false`)
-  - Only effective when `DOWNLOAD=true`
-  - Validates magnet links and checks existing torrents but does not add any downloads
-  - Useful for verifying configuration before enabling actual downloads
+- `RENAME` - Set to `true` to rename local files under `/media` to match One-Pace episode titles from the episodes index (default: `false`)
+  - Non-interactive: no confirmation prompt; use `DRY_RUN=true` to simulate renaming without changing files
+- `DRY_RUN` - When `DOWNLOAD=true`: test BitTorrent client without adding torrents. When `RENAME=true`: show rename plan without renaming (default: `false`)
+  - With download: validates magnet links and checks existing torrents but does not add any downloads
+  - With rename: prints which files would be renamed without modifying the filesystem
 - `TORRENT_CLIENT` - BitTorrent client type: `transmission` or `qbittorrent` (default: `transmission`)
 - `TORRENT_HOST` - BitTorrent client host address (default: `localhost`)
 - `TORRENT_PORT` - BitTorrent client port (default: `9091` for Transmission, `8080` for qBittorrent)
@@ -105,8 +106,9 @@ When the container starts, it executes the following steps in order:
 
 1. **Episodes Update** (if `EPISODES_UPDATE=true`): Updates the episodes metadata database from Nyaa, including magnet links for all episodes
 2. **Database Export** (if `DB=true`): Exports the CRC32 database to CSV
-3. **Missing Episodes Report**: Always runs to generate/update `Ace-Pace_Missing.csv`
-4. **Download** (if `DOWNLOAD=true`): Automatically downloads missing episodes via the configured BitTorrent client
+3. **Missing Episodes Report**: Always runs to generate/update `Ace-Pace_Missing.csv` (unless only DB export was requested)
+4. **Rename** (if `RENAME=true`): Renames local files under `/media` to match One-Pace episode titles (no confirmation). Use `DRY_RUN=true` to simulate only.
+5. **Download** (if `DOWNLOAD=true`): Automatically downloads missing episodes via the configured BitTorrent client
    - If `DRY_RUN=true`, tests connection and validates magnet links without adding torrents
 
 ### Docker Notes
@@ -241,7 +243,7 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
   Category to add to the torrent in qBittorrent.
 
 - `--dry-run` (standalone flag)
-  Test connection to BitTorrent client without actually adding torrents. Useful for verifying configuration before downloading. When enabled, validates magnet links and checks existing torrents but does not add any new downloads.
+  With `--download`: test BitTorrent client without adding torrents. With `--rename`: show rename plan without renaming files.
 
 ### 📚 Some examples
 

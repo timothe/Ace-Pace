@@ -288,16 +288,44 @@ class TestURLParameterPropagation:
         mock_args.rename = True
         mock_args.url = test_url
         mock_args.folder = None
-        
+        mock_args.dry_run = False
+
         with patch('acepace._parse_arguments', return_value=mock_args):
             with pytest.raises(SystemExit):
                 acepace.main()
-            
-            # Verify _handle_rename_command was called with URL
+
+            # Verify _handle_rename_command was called with URL and dry_run
             mock_rename.assert_called_once()
-            # Check that URL was passed (second argument after conn)
             call_args = mock_rename.call_args
             assert call_args[0][1] == test_url  # Second positional argument is URL
+            assert call_args[1]["dry_run"] is False
+
+    @patch('acepace._validate_url')
+    @patch('acepace.init_db')
+    @patch('acepace._get_folder_from_args')
+    @patch('acepace._handle_rename_command')
+    def test_rename_with_dry_run_passes_dry_run_true(self, mock_rename, mock_folder, mock_init_db, mock_validate):
+        """Test that --rename --dry-run passes dry_run=True to _handle_rename_command."""
+        mock_validate.return_value = True
+        mock_init_db.return_value = MagicMock()
+        mock_folder.return_value = "/media"
+
+        mock_args = MagicMock()
+        mock_args.help = False
+        mock_args.db = False
+        mock_args.episodes_update = False
+        mock_args.download = False
+        mock_args.rename = True
+        mock_args.url = None
+        mock_args.folder = None
+        mock_args.dry_run = True
+
+        with patch('acepace._parse_arguments', return_value=mock_args):
+            with pytest.raises(SystemExit):
+                acepace.main()
+
+            mock_rename.assert_called_once()
+            assert mock_rename.call_args[1]["dry_run"] is True
 
 
 class TestDockerDownloadDefaults:

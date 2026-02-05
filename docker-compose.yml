@@ -17,9 +17,13 @@ services:
       # Quality filtering (1080p only) is always applied in code regardless of URL
       #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
 
+      # Rename local files under /media to match One-Pace episode titles (default: false)
+      # Non-interactive; use DRY_RUN=true to simulate renaming without changing files
+      #- RENAME=true
+
       # Download missing episodes after generating report (default: false)
       #- DOWNLOAD=true
-      # Test connection without adding torrents (default: false, only effective when DOWNLOAD=true)
+      # With DOWNLOAD: test client without adding torrents. With RENAME: simulate only (default: false)
       #- DRY_RUN=true
       
       # BitTorrent client type (default: transmission)

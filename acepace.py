@@ -1101,12 +1101,14 @@ def _execute_rename(rename_plan, conn):
             print(f"Failed to rename {old} to {new}: {e}")
 
 
-def rename_local_files(conn):
+def rename_local_files(conn, dry_run=False):
     """Rename local files based on CRC32 matching titles from episodes index.
     Matches local video files with episodes in the database and renames them
     to match the official episode titles.
     Args:
-        conn: Database connection"""
+        conn: Database connection
+        dry_run: If True, only print the rename plan and do not rename or ask for confirmation.
+    """
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
     entries = c.fetchall()
@@ -1132,6 +1134,10 @@ def rename_local_files(conn):
     for old, new in rename_plan:
         print(f"{os.path.basename(old)} -> {os.path.basename(new)}")
     print(f"{len(rename_plan)}/{total} files will be renamed.")
+
+    if dry_run:
+        print("DRY RUN: would rename the above files (no changes made).")
+        return
 
     confirm = _get_rename_confirmation()
     if confirm != "y":
@@ -1379,11 +1385,12 @@ def _get_rename_prompt(last_ep_update):
         ).strip().lower()
 
 
-def _handle_rename_command(conn, base_url=None):
+def _handle_rename_command(conn, base_url=None, dry_run=False):
     """Handle the rename command.
     Args:
         conn: Database connection
         base_url: Base URL for Nyaa search (optional)
+        dry_run: If True, only show rename plan and do not rename or ask for confirmation.
     """
     episodes_db_conn = init_episodes_db()
     last_ep_update = get_episodes_metadata(
@@ -1398,7 +1405,7 @@ def _handle_rename_command(conn, base_url=None):
     print(
         "Renaming local files based on matching titles from One Pace episodes index..."
     )
-    rename_local_files(conn)
+    rename_local_files(conn, dry_run=dry_run)
 
 
 def _count_video_files(folder, conn):
@@ -2017,7 +2024,7 @@ Use --help for detailed command descriptions.
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="Test connection to BitTorrent client without actually adding torrents. Useful for verifying configuration.",
+        help="Download: test client without adding torrents. Rename: show rename plan without renaming.",
     )
     return parser.parse_args()
 
@@ -2050,7 +2057,7 @@ def _handle_main_commands(args, conn, folder):
         return
 
     if args.rename:
-        _handle_rename_command(conn, args.url)
+        _handle_rename_command(conn, args.url, dry_run=args.dry_run)
         return
 
     if not folder:

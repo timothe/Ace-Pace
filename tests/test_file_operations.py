@@ -144,6 +144,26 @@ class TestFileRenaming:
             
             conn.close()
 
+    def test_rename_dry_run_does_not_confirm_or_execute(self, temp_dir):
+        """Test that rename_local_files(conn, dry_run=True) does not ask for confirmation or rename files."""
+        test_file = os.path.join(temp_dir, "old_name.mkv")
+        with open(test_file, "wb") as f:
+            f.write(b"test video content")
+
+        with patch('acepace.DB_NAME', os.path.join(temp_dir, 'test.db')):
+            conn = acepace.init_db()
+            acepace.calculate_local_crc32(temp_dir, conn)
+            actual_crc32 = list(acepace.calculate_local_crc32(temp_dir, conn))[0]
+
+            with patch('acepace.load_crc32_to_title_from_index') as mock_load:
+                mock_load.return_value = {actual_crc32: "[One Pace] Episode 1 [1080p].mkv"}
+                with patch('acepace._get_rename_confirmation') as mock_confirm:
+                    with patch('acepace._execute_rename') as mock_execute:
+                        acepace.rename_local_files(conn, dry_run=True)
+                        mock_confirm.assert_not_called()
+                        mock_execute.assert_not_called()
+            conn.close()
+
 
 class TestCSVExport:
     """Tests for CSV export functionality."""

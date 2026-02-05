@@ -189,7 +189,7 @@ When working on this project, you MUST:
 - `fetch_title_by_crc32(crc32)`: Searches for a title by CRC32
 - `calculate_local_crc32(folder, conn)`: Calculates CRC32 for local files
   - Uses normalized paths for database storage and lookup
-- `rename_local_files(conn)`: Renames local files based on episodes index
+- `rename_local_files(conn, dry_run=False)`: Renames local files based on episodes index; when dry_run=True only prints plan
   - Uses normalized paths when updating database after renaming
 - `export_db_to_csv(conn)`: Exports database to CSV
 - `load_crc32_to_title_from_index()`: Loads CRC32-to-title mapping
@@ -216,7 +216,7 @@ Helper functions are prefixed with `_` to indicate they are internal implementat
 
 **Command handlers** (`_handle_*`): Handle specific command-line operations
 - `_handle_download_command(args)`: Handles the `--download` command
-- `_handle_rename_command(conn, base_url=None)`: Handles the `--rename` command
+- `_handle_rename_command(conn, base_url=None, dry_run=False)`: Handles the `--rename` command; dry_run only shows plan
   - `base_url`: Optional URL parameter passed to `update_episodes_index_db()` if update is needed
 - `_handle_main_commands(args, conn, folder)`: Routes and handles main commands
 
@@ -231,6 +231,7 @@ Helper functions are prefixed with `_` to indicate they are internal implementat
 - **Message Suppression**: In Docker mode, suppresses informational messages for automated commands
 - **Environment Variables**: Supports configuration via Docker environment variables
   - `DOWNLOAD`: Set to "true" to download missing episodes after generating report
+ - `RENAME`: Set to "true" to rename local files under `/media` (non-interactive; use `DRY_RUN=true` to simulate)
   - `TORRENT_CLIENT`: BitTorrent client type (default: transmission)
   - `TORRENT_HOST`: Client host address (default: localhost)
   - `TORRENT_PORT`: Client port number (default: 9091 for transmission, 8080 for qBittorrent)

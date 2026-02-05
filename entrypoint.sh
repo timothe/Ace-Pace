@@ -59,6 +59,22 @@ if [ "$EPISODES_UPDATE" != "true" ] && { [ "$DB" != "true" ] || [ "$DOWNLOAD" = 
     fi
 fi
 
+# Run rename if requested (non-interactive: dry-run simulates, otherwise renames without confirmation)
+if [ "$RENAME" = "true" ]; then
+    DRY_RUN_RENAME_ARG=""
+    [ "$DRY_RUN" = "true" ] || [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "yes" ] || [ "$DRY_RUN" = "on" ] && DRY_RUN_RENAME_ARG="--dry-run"
+    python /app/acepace.py \
+        --folder /media \
+        --rename \
+        ${NYAA_URL:+--url "$NYAA_URL"} \
+        ${DRY_RUN_RENAME_ARG:+$DRY_RUN_RENAME_ARG}
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Rename failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    fi
+fi
+
 # If DOWNLOAD is set to true, download missing episodes after generating report
 if [ "$DOWNLOAD" = "true" ]; then
     # Only add --dry-run when DRY_RUN is explicitly true (not when set to "false" or empty)
