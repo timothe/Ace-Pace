@@ -1,0 +1,44 @@
+services:
+  ace-pace:
+    # build: .
+    image: timothe/ace-pace:latest # or timothe/ace-pace:dev for dev branch
+    container_name: ace-pace
+    volumes:
+      - /path/to/OnePaceLibrary:/media:rw
+      - /path/to/config:/config:rw
+    # network_mode: host
+    environment:
+      # Timezone
+      - TZ=Europe/London
+
+      # Export database to CSV on container start (default: false)
+      # - DB=true
+      # Update episodes index database on container start (default: false)
+      - EPISODES_UPDATE=true
+      # Nyaa.si search URL (optional, default: https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc)
+      # Quality filtering (1080p only) is always applied in code regardless of URL
+      #- NYAA_URL=https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc
+
+      # Rename local files under /media to match One-Pace episode titles (default: false)
+      # Non-interactive; use DRY_RUN=true to simulate renaming without changing files
+      #- RENAME=true
+
+      # Download missing episodes after generating report (default: false)
+      #- DOWNLOAD=true
+      # With DOWNLOAD: test client without adding torrents. With RENAME: simulate only (default: false)
+      #- DRY_RUN=true
+      
+      # BitTorrent client type (default: transmission)
+      # Options: transmission, qbittorrent
+      #- TORRENT_CLIENT=transmission
+      # BitTorrent client host (default: localhost)
+      #- TORRENT_HOST=127.0.0.1
+      # BitTorrent client port (default: 9091 for transmission, 8080 for qbittorrent)
+      #- TORRENT_PORT=9091
+      # BitTorrent client username (default: empty, not required)
+      #- TORRENT_USER=admin
+      # BitTorrent client password (default: empty, not required)
+      #- TORRENT_PASSWORD=password
+      
+      # Enable debug output for troubleshooting (default: false)
+      #- DEBUG=true
