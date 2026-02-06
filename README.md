@@ -75,8 +75,11 @@ The following environment variables can be used to configure Ace-Pace in Docker:
 - `DB` - Set to `true` to generate CSV database export on container start (default: `false`)
 - `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa on container start (default: `false`)
 - `DOWNLOAD` - Set to `true` to automatically download missing episodes after generating report (default: `false`)
-- `RENAME` - Set to `true` to rename local files under `/media` to match One-Pace episode titles from the episodes index (default: `false`)
+- `RENAME` - Set to `true` to rename local files in the media folder to match One-Pace episode titles from the episodes index (default: `false`)
   - Non-interactive: no confirmation prompt; use `DRY_RUN=true` to simulate renaming without changing files
+  - Before renaming, ensures CRC32 cache is complete for the media folder (calculates missing CRC32s if needed)
+- `ACEPACE_MEDIA_DIR_DOCKER` - Media/library folder in Docker (default: `"/media"`). Entrypoint passes this as `--folder`.
+- `ACEPACE_CONFIG_DIR_DOCKER` - Config/data directory in Docker (default: `"/config"`). Not set in entrypoint; override if you mount config elsewhere.
 - `DRY_RUN` - When `DOWNLOAD=true`: test BitTorrent client without adding torrents. When `RENAME=true`: show rename plan without renaming (default: `false`)
   - With download: validates magnet links and checks existing torrents but does not add any downloads
   - With rename: prints which files would be renamed without modifying the filesystem
@@ -95,8 +98,8 @@ The following environment variables can be used to configure Ace-Pace in Docker:
 
 The following volumes should be mounted for persistent data:
 
-- `/media` - Mount your One-Pace library directory here (read-write)
-- `/config` - Mount a directory for persistent configuration and data files (read-write)
+- **Media folder** (default `/media`) - Mount your One-Pace library here (read-write). Override with `ACEPACE_MEDIA_DIR_DOCKER`.
+- **Config folder** (default `/config`) - Mount a directory for persistent configuration and data files (read-write). Override with `ACEPACE_CONFIG_DIR_DOCKER`.
   - Contains: `crc32_files.db`, `episodes_index.db`, `Ace-Pace_Missing.csv`, `Ace-Pace_DB.csv`
   - `episodes_index.db` now stores magnet links for all episodes, reducing the need to fetch them repeatedly
 
@@ -107,15 +110,15 @@ When the container starts, it executes the following steps in order:
 1. **Episodes Update** (if `EPISODES_UPDATE=true`): Updates the episodes metadata database from Nyaa, including magnet links for all episodes
 2. **Database Export** (if `DB=true`): Exports the CRC32 database to CSV
 3. **Missing Episodes Report**: Always runs to generate/update `Ace-Pace_Missing.csv` (unless only DB export was requested)
-4. **Rename** (if `RENAME=true`): Renames local files under `/media` to match One-Pace episode titles (no confirmation). Use `DRY_RUN=true` to simulate only.
+4. **Rename** (if `RENAME=true`): Ensures CRC32 cache is complete for the media folder, then renames local files to match One-Pace episode titles (no confirmation). Use `DRY_RUN=true` to simulate only.
 5. **Download** (if `DOWNLOAD=true`): Automatically downloads missing episodes via the configured BitTorrent client
    - If `DRY_RUN=true`, tests connection and validates magnet links without adding torrents
 
 ### Docker Notes
 
-- In Docker mode, Ace-Pace automatically uses `/media` as the default folder path
+- In Docker mode, the default media folder is `/media` (set `ACEPACE_MEDIA_DIR_DOCKER` to override); config/data default is `/config` (set `ACEPACE_CONFIG_DIR_DOCKER` to override)
 - The container runs non-interactively, so all configuration must be provided via environment variables
-- All data files (databases, CSV exports) are stored in `/config` directory
+- All data files (databases, CSV exports) are stored in the config directory
 - Quality filtering (1080p only) is applied in code regardless of the URL used
 - When `NYAA_URL` is not set, the default URL searches for all "one pace" episodes without quality filter, then filters for 1080p in code
 - Make sure your BitTorrent client is accessible from within the Docker network (use host network mode or configure networking appropriately)

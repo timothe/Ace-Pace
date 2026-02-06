@@ -25,6 +25,9 @@ echo "Running in Docker mode (non-interactive)"
 echo "------------------------------------------------------------"
 echo ""
 
+# Media folder: ACEPACE_MEDIA_DIR_DOCKER (default /media)
+MEDIA_DIR="${ACEPACE_MEDIA_DIR_DOCKER:-/media}"
+
 # Run episodes update if requested
 if [ "$EPISODES_UPDATE" = "true" ]; then
     python /app/acepace.py --episodes_update ${NYAA_URL:+--url "$NYAA_URL"}
@@ -50,7 +53,7 @@ fi
 # Skip when only exporting DB (DB=true and no other operations)
 if [ "$EPISODES_UPDATE" != "true" ] && { [ "$DB" != "true" ] || [ "$DOWNLOAD" = "true" ]; }; then
     python /app/acepace.py \
-        --folder /media \
+        --folder "$MEDIA_DIR" \
         ${NYAA_URL:+--url "$NYAA_URL"}
     EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then
@@ -64,7 +67,7 @@ if [ "$RENAME" = "true" ]; then
     DRY_RUN_RENAME_ARG=""
     [ "$DRY_RUN" = "true" ] || [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "yes" ] || [ "$DRY_RUN" = "on" ] && DRY_RUN_RENAME_ARG="--dry-run"
     python /app/acepace.py \
-        --folder /media \
+        --folder "$MEDIA_DIR" \
         --rename \
         ${NYAA_URL:+--url "$NYAA_URL"} \
         ${DRY_RUN_RENAME_ARG:+$DRY_RUN_RENAME_ARG}
@@ -82,7 +85,7 @@ if [ "$DOWNLOAD" = "true" ]; then
     [ "$DRY_RUN" = "true" ] || [ "$DRY_RUN" = "1" ] || [ "$DRY_RUN" = "yes" ] || [ "$DRY_RUN" = "on" ] && DRY_RUN_ARG="--dry-run"
     # Use exec to replace shell process so Python becomes PID 1 and receives signals directly
     exec python /app/acepace.py \
-        --folder /media \
+        --folder "$MEDIA_DIR" \
         ${NYAA_URL:+--url "$NYAA_URL"} \
         --download \
         ${DRY_RUN_ARG:+$DRY_RUN_ARG} \

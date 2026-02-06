@@ -294,11 +294,12 @@ class TestURLParameterPropagation:
             with pytest.raises(SystemExit):
                 acepace.main()
 
-            # Verify _handle_rename_command was called with URL and dry_run
+            # Verify _handle_rename_command was called with URL, dry_run, and folder
             mock_rename.assert_called_once()
             call_args = mock_rename.call_args
             assert call_args[0][1] == test_url  # Second positional argument is URL
             assert call_args[1]["dry_run"] is False
+            assert call_args[1]["folder"] == "/media"
 
     @patch('acepace._validate_url')
     @patch('acepace.init_db')
@@ -326,6 +327,7 @@ class TestURLParameterPropagation:
 
             mock_rename.assert_called_once()
             assert mock_rename.call_args[1]["dry_run"] is True
+            assert mock_rename.call_args[1]["folder"] == "/media"
 
 
 class TestDockerDownloadDefaults:

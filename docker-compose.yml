@@ -8,9 +8,11 @@ services:
       - /path/to/config:/config:rw
     # network_mode: host
     environment:
+      # Timezone
       - TZ=Europe/London
+
       # Export database to CSV on container start (default: false)
-      - DB=true
+      # - DB=true
       # Update episodes index database on container start (default: false)
       - EPISODES_UPDATE=true
       # Nyaa.si search URL (optional, default: https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc)

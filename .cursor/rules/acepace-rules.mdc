@@ -170,7 +170,8 @@ When working on this project, you MUST:
 - `main()`: Entry point for the application
 - `init_db(suppress_messages=False)`: Initializes the local CRC32 cache database
 - `init_episodes_db()`: Initializes the episodes index database
-- `get_config_dir()`: Gets config directory based on Docker mode (`/config` in Docker, `.` locally)
+- `get_config_dir()`: Gets config directory (Docker: `ACEPACE_CONFIG_DIR_DOCKER` default `/config`; local: `ACEPACE_CONFIG_DIR_LOCAL` default `.`)
+- `_get_default_media_dir()`: Default media folder (Docker: `ACEPACE_MEDIA_DIR_DOCKER` default `/media`; local: `ACEPACE_MEDIA_DIR_LOCAL` default empty)
 - `get_config_path(filename)`: Gets full path to a config file in the appropriate config directory
 - `normalize_file_path(file_path)`: Normalizes file path for consistent storage and lookup
   - **CRITICAL**: Always use this before storing/querying file paths in database
@@ -191,6 +192,7 @@ When working on this project, you MUST:
   - Uses normalized paths for database storage and lookup
 - `rename_local_files(conn, dry_run=False)`: Renames local files based on episodes index; when dry_run=True only prints plan
   - Uses normalized paths when updating database after renaming
+- `_ensure_crc32_cache_complete(folder, conn)`: Ensures CRC32 cache has all video files in folder; runs `calculate_local_crc32` if any are missing (used before rename)
 - `export_db_to_csv(conn)`: Exports database to CSV
 - `load_crc32_to_title_from_index()`: Loads CRC32-to-title mapping
 
@@ -216,15 +218,17 @@ Helper functions are prefixed with `_` to indicate they are internal implementat
 
 **Command handlers** (`_handle_*`): Handle specific command-line operations
 - `_handle_download_command(args)`: Handles the `--download` command
-- `_handle_rename_command(conn, base_url=None, dry_run=False)`: Handles the `--rename` command; dry_run only shows plan
+- `_handle_rename_command(conn, base_url=None, dry_run=False, folder=None)`: Handles the `--rename` command; calls `_ensure_crc32_cache_complete(folder, conn)` when folder is set, then renames
   - `base_url`: Optional URL parameter passed to `update_episodes_index_db()` if update is needed
+  - `folder`: Media folder for CRC32 cache check (version-specific default when run from main)
 - `_handle_main_commands(args, conn, folder)`: Routes and handles main commands
 
 ## Docker Support
 
 - **Docker Mode**: Detected via `RUN_DOCKER` environment variable
 - **Non-Interactive Operation**: In Docker mode, skips user prompts and uses defaults
-- **Default Folder**: Uses `/media` as default folder in Docker mode
+- **Default Folder**: Uses `ACEPACE_MEDIA_DIR_DOCKER` (default `/media`) in Docker; `ACEPACE_MEDIA_DIR_LOCAL` (default empty) locally
+- **Config/Data Paths**: `ACEPACE_CONFIG_DIR_DOCKER` (default `/config`), `ACEPACE_CONFIG_DIR_LOCAL` (default `.`)
 - **Config Directory**: Uses `/config` directory in Docker mode for databases and CSV files
   - Local mode uses current directory (`.`)
   - Config directory is automatically created if it doesn't exist

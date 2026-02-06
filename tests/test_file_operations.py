@@ -164,6 +164,33 @@ class TestFileRenaming:
                         mock_execute.assert_not_called()
             conn.close()
 
+    def test_ensure_crc32_cache_complete_runs_calculation_when_missing(self, temp_dir):
+        """When cache is missing CRC32s for some files, calculate_local_crc32 is called."""
+        conn = MagicMock()
+        with patch('acepace._count_video_files') as mock_count:
+            with patch('acepace.calculate_local_crc32') as mock_calc:
+                mock_count.return_value = (3, 1)
+                acepace._ensure_crc32_cache_complete(temp_dir, conn)
+                mock_calc.assert_called_once_with(temp_dir, conn)
+
+    def test_ensure_crc32_cache_complete_skips_when_up_to_date(self, temp_dir):
+        """When all files are in cache, calculate_local_crc32 is not called."""
+        conn = MagicMock()
+        with patch('acepace._count_video_files') as mock_count:
+            with patch('acepace.calculate_local_crc32') as mock_calc:
+                mock_count.return_value = (2, 2)
+                acepace._ensure_crc32_cache_complete(temp_dir, conn)
+                mock_calc.assert_not_called()
+
+    def test_ensure_crc32_cache_complete_skips_when_no_files(self, temp_dir):
+        """When folder has no video files, calculate_local_crc32 is not called."""
+        conn = MagicMock()
+        with patch('acepace._count_video_files') as mock_count:
+            with patch('acepace.calculate_local_crc32') as mock_calc:
+                mock_count.return_value = (0, 0)
+                acepace._ensure_crc32_cache_complete(temp_dir, conn)
+                mock_calc.assert_not_called()
+
 
 class TestCSVExport:
     """Tests for CSV export functionality."""

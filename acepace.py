@@ -61,9 +61,11 @@ REQUEST_DELAY_SECONDS = 0.2
 CRC32_CHUNK_SIZE = 8192
 MAGNET_LINK_PREFIX = "magnet:"
 
-# Config directory and file names
-CONFIG_DIR_DOCKER = "/config"
-CONFIG_DIR_LOCAL = "."
+# Config and media directory defaults (override via env: ACEPACE_CONFIG_DIR_*, ACEPACE_MEDIA_DIR_*)
+CONFIG_DIR_DOCKER_DEFAULT = "/config"
+CONFIG_DIR_LOCAL_DEFAULT = "."
+MEDIA_DIR_DOCKER_DEFAULT = "/media"
+MEDIA_DIR_LOCAL_DEFAULT = ""
 DB_NAME = "crc32_files.db"
 EPISODES_DB_NAME = "episodes_index.db"
 MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
@@ -82,17 +84,25 @@ def _get_release_date():
 
 def get_config_dir():
     """Get the config directory path based on Docker mode.
-    Returns the config directory path, creating it if necessary."""
+    Returns the config directory path, creating it if necessary.
+    Override via ACEPACE_CONFIG_DIR_DOCKER (Docker) or ACEPACE_CONFIG_DIR_LOCAL (local).
+    """
     if IS_DOCKER:
-        config_dir = CONFIG_DIR_DOCKER
+        config_dir = os.getenv("ACEPACE_CONFIG_DIR_DOCKER", CONFIG_DIR_DOCKER_DEFAULT)
     else:
-        config_dir = CONFIG_DIR_LOCAL
-    
-    # Ensure config directory exists
+        config_dir = os.getenv("ACEPACE_CONFIG_DIR_LOCAL", CONFIG_DIR_LOCAL_DEFAULT)
     if not os.path.exists(config_dir):
         os.makedirs(config_dir, exist_ok=True)
-    
     return config_dir
+
+
+def _get_default_media_dir():
+    """Default media/library folder for the current mode (Docker vs local).
+    Override via ACEPACE_MEDIA_DIR_DOCKER (Docker) or ACEPACE_MEDIA_DIR_LOCAL (local).
+    """
+    if IS_DOCKER:
+        return os.getenv("ACEPACE_MEDIA_DIR_DOCKER", MEDIA_DIR_DOCKER_DEFAULT)
+    return os.getenv("ACEPACE_MEDIA_DIR_LOCAL", MEDIA_DIR_LOCAL_DEFAULT)
 
 
 def get_config_path(filename):
@@ -1165,31 +1175,40 @@ def export_db_to_csv(conn):
     set_metadata(conn, "last_db_export", now_str)
 
 
+def _prompt_folder_interactive(conn):
+    """Prompt user for folder using last_folder metadata or raw input. Returns folder or None."""
+    last_folder = get_metadata(conn, "last_folder")
+    if last_folder:
+        print(f"Last used folder: {last_folder}")
+        user_input = input(
+            "Press Enter to use this folder, or enter a new path: "
+        ).strip()
+        folder = user_input if user_input else last_folder
+    else:
+        folder = input("Enter the folder containing local video files: ").strip()
+    if not folder:
+        print("Error: No folder specified.")
+        return None
+    return folder
+
+
 def _get_folder_from_args(args, conn, needs_folder):
-    """Get folder path from arguments or prompt user."""
+    """Get folder path from arguments or prompt user.
+    In Docker uses ACEPACE_MEDIA_DIR_DOCKER (default /media); locally uses ACEPACE_MEDIA_DIR_LOCAL if set.
+    """
     folder = args.folder
     if IS_DOCKER and needs_folder:
-        # In Docker mode, use /media as default folder
-        folder = "/media"
+        folder = _get_default_media_dir()
         set_metadata(conn, "last_folder", folder)
         return folder
-    
     if needs_folder and not folder:
-        # Try to load last_folder from metadata
-        last_folder = get_metadata(conn, "last_folder")
-        if last_folder:
-            print(f"Last used folder: {last_folder}")
-            user_input = input(
-                "Press Enter to use this folder, or enter a new path: "
-            ).strip()
-            if user_input:
-                folder = user_input
-            else:
-                folder = last_folder
-        else:
-            folder = input("Enter the folder containing local video files: ").strip()
-        if not folder:
-            print("Error: No folder specified.")
+        default_media = _get_default_media_dir()
+        if default_media:
+            folder = default_media
+            set_metadata(conn, "last_folder", folder)
+            return folder
+        folder = _prompt_folder_interactive(conn)
+        if folder is None:
             return None
         set_metadata(conn, "last_folder", folder)
     elif folder:
@@ -1230,7 +1249,7 @@ def _get_docker_connection_params(args):
     
     username = os.getenv("TORRENT_USER", args.username or "")
     password = os.getenv("TORRENT_PASSWORD", args.password or "")
-    download_folder = args.download_folder or "/media"
+    download_folder = args.download_folder or _get_default_media_dir()
     return host, port, username, password, download_folder, client
 
 
@@ -1385,12 +1404,33 @@ def _get_rename_prompt(last_ep_update):
         ).strip().lower()
 
 
-def _handle_rename_command(conn, base_url=None, dry_run=False):
+def _ensure_crc32_cache_complete(folder, conn):
+    """Ensure CRC32 cache includes all local video files for the folder.
+    If any video files in folder are not in the cache, runs calculate_local_crc32.
+    Respects config/data paths from get_config_dir (Docker vs local via env).
+    """
+    total_files, recorded_files = _count_video_files(folder, conn)
+    if total_files == 0:
+        print("No video files found in folder; skipping CRC32 cache check.")
+        return
+    if recorded_files < total_files:
+        missing_count = total_files - recorded_files
+        print(
+            f"CRC32 cache missing {missing_count} of {total_files} files. "
+            "Calculating CRC32s for local files..."
+        )
+        calculate_local_crc32(folder, conn)
+    else:
+        print("CRC32 cache is up to date for local files.")
+
+
+def _handle_rename_command(conn, base_url=None, dry_run=False, folder=None):
     """Handle the rename command.
     Args:
         conn: Database connection
         base_url: Base URL for Nyaa search (optional)
         dry_run: If True, only show rename plan and do not rename or ask for confirmation.
+        folder: Local media folder for CRC32 cache check (uses version-specific default if not set).
     """
     episodes_db_conn = init_episodes_db()
     last_ep_update = get_episodes_metadata(
@@ -1402,6 +1442,8 @@ def _handle_rename_command(conn, base_url=None, dry_run=False):
     
     if prompt == "y":
         update_episodes_index_db(base_url)
+    if folder:
+        _ensure_crc32_cache_complete(folder, conn)
     print(
         "Renaming local files based on matching titles from One Pace episodes index..."
     )
@@ -2057,7 +2099,7 @@ def _handle_main_commands(args, conn, folder):
         return
 
     if args.rename:
-        _handle_rename_command(conn, args.url, dry_run=args.dry_run)
+        _handle_rename_command(conn, args.url, dry_run=args.dry_run, folder=folder)
         return
 
     if not folder:
