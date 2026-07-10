@@ -1,0 +1,83 @@
+name: SonarCloud (CI analysis with coverage)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - "acepace.py"
+      - "clients.py"
+      - "tests/**"
+      - "pyproject.toml"
+      - "sonar-project.properties"
+      - ".github/workflows/sonar-ci.yml"
+  schedule:
+    - cron: "17 3 * * *"  # nightly, off-the-hour to avoid GitHub Actions load spikes
+  workflow_dispatch:
+
+concurrency:
+  group: sonar-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  coverage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      UV_NO_CONFIG: "1"
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 1
+
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          version: "0.11.17"
+          python-version: "3.13"
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Tests (coverage -> Cobertura XML)
+        run: |
+          uv sync --extra dev
+          uv run --no-sync pytest --cov=. --cov-report=xml:coverage.xml -q
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: coverage-acepace
+          path: coverage.xml
+          compression-level: 1
+          if-no-files-found: error
+          retention-days: 1
+
+  sonar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: [coverage]
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        with:
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.1.9
+        with:
+          name: coverage-acepace
+
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: .sonar/cache
+          key: sonar-${{ runner.os }}-${{ github.ref_name }}-${{ hashFiles('sonar-project.properties') }}
+          restore-keys: |
+            sonar-${{ runner.os }}-${{ github.ref_name }}-
+            sonar-${{ runner.os }}-main-
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3.1.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_USER_HOME: ${{ github.workspace }}/.sonar

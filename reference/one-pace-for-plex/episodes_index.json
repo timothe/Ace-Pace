@@ -1,0 +1,3831 @@
+[
+  {
+    "season": 0,
+    "number": 1,
+    "title": "Strong World",
+    "extended": "",
+    "nfo_path": "One Pace/Specials/One Pace - S00E01 - Strong World.nfo"
+  },
+  {
+    "season": 0,
+    "number": 2,
+    "title": "Straw Hat Theatre",
+    "extended": "",
+    "nfo_path": "One Pace/Specials/One Pace - S00E02 - Straw Hat Theatre.nfo"
+  },
+  {
+    "season": 0,
+    "number": 3,
+    "title": "Romance Dawn, Version 2",
+    "extended": "",
+    "nfo_path": "One Pace/Specials/One Pace - S00E03 - Romance Dawn, Version 2.nfo"
+  },
+  {
+    "season": 0,
+    "number": 4,
+    "title": "Wapol's Omnivorous Hurrah",
+    "extended": "",
+    "nfo_path": "One Pace/Specials/One Pace - S00E04 - Wapol's Omnivorous Hurrah.nfo"
+  },
+  {
+    "season": 0,
+    "number": 5,
+    "title": "Whole Cake Island 01",
+    "extended": "April Fools 2017",
+    "nfo_path": "One Pace/Specials/One Pace - S00E05 - Whole Cake Island 01 (April Fools 2017).nfo"
+  },
+  {
+    "season": 0,
+    "number": 7,
+    "title": "Gaimon 01",
+    "extended": "April Fools 2021",
+    "nfo_path": "One Pace/Specials/One Pace - S00E07 - Gaimon 01 (April Fools 2021).nfo"
+  },
+  {
+    "season": 0,
+    "number": 8,
+    "title": "Tournament of Power",
+    "extended": "",
+    "nfo_path": "One Pace/Specials/One Pace - S00E08 - Tournament of Power.nfo"
+  },
+  {
+    "season": 0,
+    "number": 9,
+    "title": "One Piece Fan Letter",
+    "extended": "",
+    "nfo_path": "One Pace/Specials/One Pace - S00E09 - One Piece Fan Letter.nfo"
+  },
+  {
+    "season": 0,
+    "number": 10,
+    "title": "Warship Island 01",
+    "extended": "April Fools 2025",
+    "nfo_path": "One Pace/Specials/One Pace - S00E10 - Warship Island 01 (April Fools 2025).nfo"
+  },
+  {
+    "season": 1,
+    "number": 1,
+    "title": "Romance Dawn, the Dawn of an Adventure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 1/One Pace - S01E01 - Romance Dawn, the Dawn of an Adventure.nfo"
+  },
+  {
+    "season": 1,
+    "number": 2,
+    "title": "They Call Him 'Straw Hat' Luffy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 1/One Pace - S01E02 - They Call Him 'Straw Hat' Luffy.nfo"
+  },
+  {
+    "season": 1,
+    "number": 3,
+    "title": "The Pirate King and the Master Swordsman",
+    "extended": "",
+    "nfo_path": "One Pace/Season 1/One Pace - S01E03 - The Pirate King and the Master Swordsman.nfo"
+  },
+  {
+    "season": 1,
+    "number": 4,
+    "title": "The First",
+    "extended": "",
+    "nfo_path": "One Pace/Season 1/One Pace - S01E04 - The First.nfo"
+  },
+  {
+    "season": 2,
+    "number": 1,
+    "title": "Enter - Nami",
+    "extended": "",
+    "nfo_path": "One Pace/Season 2/One Pace - S02E01 - Enter - Nami.nfo"
+  },
+  {
+    "season": 2,
+    "number": 2,
+    "title": "Treasure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 2/One Pace - S02E02 - Treasure.nfo"
+  },
+  {
+    "season": 2,
+    "number": 3,
+    "title": "Pirate Buggy 'the Clown'",
+    "extended": "",
+    "nfo_path": "One Pace/Season 2/One Pace - S02E03 - Pirate Buggy 'the Clown'.nfo"
+  },
+  {
+    "season": 3,
+    "number": 1,
+    "title": "Captain Usopp",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E01 - Captain Usopp.nfo"
+  },
+  {
+    "season": 3,
+    "number": 2,
+    "title": "Captain Kuro",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E02 - Captain Kuro.nfo"
+  },
+  {
+    "season": 3,
+    "number": 3,
+    "title": "The Slope",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E03 - The Slope.nfo"
+  },
+  {
+    "season": 3,
+    "number": 4,
+    "title": "The Silent Man",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E04 - The Silent Man.nfo"
+  },
+  {
+    "season": 3,
+    "number": 5,
+    "title": "The Pirate 'Kuro of a Hundred Plans'",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E05 - The Pirate 'Kuro of a Hundred Plans'.nfo"
+  },
+  {
+    "season": 3,
+    "number": 6,
+    "title": "For Whom the Bell Tolls",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E06 - For Whom the Bell Tolls.nfo"
+  },
+  {
+    "season": 3,
+    "number": 7,
+    "title": "To the Sea",
+    "extended": "",
+    "nfo_path": "One Pace/Season 3/One Pace - S03E07 - To the Sea.nfo"
+  },
+  {
+    "season": 4,
+    "number": 1,
+    "title": "You're the Rare Breed",
+    "extended": "",
+    "nfo_path": "One Pace/Season 4/One Pace - S04E01 - You're the Rare Breed.nfo"
+  },
+  {
+    "season": 5,
+    "number": 1,
+    "title": "Enter - Sanji",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E01 - Enter - Sanji.nfo"
+  },
+  {
+    "season": 5,
+    "number": 2,
+    "title": "Pirate Commodore Don Krieg",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E02 - Pirate Commodore Don Krieg.nfo"
+  },
+  {
+    "season": 5,
+    "number": 3,
+    "title": "The Oath",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E03 - The Oath.nfo"
+  },
+  {
+    "season": 5,
+    "number": 4,
+    "title": "Pearl",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E04 - Pearl.nfo"
+  },
+  {
+    "season": 5,
+    "number": 5,
+    "title": "Because of a Dream",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E05 - Because of a Dream.nfo"
+  },
+  {
+    "season": 5,
+    "number": 6,
+    "title": "MH5",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E06 - MH5.nfo"
+  },
+  {
+    "season": 5,
+    "number": 7,
+    "title": "The Stalwart War Spear",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E07 - The Stalwart War Spear.nfo"
+  },
+  {
+    "season": 5,
+    "number": 8,
+    "title": "The Fourth",
+    "extended": "",
+    "nfo_path": "One Pace/Season 5/One Pace - S05E08 - The Fourth.nfo"
+  },
+  {
+    "season": 6,
+    "number": 1,
+    "title": "Arlong Park",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E01 - Arlong Park.nfo"
+  },
+  {
+    "season": 6,
+    "number": 2,
+    "title": "Monsters of the Grand Line",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E02 - Monsters of the Grand Line.nfo"
+  },
+  {
+    "season": 6,
+    "number": 3,
+    "title": "Sea Charts and Fishmen",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E03 - Sea Charts and Fishmen.nfo"
+  },
+  {
+    "season": 6,
+    "number": 4,
+    "title": "Bell-mere",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E04 - Bell-mere.nfo"
+  },
+  {
+    "season": 6,
+    "number": 5,
+    "title": "Live",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E05 - Live.nfo"
+  },
+  {
+    "season": 6,
+    "number": 5,
+    "title": "Live",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E05 - Live (Extended).nfo"
+  },
+  {
+    "season": 6,
+    "number": 6,
+    "title": "OK, LET'S STAND UP",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E06 - OK, LET'S STAND UP.nfo"
+  },
+  {
+    "season": 6,
+    "number": 7,
+    "title": "Chivalry vs. Fishman Karate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E07 - Chivalry vs. Fishman Karate.nfo"
+  },
+  {
+    "season": 6,
+    "number": 8,
+    "title": "My Turn",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E08 - My Turn.nfo"
+  },
+  {
+    "season": 6,
+    "number": 9,
+    "title": "Happiness",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E09 - Happiness.nfo"
+  },
+  {
+    "season": 6,
+    "number": 10,
+    "title": "Spin, Pinwheel, Spin",
+    "extended": "",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E10 - Spin, Pinwheel, Spin.nfo"
+  },
+  {
+    "season": 6,
+    "number": 10,
+    "title": "Spin, Pinwheel, Spin",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 6/One Pace - S06E10 - Spin, Pinwheel, Spin (Extended).nfo"
+  },
+  {
+    "season": 7,
+    "number": 1,
+    "title": "The Adventures of Buggy's Crew",
+    "extended": "",
+    "nfo_path": "One Pace/Season 7/One Pace - S07E01 - The Adventures of Buggy's Crew.nfo"
+  },
+  {
+    "season": 8,
+    "number": 1,
+    "title": "The Town of Beginnings and Endings",
+    "extended": "",
+    "nfo_path": "One Pace/Season 8/One Pace - S08E01 - The Town of Beginnings and Endings.nfo"
+  },
+  {
+    "season": 8,
+    "number": 2,
+    "title": "Parallels",
+    "extended": "",
+    "nfo_path": "One Pace/Season 8/One Pace - S08E02 - Parallels.nfo"
+  },
+  {
+    "season": 8,
+    "number": 3,
+    "title": "The Legend Has Begun",
+    "extended": "",
+    "nfo_path": "One Pace/Season 8/One Pace - S08E03 - The Legend Has Begun.nfo"
+  },
+  {
+    "season": 9,
+    "number": 1,
+    "title": "Reverse Mountain",
+    "extended": "",
+    "nfo_path": "One Pace/Season 9/One Pace - S09E01 - Reverse Mountain.nfo"
+  },
+  {
+    "season": 9,
+    "number": 2,
+    "title": "Cape Promise",
+    "extended": "",
+    "nfo_path": "One Pace/Season 9/One Pace - S09E02 - Cape Promise.nfo"
+  },
+  {
+    "season": 9,
+    "number": 2,
+    "title": "Cape Promise",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 9/One Pace - S09E02 - Cape Promise (Extended).nfo"
+  },
+  {
+    "season": 10,
+    "number": 1,
+    "title": "The Town of Welcome",
+    "extended": "",
+    "nfo_path": "One Pace/Season 10/One Pace - S10E01 - The Town of Welcome.nfo"
+  },
+  {
+    "season": 10,
+    "number": 2,
+    "title": "The Secret Criminal Organization",
+    "extended": "",
+    "nfo_path": "One Pace/Season 10/One Pace - S10E02 - The Secret Criminal Organization.nfo"
+  },
+  {
+    "season": 11,
+    "number": 1,
+    "title": "The Trials of Koby-Meppo",
+    "extended": "",
+    "nfo_path": "One Pace/Season 11/One Pace - S11E01 - The Trials of Koby-Meppo.nfo"
+  },
+  {
+    "season": 12,
+    "number": 1,
+    "title": "Adventure on Little Garden",
+    "extended": "",
+    "nfo_path": "One Pace/Season 12/One Pace - S12E01 - Adventure on Little Garden.nfo"
+  },
+  {
+    "season": 12,
+    "number": 2,
+    "title": "Dorry and Brogy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 12/One Pace - S12E02 - Dorry and Brogy.nfo"
+  },
+  {
+    "season": 12,
+    "number": 3,
+    "title": "Foul Play",
+    "extended": "",
+    "nfo_path": "One Pace/Season 12/One Pace - S12E03 - Foul Play.nfo"
+  },
+  {
+    "season": 12,
+    "number": 4,
+    "title": "Luffy vs. Mr. 3",
+    "extended": "",
+    "nfo_path": "One Pace/Season 12/One Pace - S12E04 - Luffy vs. Mr. 3.nfo"
+  },
+  {
+    "season": 12,
+    "number": 5,
+    "title": "Straight Ahead!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 12/One Pace - S12E05 - Straight Ahead!!.nfo"
+  },
+  {
+    "season": 13,
+    "number": 1,
+    "title": "Tin Plate Wapol",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E01 - Tin Plate Wapol.nfo"
+  },
+  {
+    "season": 13,
+    "number": 2,
+    "title": "Adventure in a Nameless Country",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E02 - Adventure in a Nameless Country.nfo"
+  },
+  {
+    "season": 13,
+    "number": 3,
+    "title": "The Summit",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E03 - The Summit.nfo"
+  },
+  {
+    "season": 13,
+    "number": 4,
+    "title": "Enter - Tony Tony Chopper",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E04 - Enter - Tony Tony Chopper.nfo"
+  },
+  {
+    "season": 13,
+    "number": 5,
+    "title": "Quack Doctor",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E05 - Quack Doctor.nfo"
+  },
+  {
+    "season": 13,
+    "number": 6,
+    "title": "Unbreakable",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E06 - Unbreakable.nfo"
+  },
+  {
+    "season": 13,
+    "number": 7,
+    "title": "The Skies of Drum",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E07 - The Skies of Drum.nfo"
+  },
+  {
+    "season": 13,
+    "number": 8,
+    "title": "Hiriluk's Cherry Blossoms",
+    "extended": "",
+    "nfo_path": "One Pace/Season 13/One Pace - S13E08 - Hiriluk's Cherry Blossoms.nfo"
+  },
+  {
+    "season": 14,
+    "number": 1,
+    "title": "Sir Crocodile, the Pirate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E01 - Sir Crocodile, the Pirate.nfo"
+  },
+  {
+    "season": 14,
+    "number": 2,
+    "title": "Landfall in Alabasta",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E02 - Landfall in Alabasta.nfo"
+  },
+  {
+    "season": 14,
+    "number": 3,
+    "title": "Adventure in the Kingdom of Sand",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E03 - Adventure in the Kingdom of Sand.nfo"
+  },
+  {
+    "season": 14,
+    "number": 4,
+    "title": "Yuba, the Town of Rebels",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E04 - Yuba, the Town of Rebels.nfo"
+  },
+  {
+    "season": 14,
+    "number": 5,
+    "title": "I Love My Country",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E05 - I Love My Country.nfo"
+  },
+  {
+    "season": 14,
+    "number": 6,
+    "title": "Rainbase, the City of Dreams",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E06 - Rainbase, the City of Dreams.nfo"
+  },
+  {
+    "season": 14,
+    "number": 7,
+    "title": "It Begins",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E07 - It Begins.nfo"
+  },
+  {
+    "season": 14,
+    "number": 8,
+    "title": "Rebellion",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E08 - Rebellion.nfo"
+  },
+  {
+    "season": 14,
+    "number": 9,
+    "title": "Rush!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E09 - Rush!!.nfo"
+  },
+  {
+    "season": 14,
+    "number": 10,
+    "title": "Showdown at Alubarna",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E10 - Showdown at Alubarna.nfo"
+  },
+  {
+    "season": 14,
+    "number": 11,
+    "title": "Molehill Zone Four",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E11 - Molehill Zone Four.nfo"
+  },
+  {
+    "season": 14,
+    "number": 12,
+    "title": "Okama Kenpo",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E12 - Okama Kenpo.nfo"
+  },
+  {
+    "season": 14,
+    "number": 13,
+    "title": "She Who Controls the Weather",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E13 - She Who Controls the Weather.nfo"
+  },
+  {
+    "season": 14,
+    "number": 14,
+    "title": "Cutting Steel",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E14 - Cutting Steel.nfo"
+  },
+  {
+    "season": 14,
+    "number": 15,
+    "title": "The Leaders",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E15 - The Leaders.nfo"
+  },
+  {
+    "season": 14,
+    "number": 16,
+    "title": "HOPE!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E16 - HOPE!!.nfo"
+  },
+  {
+    "season": 14,
+    "number": 17,
+    "title": "Croc-ish",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E17 - Croc-ish.nfo"
+  },
+  {
+    "season": 14,
+    "number": 18,
+    "title": "I Will Defeat You",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E18 - I Will Defeat You.nfo"
+  },
+  {
+    "season": 14,
+    "number": 19,
+    "title": "Some Justice",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E19 - Some Justice.nfo"
+  },
+  {
+    "season": 14,
+    "number": 20,
+    "title": "Vivi's Adventure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E20 - Vivi's Adventure.nfo"
+  },
+  {
+    "season": 14,
+    "number": 21,
+    "title": "Stowaway",
+    "extended": "",
+    "nfo_path": "One Pace/Season 14/One Pace - S14E21 - Stowaway.nfo"
+  },
+  {
+    "season": 15,
+    "number": 1,
+    "title": "Why the Log Pose Is Spherical",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E01 - Why the Log Pose Is Spherical.nfo"
+  },
+  {
+    "season": 15,
+    "number": 2,
+    "title": "Never Dream",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E02 - Never Dream.nfo"
+  },
+  {
+    "season": 15,
+    "number": 3,
+    "title": "People's Dreams",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E03 - People's Dreams.nfo"
+  },
+  {
+    "season": 15,
+    "number": 4,
+    "title": "Noland the Liar",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E04 - Noland the Liar.nfo"
+  },
+  {
+    "season": 15,
+    "number": 5,
+    "title": "Let's Eat",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E05 - Let's Eat.nfo"
+  },
+  {
+    "season": 15,
+    "number": 6,
+    "title": "The Hundred Million Man",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E06 - The Hundred Million Man.nfo"
+  },
+  {
+    "season": 15,
+    "number": 7,
+    "title": "The Highest Authority in the World",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E07 - The Highest Authority in the World.nfo"
+  },
+  {
+    "season": 15,
+    "number": 8,
+    "title": "The Knock-Up Stream",
+    "extended": "",
+    "nfo_path": "One Pace/Season 15/One Pace - S15E08 - The Knock-Up Stream.nfo"
+  },
+  {
+    "season": 16,
+    "number": 1,
+    "title": "Heaven's Gate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E01 - Heaven's Gate.nfo"
+  },
+  {
+    "season": 16,
+    "number": 2,
+    "title": "Angel Beach",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E02 - Angel Beach.nfo"
+  },
+  {
+    "season": 16,
+    "number": 3,
+    "title": "Divine Reckoning",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E03 - Divine Reckoning.nfo"
+  },
+  {
+    "season": 16,
+    "number": 4,
+    "title": "Ordeal",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E04 - Ordeal.nfo"
+  },
+  {
+    "season": 16,
+    "number": 5,
+    "title": "Adventure on God's Island",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E05 - Adventure on God's Island.nfo"
+  },
+  {
+    "season": 16,
+    "number": 6,
+    "title": "The Village Hidden in the Clouds",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E06 - The Village Hidden in the Clouds.nfo"
+  },
+  {
+    "season": 16,
+    "number": 7,
+    "title": "Overture",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E07 - Overture.nfo"
+  },
+  {
+    "season": 16,
+    "number": 8,
+    "title": "Vearth",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E08 - Vearth.nfo"
+  },
+  {
+    "season": 16,
+    "number": 9,
+    "title": "Dial Battle",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E09 - Dial Battle.nfo"
+  },
+  {
+    "season": 16,
+    "number": 10,
+    "title": "Pirate Luffy vs. Berserker Wyper",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E10 - Pirate Luffy vs. Berserker Wyper.nfo"
+  },
+  {
+    "season": 16,
+    "number": 11,
+    "title": "Pirate Chopper vs. Priest Gedatsu",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E11 - Pirate Chopper vs. Priest Gedatsu.nfo"
+  },
+  {
+    "season": 16,
+    "number": 12,
+    "title": "Pirate Robin vs. Commander Yama",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E12 - Pirate Robin vs. Commander Yama.nfo"
+  },
+  {
+    "season": 16,
+    "number": 13,
+    "title": "Concerto",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E13 - Concerto.nfo"
+  },
+  {
+    "season": 16,
+    "number": 14,
+    "title": "Pirate Zoro vs. Priest Ohm",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E14 - Pirate Zoro vs. Priest Ohm.nfo"
+  },
+  {
+    "season": 16,
+    "number": 15,
+    "title": "Quintet",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E15 - Quintet.nfo"
+  },
+  {
+    "season": 16,
+    "number": 16,
+    "title": "Conis",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E16 - Conis.nfo"
+  },
+  {
+    "season": 16,
+    "number": 17,
+    "title": "Deathpiea",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E17 - Deathpiea.nfo"
+  },
+  {
+    "season": 16,
+    "number": 18,
+    "title": "On the Front Line of Love's Salvation",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E18 - On the Front Line of Love's Salvation.nfo"
+  },
+  {
+    "season": 16,
+    "number": 19,
+    "title": "Godkiller",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E19 - Godkiller.nfo"
+  },
+  {
+    "season": 16,
+    "number": 20,
+    "title": "The Light of Shandora",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E20 - The Light of Shandora.nfo"
+  },
+  {
+    "season": 16,
+    "number": 21,
+    "title": "Raigo",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E21 - Raigo.nfo"
+  },
+  {
+    "season": 16,
+    "number": 22,
+    "title": "Love Song",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E22 - Love Song.nfo"
+  },
+  {
+    "season": 16,
+    "number": 23,
+    "title": "Fantasia",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E23 - Fantasia.nfo"
+  },
+  {
+    "season": 16,
+    "number": 24,
+    "title": "I Made It Here",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E24 - I Made It Here.nfo"
+  },
+  {
+    "season": 16,
+    "number": 25,
+    "title": "Finale",
+    "extended": "",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E25 - Finale.nfo"
+  },
+  {
+    "season": 16,
+    "number": 25,
+    "title": "Finale",
+    "extended": "Alternate (G-8)",
+    "nfo_path": "One Pace/Season 16/One Pace - S16E25 - Finale (Alternate (G-8)).nfo"
+  },
+  {
+    "season": 17,
+    "number": 1,
+    "title": "Adventure on a Long Island",
+    "extended": "",
+    "nfo_path": "One Pace/Season 17/One Pace - S17E01 - Adventure on a Long Island.nfo"
+  },
+  {
+    "season": 17,
+    "number": 2,
+    "title": "Donut Race!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 17/One Pace - S17E02 - Donut Race!!.nfo"
+  },
+  {
+    "season": 17,
+    "number": 3,
+    "title": "Groggy Ring!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 17/One Pace - S17E03 - Groggy Ring!!.nfo"
+  },
+  {
+    "season": 17,
+    "number": 4,
+    "title": "Combat",
+    "extended": "",
+    "nfo_path": "One Pace/Season 17/One Pace - S17E04 - Combat.nfo"
+  },
+  {
+    "season": 17,
+    "number": 5,
+    "title": "K.O",
+    "extended": "",
+    "nfo_path": "One Pace/Season 17/One Pace - S17E05 - K.O.nfo"
+  },
+  {
+    "season": 17,
+    "number": 6,
+    "title": "Marine HQ Admiral Aokiji",
+    "extended": "",
+    "nfo_path": "One Pace/Season 17/One Pace - S17E06 - Marine HQ Admiral Aokiji.nfo"
+  },
+  {
+    "season": 18,
+    "number": 1,
+    "title": "The City of Water, Water Seven",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E01 - The City of Water, Water Seven.nfo"
+  },
+  {
+    "season": 18,
+    "number": 2,
+    "title": "Mr. Iceburg",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E02 - Mr. Iceburg.nfo"
+  },
+  {
+    "season": 18,
+    "number": 3,
+    "title": "The Case of the Kidnapped Pirate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E03 - The Case of the Kidnapped Pirate.nfo"
+  },
+  {
+    "season": 18,
+    "number": 4,
+    "title": "Impasse",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E04 - Impasse.nfo"
+  },
+  {
+    "season": 18,
+    "number": 5,
+    "title": "Luffy vs. Usopp",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E05 - Luffy vs. Usopp.nfo"
+  },
+  {
+    "season": 18,
+    "number": 6,
+    "title": "Warning",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E06 - Warning.nfo"
+  },
+  {
+    "season": 18,
+    "number": 7,
+    "title": "Rumors",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E07 - Rumors.nfo"
+  },
+  {
+    "season": 18,
+    "number": 8,
+    "title": "Devil",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E08 - Devil.nfo"
+  },
+  {
+    "season": 18,
+    "number": 9,
+    "title": "Cipher Pol No. 9",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E09 - Cipher Pol No. 9.nfo"
+  },
+  {
+    "season": 18,
+    "number": 10,
+    "title": "Six Powers",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E10 - Six Powers.nfo"
+  },
+  {
+    "season": 18,
+    "number": 11,
+    "title": "Klabautermann",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E11 - Klabautermann.nfo"
+  },
+  {
+    "season": 18,
+    "number": 12,
+    "title": "The Legendary Shipwright",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E12 - The Legendary Shipwright.nfo"
+  },
+  {
+    "season": 18,
+    "number": 13,
+    "title": "Mr. Tom",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E13 - Mr. Tom.nfo"
+  },
+  {
+    "season": 18,
+    "number": 14,
+    "title": "Bingo",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E14 - Bingo.nfo"
+  },
+  {
+    "season": 18,
+    "number": 15,
+    "title": "Departing Shortly",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E15 - Departing Shortly.nfo"
+  },
+  {
+    "season": 18,
+    "number": 16,
+    "title": "Aqua Laguna",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E16 - Aqua Laguna.nfo"
+  },
+  {
+    "season": 18,
+    "number": 17,
+    "title": "Sogeking",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E17 - Sogeking.nfo"
+  },
+  {
+    "season": 18,
+    "number": 18,
+    "title": "Ramen Kenpo",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E18 - Ramen Kenpo.nfo"
+  },
+  {
+    "season": 18,
+    "number": 19,
+    "title": "The Honorable Captain T-Bone",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E19 - The Honorable Captain T-Bone.nfo"
+  },
+  {
+    "season": 18,
+    "number": 20,
+    "title": "Necessary Evil",
+    "extended": "",
+    "nfo_path": "One Pace/Season 18/One Pace - S18E20 - Necessary Evil.nfo"
+  },
+  {
+    "season": 19,
+    "number": 1,
+    "title": "The Superhumans of Enies Lobby",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E01 - The Superhumans of Enies Lobby.nfo"
+  },
+  {
+    "season": 19,
+    "number": 2,
+    "title": "The Big Showdown on the Judiciary Island!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E02 - The Big Showdown on the Judiciary Island!!.nfo"
+  },
+  {
+    "season": 19,
+    "number": 3,
+    "title": "Express to the Main Island of Enies Lobby",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E03 - Express to the Main Island of Enies Lobby.nfo"
+  },
+  {
+    "season": 19,
+    "number": 4,
+    "title": "Fired",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E04 - Fired.nfo"
+  },
+  {
+    "season": 19,
+    "number": 5,
+    "title": "Raise the Counterattack Signal",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E05 - Raise the Counterattack Signal.nfo"
+  },
+  {
+    "season": 19,
+    "number": 6,
+    "title": "Unprecedented",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E06 - Unprecedented.nfo"
+  },
+  {
+    "season": 19,
+    "number": 7,
+    "title": "Gear Second",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E07 - Gear Second.nfo"
+  },
+  {
+    "season": 19,
+    "number": 8,
+    "title": "The Girl They Called a Devil",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E08 - The Girl They Called a Devil.nfo"
+  },
+  {
+    "season": 19,
+    "number": 9,
+    "title": "Ohara vs. The World Government",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E09 - Ohara vs. The World Government.nfo"
+  },
+  {
+    "season": 19,
+    "number": 10,
+    "title": "Declaration of War",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E10 - Declaration of War.nfo"
+  },
+  {
+    "season": 19,
+    "number": 11,
+    "title": "Jump into the Waterfall!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E11 - Jump into the Waterfall!!.nfo"
+  },
+  {
+    "season": 19,
+    "number": 12,
+    "title": "Pirates vs. CP9",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E12 - Pirates vs. CP9.nfo"
+  },
+  {
+    "season": 19,
+    "number": 13,
+    "title": "Mr. Chivalry",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E13 - Mr. Chivalry.nfo"
+  },
+  {
+    "season": 19,
+    "number": 14,
+    "title": "Vitality Response",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E14 - Vitality Response.nfo"
+  },
+  {
+    "season": 19,
+    "number": 15,
+    "title": "Monster",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E15 - Monster.nfo"
+  },
+  {
+    "season": 19,
+    "number": 16,
+    "title": "The Terrifying Emergency Broadcast",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E16 - The Terrifying Emergency Broadcast.nfo"
+  },
+  {
+    "season": 19,
+    "number": 17,
+    "title": "The Hunter",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E17 - The Hunter.nfo"
+  },
+  {
+    "season": 19,
+    "number": 18,
+    "title": "Sanji vs. Jabra",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E18 - Sanji vs. Jabra.nfo"
+  },
+  {
+    "season": 19,
+    "number": 19,
+    "title": "Zoro vs. Kaku",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E19 - Zoro vs. Kaku.nfo"
+  },
+  {
+    "season": 19,
+    "number": 20,
+    "title": "Buster Call",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E20 - Buster Call.nfo"
+  },
+  {
+    "season": 19,
+    "number": 21,
+    "title": "Rob Lucci",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E21 - Rob Lucci.nfo"
+  },
+  {
+    "season": 19,
+    "number": 22,
+    "title": "The Legend of the Mermaid",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E22 - The Legend of the Mermaid.nfo"
+  },
+  {
+    "season": 19,
+    "number": 23,
+    "title": "We're Not in Hell",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E23 - We're Not in Hell.nfo"
+  },
+  {
+    "season": 19,
+    "number": 24,
+    "title": "Utter Defeat",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E24 - Utter Defeat.nfo"
+  },
+  {
+    "season": 19,
+    "number": 25,
+    "title": "A Gentle Snowfall of Remembrance",
+    "extended": "",
+    "nfo_path": "One Pace/Season 19/One Pace - S19E25 - A Gentle Snowfall of Remembrance.nfo"
+  },
+  {
+    "season": 20,
+    "number": 1,
+    "title": "The Strongest Family Lineage! The Vice-Admiral and The Revolutionary!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 20/One Pace - S20E01 - The Strongest Family Lineage! The Vice-Admiral and The Revolutionary!.nfo"
+  },
+  {
+    "season": 20,
+    "number": 2,
+    "title": "The Extent of the Grand Line and The 600,000,000 Crew!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 20/One Pace - S20E02 - The Extent of the Grand Line and The 600,000,000 Crew!.nfo"
+  },
+  {
+    "season": 20,
+    "number": 3,
+    "title": "Forgive Yourself! Franky Departs!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 20/One Pace - S20E03 - Forgive Yourself! Franky Departs!.nfo"
+  },
+  {
+    "season": 20,
+    "number": 4,
+    "title": "The Astonishing Thousand Sunny and Usopp's Tearful Apology!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 20/One Pace - S20E04 - The Astonishing Thousand Sunny and Usopp's Tearful Apology!.nfo"
+  },
+  {
+    "season": 20,
+    "number": 5,
+    "title": "The Circling Bounties and The Duel on Banaro Island!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 20/One Pace - S20E05 - The Circling Bounties and The Duel on Banaro Island!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 1,
+    "title": "The Mysterious Sea and The Skeleton Brook!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E01 - The Mysterious Sea and The Skeleton Brook!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 2,
+    "title": "Adventure on the Ghost Island and the Famous Doctor Hogback!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E02 - Adventure on the Ghost Island and the Famous Doctor Hogback!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 3,
+    "title": "The Invisible Man and the Secret of the Mansion!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E03 - The Invisible Man and the Secret of the Mansion!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 4,
+    "title": "General Zombie Night! Thriller Bark's Mysterious Four",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E04 - General Zombie Night! Thriller Bark's Mysterious Four.nfo"
+  },
+  {
+    "season": 21,
+    "number": 5,
+    "title": "Perona's Wonder Garden and the Charge of the General Zombies!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E05 - Perona's Wonder Garden and the Charge of the General Zombies!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 6,
+    "title": "Number 900! Lola's Pursuit and the Humming Swordsman",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E06 - Number 900! Lola's Pursuit and the Humming Swordsman.nfo"
+  },
+  {
+    "season": 21,
+    "number": 7,
+    "title": "The Fearsome Ability of the Shadow Fruit! The Ultimate Number 900!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E07 - The Fearsome Ability of the Shadow Fruit! The Ultimate Number 900!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 8,
+    "title": "Oars' Awakening and Brook vs. Ryuma!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E08 - Oars' Awakening and Brook vs. Ryuma!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 9,
+    "title": "The Hope and Despair of the Skeleton and the Straw Hats' Counterattack!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E09 - The Hope and Despair of the Skeleton and the Straw Hats' Counterattack!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 10,
+    "title": "Already Negative! Usopp's Courageous Stand!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E10 - Already Negative! Usopp's Courageous Stand!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 11,
+    "title": "A Stolen Dream! Sanji vs. Absalom",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E11 - A Stolen Dream! Sanji vs. Absalom.nfo"
+  },
+  {
+    "season": 21,
+    "number": 12,
+    "title": "Perona's Terror! Usopp vs. the Ghost Princess!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E12 - Perona's Terror! Usopp vs. the Ghost Princess!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 13,
+    "title": "Zoro vs. Ryuuma and Chopper's Rage!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E13 - Zoro vs. Ryuuma and Chopper's Rage!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 14,
+    "title": "Show Yourselves, Straw Hat Pirates! The Crew's Hopeless Counterattack!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E14 - Show Yourselves, Straw Hat Pirates! The Crew's Hopeless Counterattack!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 15,
+    "title": "Clash! The Titanic Battle Against Zombie 900!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E15 - Clash! The Titanic Battle Against Zombie 900!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 16,
+    "title": "The Mysterious Visitor! The Two Warlords Meet!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E16 - The Mysterious Visitor! The Two Warlords Meet!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 17,
+    "title": "Combination of Brains and Brawn! Oars and Moriah vs. the Straw Hats!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E17 - Combination of Brains and Brawn! Oars and Moriah vs. the Straw Hats!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 18,
+    "title": "The Crew's Annihilation! Oars vs. Nightmare Luffy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E18 - The Crew's Annihilation! Oars vs. Nightmare Luffy.nfo"
+  },
+  {
+    "season": 21,
+    "number": 19,
+    "title": "Morning Comes! The Straw Hats' Ultimate Attack!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E19 - Morning Comes! The Straw Hats' Ultimate Attack!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 20,
+    "title": "The Power That Can Deflect Anything! Zoro Fights Prepared to Die!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E20 - The Power That Can Deflect Anything! Zoro Fights Prepared to Die!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 21,
+    "title": "Brook's Past! The Rumbar Pirates and Laboon!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E21 - Brook's Past! The Rumbar Pirates and Laboon!.nfo"
+  },
+  {
+    "season": 21,
+    "number": 22,
+    "title": "Brook's Promise! The Eighth Member",
+    "extended": "",
+    "nfo_path": "One Pace/Season 21/One Pace - S21E22 - Brook's Promise! The Eighth Member.nfo"
+  },
+  {
+    "season": 22,
+    "number": 1,
+    "title": "Flying Fish Riders",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E01 - Flying Fish Riders.nfo"
+  },
+  {
+    "season": 22,
+    "number": 2,
+    "title": "Iron Mask Duval",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E02 - Iron Mask Duval.nfo"
+  },
+  {
+    "season": 22,
+    "number": 3,
+    "title": "Duval's Tragedy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E03 - Duval's Tragedy.nfo"
+  },
+  {
+    "season": 22,
+    "number": 4,
+    "title": "Adventure on the Archipelago of Dancing Soap Bubbles",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E04 - Adventure on the Archipelago of Dancing Soap Bubbles.nfo"
+  },
+  {
+    "season": 22,
+    "number": 5,
+    "title": "The Embers of History",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E05 - The Embers of History.nfo"
+  },
+  {
+    "season": 22,
+    "number": 6,
+    "title": "The Auction House Incident",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E06 - The Auction House Incident.nfo"
+  },
+  {
+    "season": 22,
+    "number": 7,
+    "title": "An Island in Chaos",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E07 - An Island in Chaos.nfo"
+  },
+  {
+    "season": 22,
+    "number": 8,
+    "title": "Roger and Rayleigh",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E08 - Roger and Rayleigh.nfo"
+  },
+  {
+    "season": 22,
+    "number": 9,
+    "title": "Kizaru Arrives",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E09 - Kizaru Arrives.nfo"
+  },
+  {
+    "season": 22,
+    "number": 10,
+    "title": "Kizaru vs. the Four Captains",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E10 - Kizaru vs. the Four Captains.nfo"
+  },
+  {
+    "season": 22,
+    "number": 11,
+    "title": "I Couldn't Save Them!!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 22/One Pace - S22E11 - I Couldn't Save Them!!!.nfo"
+  },
+  {
+    "season": 23,
+    "number": 1,
+    "title": "Adventure on the Island of Women",
+    "extended": "",
+    "nfo_path": "One Pace/Season 23/One Pace - S23E01 - Adventure on the Island of Women.nfo"
+  },
+  {
+    "season": 23,
+    "number": 2,
+    "title": "Pirate Empress Boa Hancock",
+    "extended": "",
+    "nfo_path": "One Pace/Season 23/One Pace - S23E02 - Pirate Empress Boa Hancock.nfo"
+  },
+  {
+    "season": 23,
+    "number": 3,
+    "title": "The Arena",
+    "extended": "",
+    "nfo_path": "One Pace/Season 23/One Pace - S23E03 - The Arena.nfo"
+  },
+  {
+    "season": 23,
+    "number": 4,
+    "title": "Hancock's Confession",
+    "extended": "",
+    "nfo_path": "One Pace/Season 23/One Pace - S23E04 - Hancock's Confession.nfo"
+  },
+  {
+    "season": 23,
+    "number": 5,
+    "title": "No One Can Stop This Now",
+    "extended": "",
+    "nfo_path": "One Pace/Season 23/One Pace - S23E05 - No One Can Stop This Now.nfo"
+  },
+  {
+    "season": 24,
+    "number": 1,
+    "title": "The Underwater Prison, Impel Down",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E01 - The Underwater Prison, Impel Down.nfo"
+  },
+  {
+    "season": 24,
+    "number": 2,
+    "title": "First Son of the Sea",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E02 - First Son of the Sea.nfo"
+  },
+  {
+    "season": 24,
+    "number": 3,
+    "title": "From One Hell to Another",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E03 - From One Hell to Another.nfo"
+  },
+  {
+    "season": 24,
+    "number": 4,
+    "title": "Inferno Hell",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E04 - Inferno Hell.nfo"
+  },
+  {
+    "season": 24,
+    "number": 5,
+    "title": "Friend",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E05 - Friend.nfo"
+  },
+  {
+    "season": 24,
+    "number": 6,
+    "title": "A Ray of Hope",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E06 - A Ray of Hope.nfo"
+  },
+  {
+    "season": 24,
+    "number": 7,
+    "title": "Infinite Hell",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E07 - Infinite Hell.nfo"
+  },
+  {
+    "season": 24,
+    "number": 8,
+    "title": "Yet Another Epic Incident",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E08 - Yet Another Epic Incident.nfo"
+  },
+  {
+    "season": 24,
+    "number": 9,
+    "title": "To Sunshine and Freedom",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E09 - To Sunshine and Freedom.nfo"
+  },
+  {
+    "season": 24,
+    "number": 10,
+    "title": "Thank You",
+    "extended": "",
+    "nfo_path": "One Pace/Season 24/One Pace - S24E10 - Thank You.nfo"
+  },
+  {
+    "season": 25,
+    "number": 1,
+    "title": "If You Could Go Anywhere... The Adventures of the Straw Hats",
+    "extended": "",
+    "nfo_path": "One Pace/Season 25/One Pace - S25E01 - If You Could Go Anywhere... The Adventures of the Straw Hats.nfo"
+  },
+  {
+    "season": 26,
+    "number": 1,
+    "title": "Marine Headquarters",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E01 - Marine Headquarters.nfo"
+  },
+  {
+    "season": 26,
+    "number": 2,
+    "title": "Ace and Whitebeard",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E02 - Ace and Whitebeard.nfo"
+  },
+  {
+    "season": 26,
+    "number": 3,
+    "title": "Conflict at the Summit",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E03 - Conflict at the Summit.nfo"
+  },
+  {
+    "season": 26,
+    "number": 4,
+    "title": "Justice Will Prevail!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E04 - Justice Will Prevail!!.nfo"
+  },
+  {
+    "season": 26,
+    "number": 5,
+    "title": "Luffy and Whitebeard",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E05 - Luffy and Whitebeard.nfo"
+  },
+  {
+    "season": 26,
+    "number": 6,
+    "title": "The Prisoners of Impel Down",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E06 - The Prisoners of Impel Down.nfo"
+  },
+  {
+    "season": 26,
+    "number": 7,
+    "title": "The Whirl Spider",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E07 - The Whirl Spider.nfo"
+  },
+  {
+    "season": 26,
+    "number": 8,
+    "title": "The Man Who Shook the World",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E08 - The Man Who Shook the World.nfo"
+  },
+  {
+    "season": 26,
+    "number": 9,
+    "title": "Assault",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E09 - Assault.nfo"
+  },
+  {
+    "season": 26,
+    "number": 10,
+    "title": "Oris Plaza",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E10 - Oris Plaza.nfo"
+  },
+  {
+    "season": 26,
+    "number": 11,
+    "title": "The White Monster",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E11 - The White Monster.nfo"
+  },
+  {
+    "season": 26,
+    "number": 12,
+    "title": "The Execution Platform",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E12 - The Execution Platform.nfo"
+  },
+  {
+    "season": 26,
+    "number": 13,
+    "title": "The Times They Are A-Changin'",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E13 - The Times They Are A-Changin'.nfo"
+  },
+  {
+    "season": 26,
+    "number": 14,
+    "title": "Thank You for Loving Me",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E14 - Thank You for Loving Me.nfo"
+  },
+  {
+    "season": 26,
+    "number": 15,
+    "title": "Edward Newgate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E15 - Edward Newgate.nfo"
+  },
+  {
+    "season": 26,
+    "number": 16,
+    "title": "A Gift to a New Era",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E16 - A Gift to a New Era.nfo"
+  },
+  {
+    "season": 26,
+    "number": 17,
+    "title": "The War's Conclusion",
+    "extended": "",
+    "nfo_path": "One Pace/Season 26/One Pace - S26E17 - The War's Conclusion.nfo"
+  },
+  {
+    "season": 27,
+    "number": 1,
+    "title": "Creeping Future",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E01 - Creeping Future.nfo"
+  },
+  {
+    "season": 27,
+    "number": 2,
+    "title": "Gray Terminal",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E02 - Gray Terminal.nfo"
+  },
+  {
+    "season": 27,
+    "number": 3,
+    "title": "Oath of Brotherhood",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E03 - Oath of Brotherhood.nfo"
+  },
+  {
+    "season": 27,
+    "number": 4,
+    "title": "Sabo's Sea",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E04 - Sabo's Sea.nfo"
+  },
+  {
+    "season": 27,
+    "number": 5,
+    "title": "Will of the Winds",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E05 - Will of the Winds.nfo"
+  },
+  {
+    "season": 27,
+    "number": 6,
+    "title": "Cheer",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E06 - Cheer.nfo"
+  },
+  {
+    "season": 27,
+    "number": 7,
+    "title": "NEWS",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E07 - NEWS.nfo"
+  },
+  {
+    "season": 27,
+    "number": 8,
+    "title": "3D2Y",
+    "extended": "",
+    "nfo_path": "One Pace/Season 27/One Pace - S27E08 - 3D2Y.nfo"
+  },
+  {
+    "season": 28,
+    "number": 1,
+    "title": "Two Years Later",
+    "extended": "",
+    "nfo_path": "One Pace/Season 28/One Pace - S28E01 - Two Years Later.nfo"
+  },
+  {
+    "season": 28,
+    "number": 2,
+    "title": "Island of New Beginnings",
+    "extended": "",
+    "nfo_path": "One Pace/Season 28/One Pace - S28E02 - Island of New Beginnings.nfo"
+  },
+  {
+    "season": 28,
+    "number": 3,
+    "title": "Dive, Dive, Dive!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 28/One Pace - S28E03 - Dive, Dive, Dive!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 1,
+    "title": "Into the Depths! The Kraken and the Caribou Pirates",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E01 - Into the Depths! The Kraken and the Caribou Pirates.nfo"
+  },
+  {
+    "season": 29,
+    "number": 2,
+    "title": "Adventure in the Ocean Depths! 10 Kilometers Below the Surface!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E02 - Adventure in the Ocean Depths! 10 Kilometers Below the Surface!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 3,
+    "title": "Landing on Fishman Island! The Mermaid Cove and Gyoverly Hills!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E03 - Landing on Fishman Island! The Mermaid Cove and Gyoverly Hills!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 4,
+    "title": "Arrival at Coral Hill! The Nosebleed and the Devastating Prediction!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E04 - Arrival at Coral Hill! The Nosebleed and the Devastating Prediction!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 5,
+    "title": "The King of Fishman Island Invited to Ryugu Palace!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E05 - The King of Fishman Island Invited to Ryugu Palace!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 6,
+    "title": "The Mermaid Princess in Hard-Shell Tower! Shirahoshi of the Neptune Family!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E06 - The Mermaid Princess in Hard-Shell Tower! Shirahoshi of the Neptune Family!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 7,
+    "title": "The Shirahoshi Kidnapping Incident and the Curse of the Mato Mato!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E07 - The Shirahoshi Kidnapping Incident and the Curse of the Mato Mato!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 8,
+    "title": "The Beginning of the Vengeful Plan! Zoro vs. Hody!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E08 - The Beginning of the Vengeful Plan! Zoro vs. Hody!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 9,
+    "title": "At the Sea Forest! Arlong and Hody",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E09 - At the Sea Forest! Arlong and Hody.nfo"
+  },
+  {
+    "season": 29,
+    "number": 10,
+    "title": "Otohime, Fisher Tiger, and the Sun Pirates! The Fateful Encounter!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E10 - Otohime, Fisher Tiger, and the Sun Pirates! The Fateful Encounter!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 11,
+    "title": "The Shocking Truth of Tiger! The End of the Sun Pirates",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E11 - The Shocking Truth of Tiger! The End of the Sun Pirates.nfo"
+  },
+  {
+    "season": 29,
+    "number": 12,
+    "title": "The Shipwrecked Celestial Dragon! A Bullet That Seals the Future",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E12 - The Shipwrecked Celestial Dragon! A Bullet That Seals the Future.nfo"
+  },
+  {
+    "season": 29,
+    "number": 13,
+    "title": "Shaking of the Kingdom! Luffy vs. Jinbe!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E13 - Shaking of the Kingdom! Luffy vs. Jinbe!.nfo"
+  },
+  {
+    "season": 29,
+    "number": 14,
+    "title": "Gyoncorde Plaza Gathering! The Evil Drug's True Power",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E14 - Gyoncorde Plaza Gathering! The Evil Drug's True Power.nfo"
+  },
+  {
+    "season": 29,
+    "number": 15,
+    "title": "Hody's Dark Secret! The Straw Hats' Arrival",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E15 - Hody's Dark Secret! The Straw Hats' Arrival.nfo"
+  },
+  {
+    "season": 29,
+    "number": 16,
+    "title": "100,000 vs. 10! The Straw Hats' Explosive Moves",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E16 - 100,000 vs. 10! The Straw Hats' Explosive Moves.nfo"
+  },
+  {
+    "season": 29,
+    "number": 17,
+    "title": "The General from the Future Land and the Crisis of Fishman Island's Destruction",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E17 - The General from the Future Land and the Crisis of Fishman Island's Destruction.nfo"
+  },
+  {
+    "season": 29,
+    "number": 18,
+    "title": "I'll Protect Everything",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E18 - I'll Protect Everything.nfo"
+  },
+  {
+    "season": 29,
+    "number": 19,
+    "title": "What Are You",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E19 - What Are You.nfo"
+  },
+  {
+    "season": 29,
+    "number": 20,
+    "title": "Phantom",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E20 - Phantom.nfo"
+  },
+  {
+    "season": 29,
+    "number": 21,
+    "title": "Death Is Also Revenge",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E21 - Death Is Also Revenge.nfo"
+  },
+  {
+    "season": 29,
+    "number": 22,
+    "title": "The Path Toward the Sun",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E22 - The Path Toward the Sun.nfo"
+  },
+  {
+    "season": 29,
+    "number": 23,
+    "title": "The Voice from the New World",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E23 - The Voice from the New World.nfo"
+  },
+  {
+    "season": 29,
+    "number": 24,
+    "title": "The Hero's Hat",
+    "extended": "",
+    "nfo_path": "One Pace/Season 29/One Pace - S29E24 - The Hero's Hat.nfo"
+  },
+  {
+    "season": 30,
+    "number": 1,
+    "title": "Punk Hazard",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E01 - Punk Hazard.nfo"
+  },
+  {
+    "season": 30,
+    "number": 2,
+    "title": "Adventure on the Burning Island",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E02 - Adventure on the Burning Island.nfo"
+  },
+  {
+    "season": 30,
+    "number": 3,
+    "title": "About My Torso",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E03 - About My Torso.nfo"
+  },
+  {
+    "season": 30,
+    "number": 4,
+    "title": "The Lake of Bandits",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E04 - The Lake of Bandits.nfo"
+  },
+  {
+    "season": 30,
+    "number": 5,
+    "title": "CC",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E05 - CC.nfo"
+  },
+  {
+    "season": 30,
+    "number": 6,
+    "title": "Yeti Cool Brothers",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E06 - Yeti Cool Brothers.nfo"
+  },
+  {
+    "season": 30,
+    "number": 7,
+    "title": "Pirate Alliance",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E07 - Pirate Alliance.nfo"
+  },
+  {
+    "season": 30,
+    "number": 8,
+    "title": "Blizzard with a Chance of Slime",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E08 - Blizzard with a Chance of Slime.nfo"
+  },
+  {
+    "season": 30,
+    "number": 9,
+    "title": "My Name Is Kin'emon!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E09 - My Name Is Kin'emon!!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 10,
+    "title": "Vergo and Joker! The Beginning of Caesar's Masterplan!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E10 - Vergo and Joker! The Beginning of Caesar's Masterplan!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 11,
+    "title": "The Experiment Begins! Shinokuni Unleashed!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E11 - The Experiment Begins! Shinokuni Unleashed!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 12,
+    "title": "The Counterattack Begins!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E12 - The Counterattack Begins!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 13,
+    "title": "G-5's Sacrifice and the Betrayal of the Vice Admiral!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E13 - G-5's Sacrifice and the Betrayal of the Vice Admiral!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 14,
+    "title": "The Mastermind in the Shadows and the Battle Between Gas and Rubber!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E14 - The Mastermind in the Shadows and the Battle Between Gas and Rubber!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 15,
+    "title": "Vice Admiral vs. Vice Admiral and the Truth Behind Punk Hazard's Destruction!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E15 - Vice Admiral vs. Vice Admiral and the Truth Behind Punk Hazard's Destruction!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 16,
+    "title": "The Dragon Named Momonosuke and the Menacing Snow Fruit User!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E16 - The Dragon Named Momonosuke and the Menacing Snow Fruit User!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 17,
+    "title": "Zoro's Strongest One-Sword Style and Mocha's Plight!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E17 - Zoro's Strongest One-Sword Style and Mocha's Plight!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 18,
+    "title": "Luffy and Law's All-out Attack! The Takeover of the New Era!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E18 - Luffy and Law's All-out Attack! The Takeover of the New Era!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 19,
+    "title": "The Strongest Grizzly Magnum and the Assassins from Dressrosa!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E19 - The Strongest Grizzly Magnum and the Assassins from Dressrosa!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 20,
+    "title": "Die for Me! The Dangerous Man Makes His Move!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E20 - Die for Me! The Dangerous Man Makes His Move!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 21,
+    "title": "The Alliance's Target and the Departure!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E21 - The Alliance's Target and the Departure!.nfo"
+  },
+  {
+    "season": 30,
+    "number": 22,
+    "title": "The Arrival of the Mysterious Man and the News Coo!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 30/One Pace - S30E22 - The Arrival of the Mysterious Man and the News Coo!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 1,
+    "title": "Arriving at Dressrosa! The Country of Passion, Love, and Toys!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E01 - Arriving at Dressrosa! The Country of Passion, Love, and Toys!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 2,
+    "title": "Corrida Colosseum! The Great Tournament",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E02 - Corrida Colosseum! The Great Tournament.nfo"
+  },
+  {
+    "season": 31,
+    "number": 3,
+    "title": "The Colosseum of Many New Faces and Maynard the Pursuer!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E03 - The Colosseum of Many New Faces and Maynard the Pursuer!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 4,
+    "title": "Bellamy's Changed Motivations and B Block's Start!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E04 - Bellamy's Changed Motivations and B Block's Start!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 5,
+    "title": "B Block on Fire! Outlandish Competitors and King Punch!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E05 - B Block on Fire! Outlandish Competitors and King Punch!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 6,
+    "title": "To Green Bit! The Adventure in the Land of Dwarves!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E06 - To Green Bit! The Adventure in the Land of Dwarves!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 7,
+    "title": "Doflamingo Arrives! The Ultimate Schemer!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E07 - Doflamingo Arrives! The Ultimate Schemer!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 8,
+    "title": "Closely Contested Block C! Lucy and Ucy!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E08 - Closely Contested Block C! Lucy and Ucy!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 9,
+    "title": "C Block's Blazing Battle and the Forgotten of Dressrosa!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E09 - C Block's Blazing Battle and the Forgotten of Dressrosa!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 10,
+    "title": "The Tontatta Rebellion and the C Block Finale!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E10 - The Tontatta Rebellion and the C Block Finale!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 11,
+    "title": "A Sad Past! Rebecca and Soldier-san",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E11 - A Sad Past! Rebecca and Soldier-san.nfo"
+  },
+  {
+    "season": 31,
+    "number": 12,
+    "title": "D Block's Fiery Start and the Heavenly Demon's Revelation!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E12 - D Block's Fiery Start and the Heavenly Demon's Revelation!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 13,
+    "title": "Law's New Strategy and the Colosseum's Underground Nightmare!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E13 - Law's New Strategy and the Colosseum's Underground Nightmare!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 14,
+    "title": "The Plight of the Riku Clan! The Lurking Hero Awaits in the Shadows!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E14 - The Plight of the Riku Clan! The Lurking Hero Awaits in the Shadows!.nfo"
+  },
+  {
+    "season": 31,
+    "number": 15,
+    "title": "Doflamingo's Relentless Pursuit",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E15 - Doflamingo's Relentless Pursuit.nfo"
+  },
+  {
+    "season": 31,
+    "number": 16,
+    "title": "SOP Strategy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E16 - SOP Strategy.nfo"
+  },
+  {
+    "season": 31,
+    "number": 17,
+    "title": "The Underground World",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E17 - The Underground World.nfo"
+  },
+  {
+    "season": 31,
+    "number": 18,
+    "title": "Fujitora's Outlook",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E18 - Fujitora's Outlook.nfo"
+  },
+  {
+    "season": 31,
+    "number": 19,
+    "title": "Diamante and Pica",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E19 - Diamante and Pica.nfo"
+  },
+  {
+    "season": 31,
+    "number": 20,
+    "title": "Captain",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E20 - Captain.nfo"
+  },
+  {
+    "season": 31,
+    "number": 21,
+    "title": "Usoland the Liar",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E21 - Usoland the Liar.nfo"
+  },
+  {
+    "season": 31,
+    "number": 22,
+    "title": "Dressrosa in Turmoil",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E22 - Dressrosa in Turmoil.nfo"
+  },
+  {
+    "season": 31,
+    "number": 23,
+    "title": "Bird Cage",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E23 - Bird Cage.nfo"
+  },
+  {
+    "season": 31,
+    "number": 24,
+    "title": "Executive Officer Pica",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E24 - Executive Officer Pica.nfo"
+  },
+  {
+    "season": 31,
+    "number": 25,
+    "title": "Onward!! Army of Rogues",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E25 - Onward!! Army of Rogues.nfo"
+  },
+  {
+    "season": 31,
+    "number": 26,
+    "title": "The State of the War",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E26 - The State of the War.nfo"
+  },
+  {
+    "season": 31,
+    "number": 27,
+    "title": "Battle",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E27 - Battle.nfo"
+  },
+  {
+    "season": 31,
+    "number": 28,
+    "title": "A Man's World",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E28 - A Man's World.nfo"
+  },
+  {
+    "season": 31,
+    "number": 29,
+    "title": "Trump Card",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E29 - Trump Card.nfo"
+  },
+  {
+    "season": 31,
+    "number": 30,
+    "title": "Secret Plan",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E30 - Secret Plan.nfo"
+  },
+  {
+    "season": 31,
+    "number": 31,
+    "title": "The Operation Fruit",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E31 - The Operation Fruit.nfo"
+  },
+  {
+    "season": 31,
+    "number": 32,
+    "title": "White Town",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E32 - White Town.nfo"
+  },
+  {
+    "season": 31,
+    "number": 33,
+    "title": "The Island of Fate - Minion",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E33 - The Island of Fate - Minion.nfo"
+  },
+  {
+    "season": 31,
+    "number": 34,
+    "title": "Cora",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E34 - Cora.nfo"
+  },
+  {
+    "season": 31,
+    "number": 35,
+    "title": "Bellamy the Pirate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E35 - Bellamy the Pirate.nfo"
+  },
+  {
+    "season": 31,
+    "number": 36,
+    "title": "The Spear of Elbaph and Don Sai",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E36 - The Spear of Elbaph and Don Sai.nfo"
+  },
+  {
+    "season": 31,
+    "number": 37,
+    "title": "Cabbage and Lomeo",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E37 - Cabbage and Lomeo.nfo"
+  },
+  {
+    "season": 31,
+    "number": 38,
+    "title": "To Russian, with Love",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E38 - To Russian, with Love.nfo"
+  },
+  {
+    "season": 31,
+    "number": 39,
+    "title": "Zoro vs. Pica",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E39 - Zoro vs. Pica.nfo"
+  },
+  {
+    "season": 31,
+    "number": 40,
+    "title": "The Curse of Heart",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E40 - The Curse of Heart.nfo"
+  },
+  {
+    "season": 31,
+    "number": 41,
+    "title": "In My Way",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E41 - In My Way.nfo"
+  },
+  {
+    "season": 31,
+    "number": 42,
+    "title": "Gear Fourth",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E42 - Gear Fourth.nfo"
+  },
+  {
+    "season": 31,
+    "number": 43,
+    "title": "Gatz",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E43 - Gatz.nfo"
+  },
+  {
+    "season": 31,
+    "number": 44,
+    "title": "Heaven and Earth",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E44 - Heaven and Earth.nfo"
+  },
+  {
+    "season": 31,
+    "number": 45,
+    "title": "Prostration",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E45 - Prostration.nfo"
+  },
+  {
+    "season": 31,
+    "number": 46,
+    "title": "Sabo's Adventure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E46 - Sabo's Adventure.nfo"
+  },
+  {
+    "season": 31,
+    "number": 47,
+    "title": "Soldier's Conviction",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E47 - Soldier's Conviction.nfo"
+  },
+  {
+    "season": 31,
+    "number": 48,
+    "title": "Father and Sons",
+    "extended": "",
+    "nfo_path": "One Pace/Season 31/One Pace - S31E48 - Father and Sons.nfo"
+  },
+  {
+    "season": 32,
+    "number": 1,
+    "title": "Zou",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E01 - Zou.nfo"
+  },
+  {
+    "season": 32,
+    "number": 2,
+    "title": "The Minks",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E02 - The Minks.nfo"
+  },
+  {
+    "season": 32,
+    "number": 3,
+    "title": "At Rightflank Fortress",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E03 - At Rightflank Fortress.nfo"
+  },
+  {
+    "season": 32,
+    "number": 4,
+    "title": "Duke Inuarashi and Master Nekomamushi",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E04 - Duke Inuarashi and Master Nekomamushi.nfo"
+  },
+  {
+    "season": 32,
+    "number": 5,
+    "title": "The Curly Hat Pirates Arrive",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E05 - The Curly Hat Pirates Arrive.nfo"
+  },
+  {
+    "season": 32,
+    "number": 6,
+    "title": "Tea Party Invitation",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E06 - Tea Party Invitation.nfo"
+  },
+  {
+    "season": 32,
+    "number": 7,
+    "title": "Let's Go See Master Nekomamushi",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E07 - Let's Go See Master Nekomamushi.nfo"
+  },
+  {
+    "season": 32,
+    "number": 8,
+    "title": "Raizo of the Mist",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E08 - Raizo of the Mist.nfo"
+  },
+  {
+    "season": 32,
+    "number": 9,
+    "title": "Momonosuke, Heir of the Kozuki Family",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E09 - Momonosuke, Heir of the Kozuki Family.nfo"
+  },
+  {
+    "season": 32,
+    "number": 10,
+    "title": "Understood",
+    "extended": "",
+    "nfo_path": "One Pace/Season 32/One Pace - S32E10 - Understood.nfo"
+  },
+  {
+    "season": 33,
+    "number": 1,
+    "title": "A World Abuzz",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E01 - A World Abuzz.nfo"
+  },
+  {
+    "season": 33,
+    "number": 2,
+    "title": "0 and 4",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E02 - 0 and 4.nfo"
+  },
+  {
+    "season": 33,
+    "number": 3,
+    "title": "Totto Land",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E03 - Totto Land.nfo"
+  },
+  {
+    "season": 33,
+    "number": 4,
+    "title": "Pirate Emperor, Charlotte Linlin",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E04 - Pirate Emperor, Charlotte Linlin.nfo"
+  },
+  {
+    "season": 33,
+    "number": 5,
+    "title": "Adventure in the Mysterious Forest",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E05 - Adventure in the Mysterious Forest.nfo"
+  },
+  {
+    "season": 33,
+    "number": 6,
+    "title": "Vinsmoke Judge",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E06 - Vinsmoke Judge.nfo"
+  },
+  {
+    "season": 33,
+    "number": 7,
+    "title": "Lola's Vivre Card",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E07 - Lola's Vivre Card.nfo"
+  },
+  {
+    "season": 33,
+    "number": 8,
+    "title": "Luffy vs. Commander Cracker",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E08 - Luffy vs. Commander Cracker.nfo"
+  },
+  {
+    "season": 33,
+    "number": 9,
+    "title": "The Iron Mask",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E09 - The Iron Mask.nfo"
+  },
+  {
+    "season": 33,
+    "number": 10,
+    "title": "To the East Blue",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E10 - To the East Blue.nfo"
+  },
+  {
+    "season": 33,
+    "number": 11,
+    "title": "Luffy vs. Sanji",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E11 - Luffy vs. Sanji.nfo"
+  },
+  {
+    "season": 33,
+    "number": 12,
+    "title": "Forces of Rage",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E12 - Forces of Rage.nfo"
+  },
+  {
+    "season": 33,
+    "number": 13,
+    "title": "Luffy and Big Mom",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E13 - Luffy and Big Mom.nfo"
+  },
+  {
+    "season": 33,
+    "number": 14,
+    "title": "A Ray of Light",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E14 - A Ray of Light.nfo"
+  },
+  {
+    "season": 33,
+    "number": 15,
+    "title": "Germa's Failure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E15 - Germa's Failure.nfo"
+  },
+  {
+    "season": 33,
+    "number": 16,
+    "title": "Not Here",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E16 - Not Here.nfo"
+  },
+  {
+    "season": 33,
+    "number": 17,
+    "title": "Liar",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E17 - Liar.nfo"
+  },
+  {
+    "season": 33,
+    "number": 18,
+    "title": "Rook",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E18 - Rook.nfo"
+  },
+  {
+    "season": 33,
+    "number": 19,
+    "title": "Emperor Assassination Plan",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E19 - Emperor Assassination Plan.nfo"
+  },
+  {
+    "season": 33,
+    "number": 20,
+    "title": "Veteran Actor",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E20 - Veteran Actor.nfo"
+  },
+  {
+    "season": 33,
+    "number": 21,
+    "title": "The Honorable",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E21 - The Honorable.nfo"
+  },
+  {
+    "season": 33,
+    "number": 22,
+    "title": "Hey, Mother",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E22 - Hey, Mother.nfo"
+  },
+  {
+    "season": 33,
+    "number": 23,
+    "title": "HAPPY BIRTHDAY",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E23 - HAPPY BIRTHDAY.nfo"
+  },
+  {
+    "season": 33,
+    "number": 24,
+    "title": "Under Siege",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E24 - Under Siege.nfo"
+  },
+  {
+    "season": 33,
+    "number": 25,
+    "title": "You Can Do It, Caesar!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E25 - You Can Do It, Caesar!!.nfo"
+  },
+  {
+    "season": 33,
+    "number": 26,
+    "title": "Become My Servant",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E26 - Become My Servant.nfo"
+  },
+  {
+    "season": 33,
+    "number": 27,
+    "title": "A Woman's Honor",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E27 - A Woman's Honor.nfo"
+  },
+  {
+    "season": 33,
+    "number": 28,
+    "title": "Mink Pedro, Captain of the Guardians",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E28 - Mink Pedro, Captain of the Guardians.nfo"
+  },
+  {
+    "season": 33,
+    "number": 29,
+    "title": "Zero Escape",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E29 - Zero Escape.nfo"
+  },
+  {
+    "season": 33,
+    "number": 30,
+    "title": "Wave Room",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E30 - Wave Room.nfo"
+  },
+  {
+    "season": 33,
+    "number": 31,
+    "title": "Merienda",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E31 - Merienda.nfo"
+  },
+  {
+    "season": 33,
+    "number": 32,
+    "title": "Way of Life",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E32 - Way of Life.nfo"
+  },
+  {
+    "season": 33,
+    "number": 33,
+    "title": "Lion",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E33 - Lion.nfo"
+  },
+  {
+    "season": 33,
+    "number": 34,
+    "title": "Unknown Mama",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E34 - Unknown Mama.nfo"
+  },
+  {
+    "season": 33,
+    "number": 35,
+    "title": "They Believe in Me",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E35 - They Believe in Me.nfo"
+  },
+  {
+    "season": 33,
+    "number": 36,
+    "title": "Pirate Luffy vs. Commander Katakuri",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E36 - Pirate Luffy vs. Commander Katakuri.nfo"
+  },
+  {
+    "season": 33,
+    "number": 37,
+    "title": "One Last Thing",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E37 - One Last Thing.nfo"
+  },
+  {
+    "season": 33,
+    "number": 38,
+    "title": "BAD END MUSICAL",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E38 - BAD END MUSICAL.nfo"
+  },
+  {
+    "season": 33,
+    "number": 39,
+    "title": "END ROLL",
+    "extended": "",
+    "nfo_path": "One Pace/Season 33/One Pace - S33E39 - END ROLL.nfo"
+  },
+  {
+    "season": 34,
+    "number": 1,
+    "title": "The Fifth Emperor",
+    "extended": "",
+    "nfo_path": "One Pace/Season 34/One Pace - S34E01 - The Fifth Emperor.nfo"
+  },
+  {
+    "season": 34,
+    "number": 2,
+    "title": "A Beautiful World",
+    "extended": "",
+    "nfo_path": "One Pace/Season 34/One Pace - S34E02 - A Beautiful World.nfo"
+  },
+  {
+    "season": 34,
+    "number": 3,
+    "title": "The Empty Throne",
+    "extended": "",
+    "nfo_path": "One Pace/Season 34/One Pace - S34E03 - The Empty Throne.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1,
+    "title": "Onward to Wano",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E01 - Onward to Wano.nfo"
+  },
+  {
+    "season": 35,
+    "number": 2,
+    "title": "Seppuku",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E02 - Seppuku.nfo"
+  },
+  {
+    "season": 35,
+    "number": 2,
+    "title": "Seppuku",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E02 - Seppuku (Extended).nfo"
+  },
+  {
+    "season": 35,
+    "number": 3,
+    "title": "Amigasa Village",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E03 - Amigasa Village.nfo"
+  },
+  {
+    "season": 35,
+    "number": 4,
+    "title": "Tsuru Returns the Favor",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E04 - Tsuru Returns the Favor.nfo"
+  },
+  {
+    "season": 35,
+    "number": 5,
+    "title": "Okobore Town",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E05 - Okobore Town.nfo"
+  },
+  {
+    "season": 35,
+    "number": 6,
+    "title": "Wano's Grand Sumo Tournament",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E06 - Wano's Grand Sumo Tournament.nfo"
+  },
+  {
+    "season": 35,
+    "number": 7,
+    "title": "The Provisions Ship",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E07 - The Provisions Ship.nfo"
+  },
+  {
+    "season": 35,
+    "number": 8,
+    "title": "The Ruins of Oden Castle",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E08 - The Ruins of Oden Castle.nfo"
+  },
+  {
+    "season": 35,
+    "number": 9,
+    "title": "I Love Oden",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E09 - I Love Oden.nfo"
+  },
+  {
+    "season": 35,
+    "number": 10,
+    "title": "Shutenmaru",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E10 - Shutenmaru.nfo"
+  },
+  {
+    "season": 35,
+    "number": 11,
+    "title": "Emperor Kaido vs. Luffy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E11 - Emperor Kaido vs. Luffy.nfo"
+  },
+  {
+    "season": 35,
+    "number": 12,
+    "title": "Hah",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E12 - Hah.nfo"
+  },
+  {
+    "season": 35,
+    "number": 13,
+    "title": "Void",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E13 - Void.nfo"
+  },
+  {
+    "season": 35,
+    "number": 14,
+    "title": "Otoko the Kamuro",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E14 - Otoko the Kamuro.nfo"
+  },
+  {
+    "season": 35,
+    "number": 15,
+    "title": "Oiran Komurasaki Arrives",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E15 - Oiran Komurasaki Arrives.nfo"
+  },
+  {
+    "season": 35,
+    "number": 16,
+    "title": "Soba Mask",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E16 - Soba Mask.nfo"
+  },
+  {
+    "season": 35,
+    "number": 17,
+    "title": "The Shogun and the Oiran",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E17 - The Shogun and the Oiran.nfo"
+  },
+  {
+    "season": 35,
+    "number": 18,
+    "title": "Hyogoro the Flower",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E18 - Hyogoro the Flower.nfo"
+  },
+  {
+    "season": 35,
+    "number": 19,
+    "title": "Gyukimaru of Bandit's Bridge",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E19 - Gyukimaru of Bandit's Bridge.nfo"
+  },
+  {
+    "season": 35,
+    "number": 20,
+    "title": "A Woman's Secret",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E20 - A Woman's Secret.nfo"
+  },
+  {
+    "season": 35,
+    "number": 21,
+    "title": "Sparks of Rebellion",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E21 - Sparks of Rebellion.nfo"
+  },
+  {
+    "season": 35,
+    "number": 22,
+    "title": "Shimotsuki Yasuie, the Daimyo of Hakumai",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E22 - Shimotsuki Yasuie, the Daimyo of Hakumai.nfo"
+  },
+  {
+    "season": 35,
+    "number": 23,
+    "title": "SMILE",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E23 - SMILE.nfo"
+  },
+  {
+    "season": 35,
+    "number": 24,
+    "title": "Olin",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E24 - Olin.nfo"
+  },
+  {
+    "season": 35,
+    "number": 25,
+    "title": "Queen vs. Olin",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E25 - Queen vs. Olin.nfo"
+  },
+  {
+    "season": 35,
+    "number": 26,
+    "title": "Mummy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E26 - Mummy.nfo"
+  },
+  {
+    "season": 35,
+    "number": 27,
+    "title": "A Soldier's Dream",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E27 - A Soldier's Dream.nfo"
+  },
+  {
+    "season": 35,
+    "number": 28,
+    "title": "RAMPAGE",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E28 - RAMPAGE.nfo"
+  },
+  {
+    "season": 35,
+    "number": 29,
+    "title": "Once a Fox",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E29 - Once a Fox.nfo"
+  },
+  {
+    "season": 35,
+    "number": 30,
+    "title": "Enma",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E30 - Enma.nfo"
+  },
+  {
+    "season": 35,
+    "number": 31,
+    "title": "Big News",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E31 - Big News.nfo"
+  },
+  {
+    "season": 35,
+    "number": 32,
+    "title": "Ultimate",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E32 - Ultimate.nfo"
+  },
+  {
+    "season": 35,
+    "number": 33,
+    "title": "The Designated Port",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E33 - The Designated Port.nfo"
+  },
+  {
+    "season": 35,
+    "number": 34,
+    "title": "The Day of the Mountain God",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E34 - The Day of the Mountain God.nfo"
+  },
+  {
+    "season": 35,
+    "number": 35,
+    "title": "Daimyo and Retainers",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E35 - Daimyo and Retainers.nfo"
+  },
+  {
+    "season": 35,
+    "number": 36,
+    "title": "Oden's Adventure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E36 - Oden's Adventure.nfo"
+  },
+  {
+    "season": 35,
+    "number": 37,
+    "title": "Roger and Whitebeard",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E37 - Roger and Whitebeard.nfo"
+  },
+  {
+    "season": 35,
+    "number": 38,
+    "title": "Roger's Adventure",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E38 - Roger's Adventure.nfo"
+  },
+  {
+    "season": 35,
+    "number": 39,
+    "title": "Fool of a Lord",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E39 - Fool of a Lord.nfo"
+  },
+  {
+    "season": 35,
+    "number": 40,
+    "title": "Oden Was Meant to Boil",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E40 - Oden Was Meant to Boil.nfo"
+  },
+  {
+    "season": 35,
+    "number": 41,
+    "title": "The Kozuki Clan",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E41 - The Kozuki Clan.nfo"
+  },
+  {
+    "season": 35,
+    "number": 42,
+    "title": "Kin'emon's Clever Ruse",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E42 - Kin'emon's Clever Ruse.nfo"
+  },
+  {
+    "season": 35,
+    "number": 43,
+    "title": "The Party's Off!!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E43 - The Party's Off!!!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 44,
+    "title": "A Family Matter",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E44 - A Family Matter.nfo"
+  },
+  {
+    "season": 35,
+    "number": 45,
+    "title": "Fighting Music",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E45 - Fighting Music.nfo"
+  },
+  {
+    "season": 35,
+    "number": 46,
+    "title": "Thunder",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E46 - Thunder.nfo"
+  },
+  {
+    "season": 35,
+    "number": 47,
+    "title": "My Bible",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E47 - My Bible.nfo"
+  },
+  {
+    "season": 35,
+    "number": 48,
+    "title": "Retainers of Glory",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E48 - Retainers of Glory.nfo"
+  },
+  {
+    "season": 35,
+    "number": 49,
+    "title": "I Can't Imagine Losing",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E49 - I Can't Imagine Losing.nfo"
+  },
+  {
+    "season": 35,
+    "number": 49,
+    "title": "I Can't Imagine Losing",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E49 - I Can't Imagine Losing (Extended).nfo"
+  },
+  {
+    "season": 35,
+    "number": 50,
+    "title": "Army of One",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E50 - Army of One.nfo"
+  },
+  {
+    "season": 35,
+    "number": 51,
+    "title": "Remnants",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E51 - Remnants.nfo"
+  },
+  {
+    "season": 35,
+    "number": 52,
+    "title": "A Kunoichi's Oath",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E52 - A Kunoichi's Oath.nfo"
+  },
+  {
+    "season": 35,
+    "number": 53,
+    "title": "Flame Clouds",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E53 - Flame Clouds.nfo"
+  },
+  {
+    "season": 35,
+    "number": 54,
+    "title": "The Sake I Brewed to Drink With You",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E54 - The Sake I Brewed to Drink With You.nfo"
+  },
+  {
+    "season": 35,
+    "number": 55,
+    "title": "Straw Hat Luffy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E55 - Straw Hat Luffy.nfo"
+  },
+  {
+    "season": 35,
+    "number": 55,
+    "title": "Straw Hat Luffy",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E55 - Straw Hat Luffy (Extended).nfo"
+  },
+  {
+    "season": 35,
+    "number": 56,
+    "title": "The Battle of Monsters on Onigashima",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E56 - The Battle of Monsters on Onigashima.nfo"
+  },
+  {
+    "season": 35,
+    "number": 57,
+    "title": "Millet Dumplings",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E57 - Millet Dumplings.nfo"
+  },
+  {
+    "season": 35,
+    "number": 58,
+    "title": "The Honorable Hyogoro 'the Flower'",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E58 - The Honorable Hyogoro 'the Flower'.nfo"
+  },
+  {
+    "season": 35,
+    "number": 59,
+    "title": "Leader of the Mt. Atama Thieves, Ashura Doji",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E59 - Leader of the Mt. Atama Thieves, Ashura Doji.nfo"
+  },
+  {
+    "season": 35,
+    "number": 60,
+    "title": "Conqueror's Haki",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E60 - Conqueror's Haki.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1029,
+    "title": "A Faint Memory! Luffy and Red-Haired's Daughter Uta!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1029 - A Faint Memory! Luffy and Red-Haired's Daughter Uta!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1030,
+    "title": "A Pledge for the New Genesis! Luffy and Uta!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1030 - A Pledge for the New Genesis! Luffy and Uta!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1031,
+    "title": "Nami Screams! A Deadly Death Race!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1031 - Nami Screams! A Deadly Death Race!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1032,
+    "title": "The Dawn of the Land of Wano! The All-Out Battle Heats Up!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1032 - The Dawn of the Land of Wano! The All-Out Battle Heats Up!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1033,
+    "title": "The Conclusion! Luffy, Accelerating Fist of the Supreme King!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1033 - The Conclusion! Luffy, Accelerating Fist of the Supreme King!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1034,
+    "title": "Luffy, Defeated! The Straw Hats in Jeopardy!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1034 - Luffy, Defeated! The Straw Hats in Jeopardy!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1035,
+    "title": "The Beasts Trampled! The End of the Kozuki Family!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1035 - The Beasts Trampled! The End of the Kozuki Family!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1036,
+    "title": "Fight Against the Dark Night! The Commander-in-Chief of the Land of Wano Sounds Off!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1036 - Fight Against the Dark Night! The Commander-in-Chief of the Land of Wano Sounds Off!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1037,
+    "title": "Believe in Luffy! The Alliance's Counterattack Begins!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1037 - Believe in Luffy! The Alliance's Counterattack Begins!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1038,
+    "title": "Nami\u2019s Lethal Attack! Otama\u2019s Desperate Challenge!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1038 - Nami\u2019s Lethal Attack! Otama\u2019s Desperate Challenge!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1039,
+    "title": "A Dramatic Increase of Allies! Straw Hats Fight Back!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1039 - A Dramatic Increase of Allies! Straw Hats Fight Back!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1040,
+    "title": "The Pride of a Helmsman The Enraged Jimbei!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1040 - The Pride of a Helmsman The Enraged Jimbei!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1041,
+    "title": "Showdown Battles of the Monsters! Yamato and Franky!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1041 - Showdown Battles of the Monsters! Yamato and Franky!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1042,
+    "title": "The Predator\u2019s Trap! Black Maria\u2019s Temptation!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1042 - The Predator\u2019s Trap! Black Maria\u2019s Temptation!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1043,
+    "title": "Slash the Nightmare - Brook Draws His Freezing Sword!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1043 - Slash the Nightmare - Brook Draws His Freezing Sword!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1044,
+    "title": "Clutch! A Demon Incarnate, Robin!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1044 - Clutch! A Demon Incarnate, Robin!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1045,
+    "title": "A Spell! Kid and Zoro Facing Threats!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1045 - A Spell! Kid and Zoro Facing Threats!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1046,
+    "title": "Taking a Chance! The Two Arms Go into Battle!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1046 - Taking a Chance! The Two Arms Go into Battle!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1047,
+    "title": "Ascend to the Dawn! A Pink Dragon Gets Agitated",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1047 - Ascend to the Dawn! A Pink Dragon Gets Agitated.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1048,
+    "title": "For the Future! Yamato and the Great Swordsmen's Pledge",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1048 - For the Future! Yamato and the Great Swordsmen's Pledge.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1049,
+    "title": "Luffy Soars! Revenge Against the Beasts",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1049 - Luffy Soars! Revenge Against the Beasts.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1050,
+    "title": "Two Dragons Face Off! Momonosuke's Determination!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1050 - Two Dragons Face Off! Momonosuke's Determination!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1051,
+    "title": "A Legend All Over Again! Luffy's Fist Roars in the Sky!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1051 - A Legend All Over Again! Luffy's Fist Roars in the Sky!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1052,
+    "title": "The Situation Has Grown Tense! The End of Onigashima!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1052 - The Situation Has Grown Tense! The End of Onigashima!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1053,
+    "title": "Sanji's Mutation - The Two Arms in Crisis!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1053 - Sanji's Mutation - The Two Arms in Crisis!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1054,
+    "title": "Death to Your Partner! Killer's Deadly Gamble!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1054 - Death to Your Partner! Killer's Deadly Gamble!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1055,
+    "title": "A Shadowy Figure Pulls the Strings! Onigashima in Flames",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1055 - A Shadowy Figure Pulls the Strings! Onigashima in Flames.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1056,
+    "title": "Strike Back! Law and Kid's Counterattack Alliance",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1056 - Strike Back! Law and Kid's Counterattack Alliance.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1057,
+    "title": "For Luffy - Sanji and Zoro's Oath",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1057 - For Luffy - Sanji and Zoro's Oath.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1058,
+    "title": "The Onslaught of Kazenbo - Orochi's Evil Clutches Close in",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1058 - The Onslaught of Kazenbo - Orochi's Evil Clutches Close in.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1059,
+    "title": "Zoro's Hardship - A Monster! King the Wildfire",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1059 - Zoro's Hardship - A Monster! King the Wildfire.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1060,
+    "title": "Secrets of Enma! The Cursed Sword Entrusted to Zoro",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1060 - Secrets of Enma! The Cursed Sword Entrusted to Zoro.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1061,
+    "title": "The Strike of an Ifrit! Sanji vs. Queen",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1061 - The Strike of an Ifrit! Sanji vs. Queen.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1062,
+    "title": "The Three-Sword Style of the Supreme King! Zoro vs. King",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1062 - The Three-Sword Style of the Supreme King! Zoro vs. King.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1063,
+    "title": "Luffy is on the Move! A Turning Point of a New Era!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1063 - Luffy is on the Move! A Turning Point of a New Era!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1064,
+    "title": "Drunken Dragon Bagua! The Lawless Dragon Closing in on Luffy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1064 - Drunken Dragon Bagua! The Lawless Dragon Closing in on Luffy.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1065,
+    "title": "The Destruction of the Alliance! Fire up, the Will of the New Generation!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1065 - The Destruction of the Alliance! Fire up, the Will of the New Generation!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1066,
+    "title": "Here Comes the Main Act! Powerful Techniques of Shockwave and Magnetism!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1066 - Here Comes the Main Act! Powerful Techniques of Shockwave and Magnetism!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1067,
+    "title": "To the New Era! Settled! The Determination of the Brats",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1067 - To the New Era! Settled! The Determination of the Brats.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1068,
+    "title": "Moon Princess Echoes! The Final Phase of the Land of Wano!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1068 - Moon Princess Echoes! The Final Phase of the Land of Wano!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1069,
+    "title": "There is Only One Winner - Luffy vs. Kaido",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1069 - There is Only One Winner - Luffy vs. Kaido.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1070,
+    "title": "Luffy Is Defeated! The Determination of Those Left Behind",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1070 - Luffy Is Defeated! The Determination of Those Left Behind.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1071,
+    "title": "Luffy's Peak - Attained! Gear Five",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1071 - Luffy's Peak - Attained! Gear Five.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1072,
+    "title": "The Ridiculous Power! Gear Five in Full Play",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1072 - The Ridiculous Power! Gear Five in Full Play.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1073,
+    "title": "No Way Out! A Hellish Scene on Onigashima",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1073 - No Way Out! A Hellish Scene on Onigashima.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1074,
+    "title": "I Trust Momo - Luffy's Final Powerful Technique!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1074 - I Trust Momo - Luffy's Final Powerful Technique!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1075,
+    "title": "20 Years' Worth of Prayers! Take Back the Land of Wano!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1075 - 20 Years' Worth of Prayers! Take Back the Land of Wano!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1076,
+    "title": "The World That Luffy Wants!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1076 - The World That Luffy Wants!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1077,
+    "title": "The Curtain Falls! The Winner, Straw Hat Luffy!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1077 - The Curtain Falls! The Winner, Straw Hat Luffy!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1078,
+    "title": "He Returns! The Shogun of the Land of Wano, Kozuki Momonosuke",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1078 - He Returns! The Shogun of the Land of Wano, Kozuki Momonosuke.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1079,
+    "title": "The Morning Comes! Luffy and the Others Rest!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1079 - The Morning Comes! Luffy and the Others Rest!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1080,
+    "title": "A Celebration Banquet! The New Emperors of the Sea!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1080 - A Celebration Banquet! The New Emperors of the Sea!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1081,
+    "title": "The World Will Burn! The Onslaught of a Navy Admiral!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1081 - The World Will Burn! The Onslaught of a Navy Admiral!.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1082,
+    "title": "The Coming of the New Era! The Red-Haired's Imperial Rage",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1082 - The Coming of the New Era! The Red-Haired's Imperial Rage.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1083,
+    "title": "The World That Moves On! A New Organization, Cross Guild",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1083 - The World That Moves On! A New Organization, Cross Guild.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1084,
+    "title": "Time to Depart - The Land of Wano and the Straw Hats",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1084 - Time to Depart - The Land of Wano and the Straw Hats.nfo"
+  },
+  {
+    "season": 35,
+    "number": 1085,
+    "title": "The Last Curtain! Luffy and Momonosuke's Vow",
+    "extended": "",
+    "nfo_path": "One Pace/Season 35/One Pace - S35E1085 - The Last Curtain! Luffy and Momonosuke's Vow.nfo"
+  },
+  {
+    "season": 36,
+    "number": 1,
+    "title": "New Emperors",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E01 - New Emperors.nfo"
+  },
+  {
+    "season": 36,
+    "number": 2,
+    "title": "The Matter Involving Captain Koby",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E02 - The Matter Involving Captain Koby.nfo"
+  },
+  {
+    "season": 36,
+    "number": 3,
+    "title": "Future Island Egghead",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E03 - Future Island Egghead.nfo"
+  },
+  {
+    "season": 36,
+    "number": 4,
+    "title": "Adventure in the Land of Science",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E04 - Adventure in the Land of Science.nfo"
+  },
+  {
+    "season": 36,
+    "number": 5,
+    "title": "The Six Vegapunks",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E05 - The Six Vegapunks.nfo"
+  },
+  {
+    "season": 36,
+    "number": 6,
+    "title": "The Will of Ohara",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E06 - The Will of Ohara.nfo"
+  },
+  {
+    "season": 36,
+    "number": 7,
+    "title": "Punk Records",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E07 - Punk Records.nfo"
+  },
+  {
+    "season": 36,
+    "number": 8,
+    "title": "The Strongest Form of Humanity",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E08 - The Strongest Form of Humanity.nfo"
+  },
+  {
+    "season": 36,
+    "number": 8,
+    "title": "The Strongest Form of Humanity",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E08 - The Strongest Form of Humanity (Extended).nfo"
+  },
+  {
+    "season": 36,
+    "number": 9,
+    "title": "The Weight of Memory",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E09 - The Weight of Memory.nfo"
+  },
+  {
+    "season": 36,
+    "number": 10,
+    "title": "Miss Buckingham Stussy",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E10 - Miss Buckingham Stussy.nfo"
+  },
+  {
+    "season": 36,
+    "number": 11,
+    "title": "Labophase Death Game",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E11 - Labophase Death Game.nfo"
+  },
+  {
+    "season": 36,
+    "number": 12,
+    "title": "Escape Limit",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E12 - Escape Limit.nfo"
+  },
+  {
+    "season": 36,
+    "number": 13,
+    "title": "The Emperor's Crew, The Red Hair Pirates",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E13 - The Emperor's Crew, The Red Hair Pirates.nfo"
+  },
+  {
+    "season": 36,
+    "number": 13,
+    "title": "The Emperor's Crew, The Red Hair Pirates",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E13 - The Emperor's Crew, The Red Hair Pirates (Extended).nfo"
+  },
+  {
+    "season": 36,
+    "number": 14,
+    "title": "The Legendary Hero",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E14 - The Legendary Hero.nfo"
+  },
+  {
+    "season": 36,
+    "number": 14,
+    "title": "The Legendary Hero",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E14 - The Legendary Hero (Extended).nfo"
+  },
+  {
+    "season": 36,
+    "number": 15,
+    "title": "Let's Go And Take It!!",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E15 - Let's Go And Take It!!.nfo"
+  },
+  {
+    "season": 36,
+    "number": 16,
+    "title": "The Attempted Murder of a Celestial Dragon",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E16 - The Attempted Murder of a Celestial Dragon.nfo"
+  },
+  {
+    "season": 36,
+    "number": 17,
+    "title": "The Five Elders",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E17 - The Five Elders.nfo"
+  },
+  {
+    "season": 36,
+    "number": 18,
+    "title": "The Final Lesson",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E18 - The Final Lesson.nfo"
+  },
+  {
+    "season": 36,
+    "number": 19,
+    "title": "Hostage Situation",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E19 - Hostage Situation.nfo"
+  },
+  {
+    "season": 36,
+    "number": 19,
+    "title": "Hostage Situation",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E19 - Hostage Situation (Extended).nfo"
+  },
+  {
+    "season": 36,
+    "number": 20,
+    "title": "Sentomaru",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E20 - Sentomaru.nfo"
+  },
+  {
+    "season": 36,
+    "number": 21,
+    "title": "Luffy vs. Kizaru",
+    "extended": "",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E21 - Luffy vs. Kizaru.nfo"
+  },
+  {
+    "season": 36,
+    "number": 21,
+    "title": "Luffy vs. Kizaru",
+    "extended": "Extended",
+    "nfo_path": "One Pace/Season 36/One Pace - S36E21 - Luffy vs. Kizaru (Extended).nfo"
+  }
+]

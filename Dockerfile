@@ -3,6 +3,9 @@ FROM python:3.13-slim
 LABEL description="Ace-Pace - One Pace Library Manager"
 
 COPY . /app
+# Vendored one-pace-for-plex reference data (seasons/exceptions/episode index),
+# so offline rename works out of the box. See reference_index.py DEFAULT_BASE_DIR.
+COPY reference/one-pace-for-plex/ /app/reference/one-pace-for-plex/
 WORKDIR /app
 
 ENV RUN_DOCKER="true" \

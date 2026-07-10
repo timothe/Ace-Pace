@@ -38,6 +38,16 @@ if [ "$EPISODES_UPDATE" = "true" ]; then
     fi
 fi
 
+# Refresh vendored one-pace-for-plex reference data if requested
+if [ "$REFERENCE_UPDATE" = "true" ]; then
+    python -c "import sys; from reference_index import refresh_reference_index; sys.exit(0 if refresh_reference_index() else 1)"
+    EXIT_CODE=$?
+    if [ $EXIT_CODE -ne 0 ]; then
+        echo "Reference data update failed with exit code $EXIT_CODE"
+        exit $EXIT_CODE
+    fi
+fi
+
 # Export database if requested
 if [ "$DB" = "true" ]; then
     python /app/acepace.py --db
@@ -70,6 +80,7 @@ if [ "$RENAME" = "true" ]; then
         --folder "$MEDIA_DIR" \
         --rename \
         ${NYAA_URL:+--url "$NYAA_URL"} \
+        ${VERSION:+--version "$VERSION"} \
         ${DRY_RUN_RENAME_ARG:+$DRY_RUN_RENAME_ARG}
     EXIT_CODE=$?
     if [ $EXIT_CODE -ne 0 ]; then

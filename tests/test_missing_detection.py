@@ -278,6 +278,92 @@ class TestMissingEpisodeDetection:
         mock_get.return_value = mock_response
         
         title = acepace.fetch_title_by_crc32("A1B2C3D4")
-        
+
         # Should return None when multiple matches
         assert title is None
+
+
+class TestVersionAwareMissingDetection:
+    """Tests for Part E: pub_date capture + newest-version-aware grouping."""
+
+    def test_extract_pub_date_from_row_reads_data_timestamp(self):
+        html = """
+        <tr>
+            <td class="text-center" data-timestamp="1782664408">2026-06-28 16:33</td>
+        </tr>
+        """
+        from bs4 import BeautifulSoup
+        row = BeautifulSoup(html, "html.parser").find("tr")
+        assert acepace._extract_pub_date_from_row(row) == "1782664408"
+
+    def test_extract_pub_date_from_row_returns_none_when_absent(self):
+        from bs4 import BeautifulSoup
+        row = BeautifulSoup("<tr><td>no timestamp here</td></tr>", "html.parser").find("tr")
+        assert acepace._extract_pub_date_from_row(row) is None
+
+    @patch('acepace.requests.get')
+    def test_fetch_episodes_metadata_populates_pub_date_side_channel(self, mock_get):
+        html_with_results = """
+        <html><body><table class="torrent-list">
+            <tr>
+                <td><a href="/view/1" title="[One Pace] Episode 1 [1080p][A1B2C3D4].mkv">[One Pace] Episode 1 [1080p][A1B2C3D4].mkv</a></td>
+                <td class="text-center" data-timestamp="1700000000">2023-11-14 22:13</td>
+            </tr>
+        </table></body></html>
+        """
+        html_empty = '<html><body><table class="torrent-list"></table></body></html>'
+        r1 = MagicMock(status_code=200, text=html_with_results)
+        r2 = MagicMock(status_code=200, text=html_empty)
+        mock_get.side_effect = [r1, r2]
+
+        episodes = acepace.fetch_episodes_metadata("https://nyaa.si/?f=0&c=0_0&q=one+pace")
+        pub_dates = acepace.get_last_fetched_pub_dates()
+
+        assert len(episodes) == 1
+        assert pub_dates.get("A1B2C3D4") == "1700000000"
+        # Return shape must stay a 4-tuple list (hard test/API contract).
+        assert len(episodes[0]) == 4
+
+    def test_grouped_missing_detection_prefers_newest_present_check(self):
+        # Two versions of the same canonical episode (S01E01): an older one
+        # the user already has locally, and a newer re-release on Nyaa.
+        crc32_to_text = {
+            "OLDOLD01": "[One Pace][1-5] Romance Dawn 01 [1080p][OLDOLD01].mkv",
+            "NEWNEW01": "[One Pace][1-5] Romance Dawn 01 [1080p][NEWNEW01].mkv",
+        }
+        crc32_to_magnet = {"OLDOLD01": "magnet:?xt=old", "NEWNEW01": "magnet:?xt=new"}
+        crc32_to_pubdate = {"OLDOLD01": "1000", "NEWNEW01": "2000"}
+        local_crc32s = {"OLDOLD01"}
+
+        missing = acepace._calculate_missing_episodes_grouped(
+            crc32_to_text, crc32_to_magnet, crc32_to_pubdate, local_crc32s
+        )
+
+        # Present locally via the OLD version -> canonical episode is not missing.
+        assert missing == []
+
+    def test_grouped_missing_detection_reports_newest_version_when_absent(self):
+        crc32_to_text = {
+            "OLDOLD02": "[One Pace][1-5] Romance Dawn 02 [1080p][OLDOLD02].mkv",
+            "NEWNEW02": "[One Pace][1-5] Romance Dawn 02 [1080p][NEWNEW02].mkv",
+        }
+        crc32_to_magnet = {"OLDOLD02": "magnet:?xt=old", "NEWNEW02": "magnet:?xt=new"}
+        crc32_to_pubdate = {"OLDOLD02": "1000", "NEWNEW02": "2000"}
+        local_crc32s = set()  # neither version present locally
+
+        missing = acepace._calculate_missing_episodes_grouped(
+            crc32_to_text, crc32_to_magnet, crc32_to_pubdate, local_crc32s
+        )
+
+        assert missing == ["NEWNEW02"]
+
+    def test_unparseable_titles_fall_back_to_singleton_groups(self):
+        crc32_to_text = {"ZZZZZZZZ": "Some Unrelated Release That Does Not Parse.mkv"}
+        crc32_to_magnet = {"ZZZZZZZZ": "magnet:?xt=whatever"}
+        crc32_to_pubdate = {"ZZZZZZZZ": None}
+
+        missing = acepace._calculate_missing_episodes_grouped(
+            crc32_to_text, crc32_to_magnet, crc32_to_pubdate, set()
+        )
+
+        assert missing == ["ZZZZZZZZ"]

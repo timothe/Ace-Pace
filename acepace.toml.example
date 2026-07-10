@@ -1,0 +1,46 @@
+# Ace-Pace configuration file example.
+#
+# Copy this file to "acepace.toml" (next to acepace.py, or in the config dir
+# used by get_config_path()) to set defaults without exporting environment
+# variables every time. Precedence is: CLI flag > environment variable >
+# acepace.toml > built-in default. Keys map 1:1 to the environment variables
+# of the same name; every key below is optional.
+
+# Nyaa search URL used when no --url is given.
+NYAA_URL = "https://nyaa.si/?f=0&c=0_0&q=one+pace&o=asc"
+
+# Which episode version ("normal" or "extended") is treated as canonical for
+# rename lookups and missing/download detection.
+VERSION = "normal"
+
+# Default for --rename (rename local files to canonical names).
+RENAME = "false"
+
+# Default for --download (download missing episodes via BitTorrent client).
+DOWNLOAD = "false"
+
+# Default for --dry-run (never perform destructive actions; report only).
+DRY_RUN = "false"
+
+# In Docker, real renames only happen when RENAME_FORCE=true; otherwise
+# --rename without --dry-run is treated as dry-run-only. Ignored outside
+# Docker (local runs always use the interactive y/n confirmation).
+RENAME_FORCE = "false"
+
+# BitTorrent client settings (used by --download).
+TORRENT_CLIENT = "transmission"
+TORRENT_HOST = "localhost"
+TORRENT_PORT = "9091"
+TORRENT_USER = ""
+TORRENT_PASSWORD = ""
+
+# Default for --episodes_update (refresh the Nyaa episodes index before
+# generating the missing report).
+EPISODES_UPDATE = "false"
+
+# Default for refreshing the vendored one-pace-for-plex reference data
+# (seasons/exceptions/episode list) at startup.
+REFERENCE_UPDATE = "false"
+
+# Verbose debug logging (equivalent to --verbose).
+DEBUG = "false"

@@ -1,5 +1,7 @@
 import time
 import csv
+import json
+import shutil
 from datetime import datetime
 import sqlite3
 import re
@@ -8,10 +10,23 @@ import zlib
 import os
 import signal
 import sys
+from xml.sax.saxutils import escape as _xml_escape
 from bs4 import BeautifulSoup  # type: ignore
 import requests  # type: ignore
 
+try:  # pragma: no cover - trivial import guard
+    import tomllib  # Python 3.11+
+except ImportError:  # pragma: no cover
+    tomllib = None  # type: ignore
+
+try:  # pragma: no cover - trivial import guard
+    from tqdm import tqdm  # type: ignore
+except ImportError:  # pragma: no cover
+    tqdm = None  # type: ignore
+
 from clients import get_client
+import onepace_parser
+from reference_index import get_reference_index, DEFAULT_BASE_DIR as REFERENCE_BASE_DIR, TVSHOW_NFO_FILENAME
 
 
 # Check if running in Docker (non-interactive mode)
@@ -21,6 +36,9 @@ IS_DOCKER = "RUN_DOCKER" in os.environ
 # Defaults to False if not set or empty
 DEBUG_MODE = os.getenv("DEBUG", "").lower() in ("true", "1", "yes", "on")
 
+# Quiet mode (via --quiet) suppresses non-essential informational prints.
+QUIET_MODE = False
+
 # Global flag for graceful shutdown
 _shutdown_requested = False
 
@@ -28,10 +46,41 @@ _shutdown_requested = False
 _SHUTDOWN_MESSAGE = "Shutdown requested, stopping fetch operation..."
 
 
+def _truthy_env(value):
+    """Interpret a string env-var-style value as a boolean."""
+    return str(value or "").strip().lower() in ("true", "1", "yes", "on")
+
+
+def _refresh_debug_mode_from_env():
+    """Recompute DEBUG_MODE from the DEBUG env var.
+    Needed because acepace.toml (Part H4) may inject DEBUG into os.environ
+    *after* this module was first imported (when DEBUG_MODE was computed)."""
+    global DEBUG_MODE
+    DEBUG_MODE = _truthy_env(os.getenv("DEBUG", ""))
+
+
+def set_debug_mode(value):
+    """Explicitly enable/disable debug mode (used by --verbose)."""
+    global DEBUG_MODE
+    DEBUG_MODE = bool(value)
+
+
+def set_quiet_mode(value):
+    """Explicitly enable/disable quiet mode (used by --quiet)."""
+    global QUIET_MODE
+    QUIET_MODE = bool(value)
+
+
 def debug_print(*args, **kwargs):
     """Print debug messages only if DEBUG mode is enabled.
     Works exactly like print() but only outputs when DEBUG environment variable is set."""
     if DEBUG_MODE:
+        print(*args, **kwargs)
+
+
+def info_print(*args, **kwargs):
+    """Print informational (non-essential) messages, suppressed by --quiet."""
+    if not QUIET_MODE:
         print(*args, **kwargs)
 
 
@@ -71,6 +120,70 @@ EPISODES_DB_NAME = "episodes_index.db"
 MISSING_CSV_FILENAME = "Ace-Pace_Missing.csv"
 DB_CSV_FILENAME = "Ace-Pace_DB.csv"
 CSV_COLUMN_MAGNET_LINK = "Magnet Link"
+RENAME_LOG_FILENAME = "Ace-Pace_rename_log.json"
+CONFIG_TOML_FILENAME = "acepace.toml"
+
+# acepace.toml keys map 1:1 to these env var names (Part H4).
+TOML_ENV_KEYS = (
+    "NYAA_URL",
+    "VERSION",
+    "RENAME",
+    "DOWNLOAD",
+    "DRY_RUN",
+    "RENAME_FORCE",
+    "TORRENT_CLIENT",
+    "TORRENT_HOST",
+    "TORRENT_PORT",
+    "TORRENT_USER",
+    "TORRENT_PASSWORD",
+    "EPISODES_UPDATE",
+    "REFERENCE_UPDATE",
+    "DEBUG",
+)
+
+
+def load_toml_config():
+    """Load acepace.toml (if present) and inject any keys not already set as
+    environment variables, so downstream os.getenv(...) call sites (and
+    argparse defaults, if this runs before _parse_arguments) pick them up
+    automatically. Precedence: CLI flag > env var > acepace.toml > built-in default.
+    Never overrides an already-set environment variable.
+    """
+    try:
+        config_path = get_config_path(CONFIG_TOML_FILENAME)
+    except OSError as e:
+        # Config dir couldn't be created/accessed (e.g. read-only /config in
+        # a container without the volume mounted); skip toml config silently
+        # rather than crash startup over an optional feature.
+        debug_print(f"DEBUG: could not resolve config dir for acepace.toml: {e}")
+        return {}
+    if not os.path.isfile(config_path):
+        return {}
+
+    if tomllib is None:  # pragma: no cover - Python < 3.11 fallback
+        print(f"acepace.toml found at {config_path} but 'tomllib' is unavailable (needs Python 3.11+); ignoring.")
+        return {}
+
+    try:
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+    except (OSError, tomllib.TOMLDecodeError) as e:
+        print(f"WARNING: failed to parse {config_path}: {e}; ignoring config file.")
+        return {}
+
+    applied = {}
+    for key in TOML_ENV_KEYS:
+        if key not in data:
+            continue
+        if key in os.environ:
+            continue  # env var already set takes precedence over the config file
+        value = data[key]
+        os.environ[key] = str(value)
+        applied[key] = value
+
+    if applied:
+        info_print(f"Loaded {len(applied)} setting(s) from {config_path}.")
+    return applied
 
 
 def _get_release_date():
@@ -178,13 +291,20 @@ def init_episodes_db():
             crc32 TEXT PRIMARY KEY,
             title TEXT,
             page_link TEXT,
-            magnet_link TEXT
+            magnet_link TEXT,
+            pub_date TEXT
         )
         """
     )
     # Add magnet_link column if it doesn't exist (for existing databases)
     try:
         c.execute("ALTER TABLE episodes_index ADD COLUMN magnet_link TEXT")
+    except sqlite3.OperationalError:
+        # Column already exists, ignore
+        pass
+    # Add pub_date column if it doesn't exist (for existing databases)
+    try:
+        c.execute("ALTER TABLE episodes_index ADD COLUMN pub_date TEXT")
     except sqlite3.OperationalError:
         # Column already exists, ignore
         pass
@@ -225,6 +345,35 @@ def set_episodes_metadata(conn, key, value):
     conn.commit()
 
 
+# --- Part E: pub_date side channel -----------------------------------------
+# fetch_episodes_metadata()'s return shape (list of 4-tuples) is relied upon
+# by existing tests/callers, so the per-CRC32 Nyaa publish date discovered
+# while scraping is threaded through this module-level side channel instead
+# of being added as a 5th tuple element. Reset at the start of each fetch.
+_last_fetch_pub_dates = {}
+
+
+def get_last_fetched_pub_dates():
+    """Return a copy of the crc32 -> pub_date map collected during the most
+    recent fetch_episodes_metadata() call."""
+    return dict(_last_fetch_pub_dates)
+
+
+def _extract_pub_date_from_row(row):
+    """Extract Nyaa's publish timestamp from a torrent-list table row.
+    Nyaa renders it as: <td class="text-center" data-timestamp="171...">...
+    Returns the raw timestamp string, or None if not present/parseable."""
+    try:
+        cells = row.find_all("td", class_="text-center")
+    except AttributeError:
+        return None
+    for cell in cells:
+        timestamp = cell.get("data-timestamp") if hasattr(cell, "get") else None
+        if timestamp:
+            return str(timestamp)
+    return None
+
+
 # --- New: Fetch and update episodes_index table ---
 def _is_valid_quality(fname_text):
     """Check if filename has valid quality (1080p only).
@@ -240,7 +389,7 @@ def _is_valid_quality(fname_text):
     return False  # Quality not 1080p
 
 
-def _process_fname_entry(fname_text, seen_crc32, episodes, page_link, magnet_link=""):
+def _process_fname_entry(fname_text, seen_crc32, episodes, page_link, magnet_link="", pub_date=None):
     """Helper to extract CRC32 from fname_text and store if valid and unique.
     Only accepts episodes with 1080p quality."""
     m = CRC32_REGEX.findall(fname_text)
@@ -251,6 +400,8 @@ def _process_fname_entry(fname_text, seen_crc32, episodes, page_link, magnet_lin
             # print(f"New CRC32 detected: {crc32} -> Title: {fname_text}")
             episodes.append((crc32, fname_text, page_link, magnet_link))
             seen_crc32.add(crc32)
+            if pub_date:
+                _last_fetch_pub_dates[crc32] = pub_date
             found = True
     return found
 
@@ -320,7 +471,7 @@ def _extract_filenames_from_torrent_page(torrent_soup):
     return []
 
 
-def _process_torrent_page(page_link, seen_crc32, episodes, magnet_link=""):
+def _process_torrent_page(page_link, seen_crc32, episodes, magnet_link="", pub_date=None):
     """Process a torrent page to extract CRC32 information from file list.
     For grouped episodes, all episodes in the group share the same magnet_link."""
     try:
@@ -332,7 +483,7 @@ def _process_torrent_page(page_link, seen_crc32, episodes, magnet_link=""):
         filenames = _extract_filenames_from_torrent_page(t_soup)
         found = False
         for fname in filenames:
-            if _process_fname_entry(str(fname), seen_crc32, episodes, page_link, magnet_link):
+            if _process_fname_entry(str(fname), seen_crc32, episodes, page_link, magnet_link, pub_date):
                 found = True
         return found
     except (requests.RequestException, AttributeError, TypeError):
@@ -344,17 +495,18 @@ def _process_episode_row(row, seen_crc32, episodes):
     title_link, magnet_link = _extract_links_from_row(row)
     if not title_link:
         return False
-    
+
     title = title_link.text.strip()
     page_link = NYAA_BASE_URL + title_link["href"]
+    pub_date = _extract_pub_date_from_row(row)
     matches = CRC32_REGEX.findall(title)
-    
+
     if matches:
-        return _process_fname_entry(title, seen_crc32, episodes, page_link, magnet_link or "")
+        return _process_fname_entry(title, seen_crc32, episodes, page_link, magnet_link or "", pub_date)
     else:
         # CRC32 not in title, need to visit torrent page
         # The magnet_link from the row applies to all episodes in the group
-        return _process_torrent_page(page_link, seen_crc32, episodes, magnet_link or "")
+        return _process_torrent_page(page_link, seen_crc32, episodes, magnet_link or "", pub_date)
 
 
 def _fetch_episodes_page(base_url, page, soup=None):
@@ -394,9 +546,10 @@ def fetch_episodes_metadata(base_url=None):
     """
     if base_url is None:
         base_url = f"{NYAA_BASE_URL}/?f=0&c=0_0&q=one+pace"
-    
+
     episodes = []
     seen_crc32 = set()
+    _last_fetch_pub_dates.clear()
     print(f"Browsing {base_url}...")
 
     # Get total number of pages by parsing first page's pagination controls
@@ -479,6 +632,7 @@ def update_episodes_index_db(base_url=None, force_update=False):
     
     # Prepare data for batch insert (allowing for shutdown during processing)
     episode_rows = []
+    pub_dates_by_crc32 = get_last_fetched_pub_dates()
     for episode_data in episodes:
         # Check for shutdown request during processing
         if _shutdown_requested:
@@ -490,12 +644,13 @@ def update_episodes_index_db(base_url=None, force_update=False):
             magnet_link = ""
         else:
             crc32, title, page_link, magnet_link = episode_data
-        episode_rows.append((crc32, title, page_link, magnet_link or ""))
-    
+        pub_date = pub_dates_by_crc32.get(crc32)
+        episode_rows.append((crc32, title, page_link, magnet_link or "", pub_date))
+
     # Batch insert for better performance
     if episode_rows:
         c.executemany(
-            "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link, magnet_link) VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO episodes_index (crc32, title, page_link, magnet_link, pub_date) VALUES (?, ?, ?, ?, ?)",
             episode_rows
         )
     conn.commit()
@@ -548,6 +703,92 @@ def load_1080p_episodes_from_index():
             crc32_to_magnet[crc32] = magnet_link or ""
     conn.close()
     return crc32_to_link, crc32_to_text, crc32_to_magnet
+
+
+def load_1080p_episodes_with_pubdates_from_index():
+    """Like load_1080p_episodes_from_index(), but also returns a crc32 ->
+    pub_date map (Part E: newest-version detection). Separate function so the
+    original 3-tuple return shape (relied upon by existing callers/tests) is
+    left untouched.
+    Returns: (crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate)"""
+    conn = init_episodes_db()
+    c = conn.cursor()
+    try:
+        c.execute("SELECT crc32, title, page_link, magnet_link, pub_date FROM episodes_index")
+        rows = c.fetchall()
+        has_pub_date_column = True
+    except sqlite3.OperationalError:
+        c.execute("SELECT crc32, title, page_link, magnet_link FROM episodes_index")
+        rows = c.fetchall()
+        has_pub_date_column = False
+    crc32_to_link = {}
+    crc32_to_text = {}
+    crc32_to_magnet = {}
+    crc32_to_pubdate = {}
+    for row in rows:
+        if has_pub_date_column:
+            crc32, title, page_link, magnet_link, pub_date = row
+        else:
+            crc32, title, page_link, magnet_link = row
+            pub_date = None
+        if _is_valid_quality(title):
+            crc32_to_link[crc32] = page_link
+            crc32_to_text[crc32] = title
+            crc32_to_magnet[crc32] = magnet_link or ""
+            crc32_to_pubdate[crc32] = pub_date
+    conn.close()
+    return crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate
+
+
+def _group_episodes_for_missing_detection(crc32_to_text, crc32_to_magnet, crc32_to_pubdate):
+    """Group Nyaa episodes by canonical (season, number, is_extended) identity
+    (Part E). Unparseable titles fall back to their own singleton group keyed
+    by crc32, so they're never silently dropped.
+
+    Returns: dict of group_key -> list of crc32 (each group's members, in no
+    particular order)."""
+    _, seasons, _ = get_reference_index()
+    groups = {}
+    for crc32, title in crc32_to_text.items():
+        parsed = onepace_parser.parse_release_title(title, seasons)
+        if parsed is not None:
+            key = ("canon", parsed.season, parsed.number, bool(parsed.extended))
+        else:
+            key = ("unparsed", crc32)
+        groups.setdefault(key, []).append(crc32)
+    return groups
+
+
+def _pub_date_sort_key(pub_date):
+    """Sort key for pub_date strings (Nyaa unix timestamps as TEXT); None/
+    unparseable values sort lowest (oldest) so a real date always wins."""
+    try:
+        return int(pub_date)
+    except (TypeError, ValueError):
+        return -1
+
+
+def _calculate_missing_episodes_grouped(crc32_to_text, crc32_to_magnet, crc32_to_pubdate, local_crc32s):
+    """Version-aware missing-episode detection (Part E).
+
+    A canonical episode is considered present locally if ANY version's CRC32
+    within its (season, number, is_extended) group is present in
+    ``local_crc32s``. Missing episodes are reported using the CRC32/magnet of
+    the NEWEST version (highest pub_date) in the group, so downloads always
+    fetch the newest release. Titles that don't parse fall back to a
+    singleton group (behaves like the legacy ungrouped comparison).
+
+    Returns: list of crc32 (the newest-version crc32 for each missing group).
+    """
+    groups = _group_episodes_for_missing_detection(crc32_to_text, crc32_to_magnet, crc32_to_pubdate)
+    missing = []
+    for _key, crc32_list in groups.items():
+        present = any(crc32 in local_crc32s for crc32 in crc32_list)
+        if present:
+            continue
+        newest_crc32 = max(crc32_list, key=lambda c: _pub_date_sort_key(crc32_to_pubdate.get(c)))
+        missing.append(newest_crc32)
+    return missing
 
 
 def _validate_row_links(title_link, magnet_link):
@@ -1038,6 +1279,49 @@ def _process_files_in_directory(root, files, c, conn, local_crc32s, stats):
     return True
 
 
+def _count_video_files_total(folder):
+    """Quick pre-count of video files under folder, used to size the tqdm
+    progress bar in calculate_local_crc32 (Part H2)."""
+    total = 0
+    for _root, _dirs, files in os.walk(folder):
+        for file in files:
+            if os.path.splitext(file)[1].lower() in VIDEO_EXTENSIONS:
+                total += 1
+    return total
+
+
+def _tqdm_progress_enabled():
+    """Progress bar is only shown when tqdm is installed, output is a real
+    TTY, and we're not in --quiet mode (Part H2)."""
+    return tqdm is not None and not QUIET_MODE and sys.stdout.isatty()
+
+
+def _make_crc32_progress_bar(folder):
+    """Build a tqdm progress bar for calculate_local_crc32(), or None if
+    progress display is disabled/unavailable (Part H2)."""
+    if not _tqdm_progress_enabled():
+        return None
+    total = _count_video_files_total(folder)
+    return tqdm(total=total, desc="Calculating CRC32", unit="file")
+
+
+def _walk_and_process_for_crc32(folder, c, conn, local_crc32s, stats, progress):
+    """Walk folder, processing video files directory-by-directory, advancing
+    the optional progress bar as files are processed. Returns nothing;
+    mutates local_crc32s/stats in place."""
+    for root, dirs, files in os.walk(folder):
+        if _shutdown_requested:
+            print("Shutdown requested, stopping file processing...")
+            break
+
+        before = stats['processed']
+        keep_going = _process_files_in_directory(root, files, c, conn, local_crc32s, stats)
+        if progress is not None:
+            progress.update(stats['processed'] - before)
+        if not keep_going:
+            break
+
+
 def calculate_local_crc32(folder, conn):
     """Calculate CRC32 checksums for all video files in the given folder.
     Uses cached values from database when available.
@@ -1048,38 +1332,109 @@ def calculate_local_crc32(folder, conn):
     local_crc32s = set()
     c = conn.cursor()
     stats = {'processed': 0, 'cached': 0, 'calculated': 0}
-    
+
     debug_print(f"DEBUG: Starting calculate_local_crc32 for folder: {folder}")
-    
-    for root, dirs, files in os.walk(folder):
-        if _shutdown_requested:
-            print("Shutdown requested, stopping file processing...")
-            break
-        
-        if not _process_files_in_directory(root, files, c, conn, local_crc32s, stats):
-            break
-    
+
+    progress = _make_crc32_progress_bar(folder)
+    try:
+        _walk_and_process_for_crc32(folder, c, conn, local_crc32s, stats, progress)
+    finally:
+        if progress is not None:
+            progress.close()
+
     debug_print(f"DEBUG: Processed {stats['processed']} video files ({stats['cached']} from cache, {stats['calculated']} calculated)")
     debug_print(f"DEBUG: Found {len(local_crc32s)} unique CRC32s")
-    
+
     return local_crc32s
 
 
-def _build_rename_plan(entries, crc32_to_title):
-    """Build a plan of files to rename based on CRC32 matches."""
+def _is_extended_mode(version=None):
+    """True if VERSION (CLI/env, default 'normal') resolves to 'extended'."""
+    if version is None:
+        version = os.getenv("VERSION", "normal")
+    return str(version).strip().lower() == "extended"
+
+
+def _rename_force_enabled():
+    """RENAME_FORCE env var: gates the actual destructive move in Docker mode."""
+    return _truthy_env(os.getenv("RENAME_FORCE", ""))
+
+
+def _lookup_reference_episode(lookup, season, number, extended_mode):
+    """Look up a canonical Episode for (season, number), honoring VERSION.
+    Normal mode prefers the non-extended entry, falling back to the extended
+    one if that's all that exists; extended mode does the opposite."""
+    primary = lookup.get((season, number, extended_mode))
+    if primary is not None:
+        return primary
+    return lookup.get((season, number, not extended_mode))
+
+
+def _season_folder_name(season):
+    """Season subfolder name: 'Specials' for season 0, else 'Season NN'."""
+    if season == 0:
+        return "Specials"
+    return f"Season {season:02d}"
+
+
+def _canonical_episode_filename(episode, ext):
+    """Canonical Plex-friendly filename for a reference Episode."""
+    suffix = f" ({episode.extended})" if episode.extended else ""
+    return f"One Pace - S{episode.season:02d}E{episode.number:02d} - {episode.title}{suffix}{ext}"
+
+
+def _build_rename_plan(entries, crc32_to_title, seasons, lookup, extended_mode=False):
+    """Build a plan of files to rename/move based on CRC32 -> title -> canonical episode.
+    Args:
+        entries: iterable of (file_path, crc32) from crc32_cache.
+        crc32_to_title: dict CRC32 -> stored Nyaa release title.
+        seasons: {arc_name: season_number}, from get_reference_index().
+        lookup: {(season, number, is_extended): Episode}, from get_reference_index().
+        extended_mode: True to prefer extended entries (VERSION=extended).
+    Returns: (rename_plan, unrecognized, already_correct)
+        rename_plan: list of dicts {old_path, new_path, crc32, episode}.
+        unrecognized: list of (file_path, crc32, reason) - not renamed, not an error.
+        already_correct: list of file_path already at their canonical location.
+    """
     rename_plan = []
+    unrecognized = []
+    already_correct = []
     for file_path, crc32 in entries:
         title = crc32_to_title.get(crc32)
         if not title:
-            continue  # No match found in index, skip
+            unrecognized.append((file_path, crc32, "no title found in episodes index"))
+            continue
+
+        parsed = onepace_parser.parse_release_title(title, seasons)
+        if parsed is None:
+            unrecognized.append((file_path, crc32, "unrecognized/obsolete release title"))
+            continue
+
+        episode = _lookup_reference_episode(lookup, parsed.season, parsed.number, extended_mode)
+        if episode is None:
+            unrecognized.append((
+                file_path, crc32,
+                f"episodes_without_nfo: no canonical episode found for "
+                f"S{parsed.season:02d}E{parsed.number:02d}",
+            ))
+            continue
+
+        ext = os.path.splitext(file_path)[1]
+        new_filename = _canonical_episode_filename(episode, ext)
         dir_name = os.path.dirname(file_path)
-        # Sanitize title for filename (remove problematic characters)
-        sanitized_title = re.sub(r'[\\/*?:"<>|]', "", title).strip()
-        new_filename = f"{sanitized_title}"
-        new_path = os.path.join(dir_name, new_filename)
-        if os.path.abspath(file_path) != os.path.abspath(new_path):
-            rename_plan.append((file_path, new_path))
-    return rename_plan
+        new_path = os.path.join(dir_name, _season_folder_name(episode.season), new_filename)
+
+        if os.path.abspath(file_path) == os.path.abspath(new_path):
+            already_correct.append(file_path)
+            continue
+
+        rename_plan.append({
+            "old_path": file_path,
+            "new_path": new_path,
+            "crc32": crc32,
+            "episode": episode,
+        })
+    return rename_plan, unrecognized, already_correct
 
 
 def _get_rename_confirmation():
@@ -1089,35 +1444,192 @@ def _get_rename_confirmation():
     return input("Proceed with renaming? (y/n): ").strip().lower()
 
 
-def _execute_rename(rename_plan, conn):
-    """Execute the rename plan and update the database."""
+NFO_EPISODE_TEMPLATE = """<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<episodedetails>
+  <title>{title}</title>
+  <showtitle>One Pace</showtitle>
+  <season>{season}</season>
+  <episode>{number}</episode>
+</episodedetails>
+"""
+
+
+def _write_episode_nfo(video_path, episode):
+    """Write a minimal synthesized companion .nfo next to a renamed episode file.
+    Note: only path-derived metadata is vendored (see reference_index.py), so this
+    is a minimal-but-valid <episodedetails> nfo, not a copy of the real upstream XML."""
+    nfo_path = os.path.splitext(video_path)[0] + ".nfo"
+    content = NFO_EPISODE_TEMPLATE.format(
+        title=_xml_escape(episode.title),
+        season=episode.season,
+        number=episode.number,
+    )
+    try:
+        with open(nfo_path, "w", encoding="utf-8") as f:
+            f.write(content)
+    except OSError as e:
+        print(f"WARNING: failed to write nfo for {video_path}: {e}")
+
+
+def _copy_tvshow_nfo_once(library_root):
+    """Copy the vendored tvshow.nfo to the library root, once, if not already present."""
+    if not library_root:
+        return
+    src = os.path.join(str(REFERENCE_BASE_DIR), TVSHOW_NFO_FILENAME)
+    dst = os.path.join(library_root, TVSHOW_NFO_FILENAME)
+    if os.path.isfile(src) and not os.path.exists(dst):
+        try:
+            shutil.copyfile(src, dst)
+        except OSError as e:
+            print(f"WARNING: failed to copy tvshow.nfo to {library_root}: {e}")
+
+
+def _write_rename_journal(journal_entries):
+    """Persist the most recent rename run's journal (overwrites any previous run)."""
+    path = get_config_path(RENAME_LOG_FILENAME)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(journal_entries, f, indent=2)
+    except OSError as e:
+        print(f"WARNING: failed to write rename journal to {path}: {e}")
+
+
+def _load_rename_journal():
+    """Load the rename journal, or an empty list if missing/unreadable."""
+    path = get_config_path(RENAME_LOG_FILENAME)
+    if not os.path.isfile(path):
+        return []
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"WARNING: failed to read rename journal at {path}: {e}")
+        return []
+
+
+def undo_last_rename(conn):
+    """Reverse the most recently journaled --rename run: moves files back to
+    their old_path and reverts crc32_cache.file_path entries. Clears the
+    journal on completion. Returns (reverted_count, skipped_count)."""
+    entries = _load_rename_journal()
+    if not entries:
+        print("No rename journal found; nothing to undo.")
+        return 0, 0
+
     c = conn.cursor()
-    for old, new in rename_plan:
+    reverted = 0
+    skipped = 0
+    for entry in entries:
+        old_path = entry.get("old_path")
+        new_path = entry.get("new_path")
+        if not old_path or not new_path:
+            skipped += 1
+            continue
+        if not os.path.exists(new_path):
+            print(f"Skipping undo for {new_path}: file not found (already reverted or moved).")
+            skipped += 1
+            continue
+        if os.path.exists(old_path):
+            print(f"Skipping undo for {new_path}: target {old_path} already exists.")
+            skipped += 1
+            continue
+        try:
+            old_dir = os.path.dirname(old_path)
+            if old_dir:
+                os.makedirs(old_dir, exist_ok=True)
+            os.rename(new_path, old_path)
+            c.execute(
+                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?",
+                (normalize_file_path(old_path), normalize_file_path(new_path)),
+            )
+            conn.commit()
+            reverted += 1
+            print(f"Reverted {new_path} -> {old_path}")
+        except (sqlite3.Error, OSError) as e:
+            print(f"Failed to revert {new_path}: {e}")
+            skipped += 1
+
+    _write_rename_journal([])  # "undo last run" - clear journal after attempting undo
+    print(f"Undo complete: {reverted} reverted, {skipped} skipped.")
+    return reverted, skipped
+
+
+def _execute_rename(rename_plan, conn, folder=None):
+    """Execute the rename plan: move each file into its Season NN/ (or
+    Specials/) subfolder under canonical name, write a companion .nfo, copy
+    tvshow.nfo once, update crc32_cache paths, and journal the run for undo.
+    Returns: (renamed_count, error_count)."""
+    c = conn.cursor()
+    journal = []
+    renamed = 0
+    errors = 0
+    now_iso = datetime.now().isoformat()
+
+    for item in rename_plan:
+        old = item["old_path"]
+        new = item["new_path"]
+        episode = item["episode"]
+        crc32 = item["crc32"]
         try:
             if os.path.exists(new):
                 print(f"Cannot rename {old} to {new}: target file already exists.")
+                errors += 1
                 continue
+
+            new_dir = os.path.dirname(new)
+            if new_dir:
+                os.makedirs(new_dir, exist_ok=True)
+
             os.rename(old, new)
             print(f"Renamed {old} to {new}")
-            # Normalize paths for consistent database updates
+
+            _write_episode_nfo(new, episode)
+
             normalized_old = normalize_file_path(old)
             normalized_new = normalize_file_path(new)
-            # Update DB with new file path
             c.execute(
-                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?", (normalized_new, normalized_old)
+                "UPDATE crc32_cache SET file_path = ? WHERE file_path = ?",
+                (normalized_new, normalized_old),
             )
             conn.commit()
+
+            journal.append({
+                "old_path": normalized_old,
+                "new_path": normalized_new,
+                "crc32": crc32,
+                "timestamp": now_iso,
+            })
+            renamed += 1
         except (sqlite3.Error, OSError) as e:
             print(f"Failed to rename {old} to {new}: {e}")
+            errors += 1
+
+    if folder:
+        _copy_tvshow_nfo_once(folder)
+
+    _write_rename_journal(journal)
+    return renamed, errors
 
 
-def rename_local_files(conn, dry_run=False):
-    """Rename local files based on CRC32 matching titles from episodes index.
-    Matches local video files with episodes in the database and renames them
-    to match the official episode titles.
+def _print_rename_summary(total, renamed, skipped_already_correct, unrecognized_count, errors):
+    """Print the final rename-run summary table (Part H2)."""
+    print("\n=== Rename Summary ===")
+    print(f"Total: {total}")
+    print(f"Renamed: {renamed}")
+    print(f"Skipped (already correct): {skipped_already_correct}")
+    print(f"Unrecognized/obsolete: {unrecognized_count}")
+    print(f"Errors: {errors}")
+
+
+def rename_local_files(conn, dry_run=False, extended_mode=False, folder=None):
+    """Rename+move local files based on CRC32 -> Nyaa title -> canonical
+    one-pace-for-plex episode. Unrecognized/obsolete local files are reported
+    but never touched.
     Args:
-        conn: Database connection
-        dry_run: If True, only print the rename plan and do not rename or ask for confirmation.
+        conn: Database connection.
+        dry_run: If True, only print the rename plan; never renames or prompts.
+        extended_mode: True to prefer extended episodes (VERSION=extended).
+        folder: Library root, used to copy tvshow.nfo once on real execution.
     """
     c = conn.cursor()
     c.execute("SELECT file_path, crc32 FROM crc32_cache")
@@ -1126,27 +1638,36 @@ def rename_local_files(conn, dry_run=False):
         print("No entries found in local CRC32 database.")
         return
 
-    # Load CRC32 → title from episodes_index.db
     crc32_to_title = load_crc32_to_title_from_index()
-    local_crc32s = set()
-    for _, crc32 in entries:
-        local_crc32s.add(crc32)
+    lookup, seasons, _exceptions = get_reference_index()
 
-    total = len(local_crc32s)
-    rename_plan = _build_rename_plan(entries, crc32_to_title)
+    total = len(entries)
+    rename_plan, unrecognized, already_correct = _build_rename_plan(
+        entries, crc32_to_title, seasons, lookup, extended_mode
+    )
+
+    if unrecognized:
+        print(f"{len(unrecognized)} local file(s) unrecognized/obsolete (left untouched):")
+        for file_path, crc32, reason in unrecognized:
+            print(f"  {os.path.basename(file_path)} [{crc32}]: {reason}")
 
     if not rename_plan:
         print("No files to rename.")
-        print(f"0/{total} files matched in index.")
+        print(
+            f"0/{total} files matched for renaming "
+            f"({len(already_correct)} already correct, {len(unrecognized)} unrecognized)."
+        )
+        _print_rename_summary(total, 0, len(already_correct), len(unrecognized), 0)
         return
 
     print("Rename plan:")
-    for old, new in rename_plan:
-        print(f"{os.path.basename(old)} -> {os.path.basename(new)}")
-    print(f"{len(rename_plan)}/{total} files will be renamed.")
+    for item in rename_plan:
+        print(f"{item['old_path']} -> {item['new_path']}")
+    print(f"{len(rename_plan)}/{total} files will be renamed and moved.")
 
     if dry_run:
-        print("DRY RUN: would rename the above files (no changes made).")
+        print("DRY RUN: would rename/move the above files (no changes made).")
+        _print_rename_summary(total, 0, len(already_correct), len(unrecognized), 0)
         return
 
     confirm = _get_rename_confirmation()
@@ -1154,7 +1675,16 @@ def rename_local_files(conn, dry_run=False):
         print("Renaming aborted.")
         return
 
-    _execute_rename(rename_plan, conn)
+    if IS_DOCKER and not _rename_force_enabled():
+        print(
+            "RENAME_FORCE is not set to 'true': running as DRY RUN ONLY in Docker mode. "
+            "Set RENAME_FORCE=true to actually move/rename files."
+        )
+        _print_rename_summary(total, 0, len(already_correct), len(unrecognized), 0)
+        return
+
+    renamed, errors = _execute_rename(rename_plan, conn, folder=folder)
+    _print_rename_summary(total, renamed, len(already_correct), len(unrecognized), errors)
 
 
 def export_db_to_csv(conn):
@@ -1424,22 +1954,23 @@ def _ensure_crc32_cache_complete(folder, conn):
         print("CRC32 cache is up to date for local files.")
 
 
-def _handle_rename_command(conn, base_url=None, dry_run=False, folder=None):
+def _handle_rename_command(conn, base_url=None, dry_run=False, folder=None, extended_mode=False):
     """Handle the rename command.
     Args:
         conn: Database connection
         base_url: Base URL for Nyaa search (optional)
         dry_run: If True, only show rename plan and do not rename or ask for confirmation.
         folder: Local media folder for CRC32 cache check (uses version-specific default if not set).
+        extended_mode: True to prefer extended episodes (VERSION=extended).
     """
     episodes_db_conn = init_episodes_db()
     last_ep_update = get_episodes_metadata(
         episodes_db_conn, "episodes_db_last_update"
     )
     episodes_db_conn.close()
-    
+
     prompt = _get_rename_prompt(last_ep_update)
-    
+
     if prompt == "y":
         update_episodes_index_db(base_url)
     if folder:
@@ -1447,7 +1978,7 @@ def _handle_rename_command(conn, base_url=None, dry_run=False, folder=None):
     print(
         "Renaming local files based on matching titles from One Pace episodes index..."
     )
-    rename_local_files(conn, dry_run=dry_run)
+    rename_local_files(conn, dry_run=dry_run, extended_mode=extended_mode, folder=folder)
 
 
 def _count_video_files(folder, conn):
@@ -1584,73 +2115,38 @@ def _normalize_crc32_sets(crc32_to_link, local_crc32s):
     return nyaa_crc32s_normalized, local_crc32s_normalized
 
 
-def _build_normalized_to_original_mapping(crc32_to_link, nyaa_crc32s_normalized):
-    """Build mapping from normalized CRC32 back to original key.
-    Returns tuple: (normalized_to_original dict, mapping_issues list)"""
-    normalized_to_original = {}
-    for orig_key in crc32_to_link.keys():
-        norm_key = str(orig_key).strip().upper()
-        # If we already have this normalized key, keep the first one (shouldn't happen with CRC32s)
-        if norm_key not in normalized_to_original:
-            normalized_to_original[norm_key] = orig_key
-    
-    mapping_issues = []
-    # Verify the mapping is correct
-    if len(normalized_to_original) != len(nyaa_crc32s_normalized):
-        debug_print(f"WARNING: Mapping size mismatch! normalized_to_original: {len(normalized_to_original)}, nyaa_crc32s_normalized: {len(nyaa_crc32s_normalized)}")
-        debug_print("This could indicate duplicate normalized CRC32s or mapping issues.")
-        # Show which normalized CRC32s are missing from the mapping
-        missing_from_mapping = nyaa_crc32s_normalized - set(normalized_to_original.keys())
-        if missing_from_mapping:
-            mapping_issues = list(missing_from_mapping)
-            debug_print(f"Normalized CRC32s missing from mapping (first 5): {mapping_issues[:5]}")
-    
-    return normalized_to_original, mapping_issues
-
-
-def _build_missing_list(missing_normalized_set, normalized_to_original, crc32_to_link):
-    """Build missing episodes list from normalized set.
-    Returns tuple: (missing list, mapping_errors list)"""
-    missing = []
-    missing_normalized = list(missing_normalized_set)
-    mapping_errors = []
-    
-    for norm_crc in missing_normalized:
-        if norm_crc in normalized_to_original:
-            missing.append(normalized_to_original[norm_crc])
-        else:
-            # Try to find the original key by searching (fallback)
-            found = False
-            for orig_key in crc32_to_link.keys():
-                if str(orig_key).strip().upper() == norm_crc:
-                    missing.append(orig_key)
-                    found = True
-                    break
-            if not found:
-                mapping_errors.append(norm_crc)
-                debug_print(f"ERROR: Could not find original key for normalized CRC32 '{norm_crc}'")
-    
-    if mapping_errors:
-        debug_print(f"WARNING: {len(mapping_errors)} missing episodes could not be mapped to original keys!")
-        debug_print("This is a critical error - these episodes will not be included in the missing list.")
-        debug_print(f"Affected normalized CRC32s (first 10): {mapping_errors[:10]}")
-    
-    return missing, mapping_errors
-
-
-def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized, 
+def _print_comparison_results(nyaa_crc32s_normalized, local_crc32s_normalized,
                               crc32_to_link, local_crc32s, missing, missing_normalized):
-    """Print comparison results and troubleshooting information."""
-    # Also check the original comparison for debugging
+    """Print comparison results and troubleshooting information.
+
+    ``missing`` is the FINAL grouped/version-aware missing list (one entry
+    per missing canonical episode, using the newest version's CRC32).
+    ``missing_normalized`` is the raw, ungrouped per-CRC32 comparison (every
+    Nyaa CRC32 not found locally, before grouping collapses multi-version
+    episodes together) - it's kept purely as a diagnostic baseline.
+
+    Because grouping only ever collapses multiple missing CRC32s belonging
+    to the same canonical episode into a single entry, ``len(missing) <=
+    len(missing_normalized)`` is the expected, healthy relationship - it is
+    NOT a bug indicator by itself. The reverse (grouped count higher than
+    the raw count) would indicate a real bug in the grouping logic."""
+    # Also check the original (unnormalized) comparison for debugging
     original_missing_count = len([c for c in crc32_to_link.keys() if c not in local_crc32s])
     debug_print(f"Missing episodes (original comparison): {original_missing_count}")
-    debug_print(f"Missing episodes (normalized comparison): {len(missing)}")
-    debug_print(f"Missing normalized CRC32s: {len(missing_normalized)}")
-    
-    if original_missing_count != len(missing):
-        debug_print(f"WARNING: Comparison mismatch detected! Original: {original_missing_count}, Normalized: {len(missing)}")
+    debug_print(f"Missing episodes (raw normalized comparison): {len(missing_normalized)}")
+    debug_print(f"Missing episodes (grouped/version-aware, final): {len(missing)}")
+
+    if original_missing_count != len(missing_normalized):
+        debug_print(f"WARNING: Comparison mismatch detected! Original: {original_missing_count}, Raw normalized: {len(missing_normalized)}")
         debug_print("This suggests a data type or format issue. Using normalized comparison.")
-    
+
+    if len(missing) > len(missing_normalized):
+        debug_print(f"ERROR: Grouped missing count ({len(missing)}) exceeds raw normalized missing count ({len(missing_normalized)})!")
+        debug_print("Grouping should only ever reduce (or match) the missing count - this indicates a bug in grouped detection.")
+    elif len(missing) < len(missing_normalized):
+        debug_print(f"Grouped missing count ({len(missing)}) is lower than raw normalized missing count ({len(missing_normalized)}).")
+        debug_print("This is expected when multiple versions of the same episode are grouped together (present-if-any-version-local semantics).")
+
     # Show intersection details
     intersection = nyaa_crc32s_normalized & local_crc32s_normalized
     debug_print(f"Intersection (episodes found locally): {len(intersection)}")
@@ -1735,13 +2231,16 @@ def _load_episodes_from_database(episodes_update_env, base_url, fetch_magnets=Tr
         episodes_update_env: True if EPISODES_UPDATE environment variable is set
         base_url: Base URL for Nyaa search (unused now, kept for compatibility)
         fetch_magnets: If True, fetch missing magnet links from Nyaa. If False, use only database.
-    Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page)"""
+    Returns: Tuple of (crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate,
+    last_checked_page)"""
     if episodes_update_env:
         print("Using episodes index database (EPISODES_UPDATE=true, using updated database)...")
     else:
         print("Using episodes index database (EPISODES_UPDATE=false, checking database only)...")
-    
-    crc32_to_link, crc32_to_text, crc32_to_magnet = load_1080p_episodes_from_index()
+
+    crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate = (
+        load_1080p_episodes_with_pubdates_from_index()
+    )
     print(f"Loaded {len(crc32_to_link)} 1080p episodes from database.")
     
     # Count how many episodes have magnet links in database
@@ -1778,48 +2277,69 @@ def _load_episodes_from_database(episodes_update_env, base_url, fetch_magnets=Tr
     # since they're loaded together from the same database query
     crc32_to_link = {c: crc32_to_link[c] for c in episodes_with_magnets}
     crc32_to_text = {c: crc32_to_text[c] for c in episodes_with_magnets}
+    crc32_to_pubdate = {c: crc32_to_pubdate.get(c) for c in episodes_with_magnets}
     crc32_to_magnet = episodes_with_magnets
-    
-    return crc32_to_link, crc32_to_text, crc32_to_magnet, 0
+
+    return crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate, 0
 
 
-def _calculate_missing_episodes(crc32_to_link, local_crc32s):
-    """Calculate missing episodes by comparing Nyaa episodes with local CRC32s.
+def _calculate_missing_episodes(crc32_to_link, crc32_to_text, crc32_to_magnet,
+                                crc32_to_pubdate, local_crc32s):
+    """Calculate missing episodes using grouped, version-aware detection (Part E).
+
+    This is the live/default missing-episode detection path. A canonical
+    episode (season, number, is_extended) is considered present if ANY of
+    its versions' CRC32s is found locally; when missing, it is reported
+    using the CRC32/magnet of the NEWEST version (highest pub_date), so
+    downloads always fetch the newest release. Titles that fail to parse
+    fall back to a singleton group, so they behave like the legacy
+    ungrouped comparison and are never silently dropped.
+
+    CRC32 case is normalized (uppercase) before the grouped comparison so
+    upper/lowercase mismatches between Nyaa-sourced and locally-computed
+    CRC32s are tolerated, exactly like the legacy CRC32-only comparison.
+
     Args:
         crc32_to_link: Dictionary mapping CRC32 to page_link
+        crc32_to_text: Dictionary mapping CRC32 to release title
+        crc32_to_magnet: Dictionary mapping CRC32 to magnet link
+        crc32_to_pubdate: Dictionary mapping CRC32 to Nyaa pub_date (may be
+            sparse/empty, e.g. when episodes were fetched via the legacy
+            bootstrap path that doesn't capture pub_date)
         local_crc32s: Set of local CRC32 checksums
-    Returns: List of missing CRC32s"""
-    debug_print("DEBUG: Starting missing episode detection")
+    Returns: List of missing CRC32s (newest-version CRC32 per missing group)"""
+    debug_print("DEBUG: Starting missing episode detection (grouped/version-aware)")
     debug_print(f"DEBUG: Episodes from Nyaa: {len(crc32_to_link)}")
     debug_print(f"DEBUG: Local CRC32s: {len(local_crc32s)}")
 
     # Print troubleshooting header
     _print_troubleshooting_header(crc32_to_link, local_crc32s)
-    
-    # Normalize CRC32 sets
+
+    # Normalize CRC32 sets (uppercase) - preserves the legacy tolerance for
+    # upper/lowercase CRC32 mismatches. Nyaa-sourced dict keys (crc32_to_text
+    # etc.) are already uppercase (extraction always upper()s them), so only
+    # local_crc32s realistically needs normalizing, but we normalize both for
+    # parity with the original behavior and to feed the diagnostic prints.
     nyaa_crc32s_normalized, local_crc32s_normalized = _normalize_crc32_sets(
         crc32_to_link, local_crc32s
     )
-    
-    # Find missing using normalized comparison
+
+    # Raw, ungrouped per-CRC32 comparison - kept purely as a diagnostic
+    # baseline for _print_comparison_results (grouping is expected to
+    # collapse this further, not replace it as ground truth).
     missing_normalized_set = nyaa_crc32s_normalized - local_crc32s_normalized
-    
-    # Build normalized to original mapping
-    normalized_to_original, _ = _build_normalized_to_original_mapping(
-        crc32_to_link, nyaa_crc32s_normalized
+
+    # Grouped/version-aware detection: the actual, live decision.
+    missing = _calculate_missing_episodes_grouped(
+        crc32_to_text, crc32_to_magnet, crc32_to_pubdate, local_crc32s_normalized
     )
-    
-    # Build missing list
-    missing, _ = _build_missing_list(
-        missing_normalized_set, normalized_to_original, crc32_to_link
-    )
-    
-    # Print comparison results
+
+    # Print comparison results (adapted to compare raw vs. grouped counts)
     _print_comparison_results(
         nyaa_crc32s_normalized, local_crc32s_normalized,
         crc32_to_link, local_crc32s, missing, list(missing_normalized_set)
     )
-    
+
     return missing
 
 
@@ -1839,15 +2359,22 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
     # Load episodes (from database or fetch from Nyaa)
     # Magnet links are now stored in the database, so we load them directly
     if use_database:
-        # Load episodes from database, including magnet links
+        # Load episodes from database, including magnet links and pub_dates
         # fetch_magnets=True will fetch any missing magnet links from Nyaa
-        crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = _load_episodes_from_database(episodes_update_env, args.url, fetch_magnets=True)
+        crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate, last_checked_page = (
+            _load_episodes_from_database(episodes_update_env, args.url, fetch_magnets=True)
+        )
     else:
         # Normal fetch from Nyaa (only when database doesn't exist and EPISODES_UPDATE=false)
         print("Fetching episodes metadata from Nyaa...")
         crc32_to_link, crc32_to_text, crc32_to_magnet, last_checked_page = (
             fetch_crc32_links(args.url)
         )
+        # fetch_crc32_links() doesn't capture pub_date (only
+        # fetch_episodes_metadata() does), so newest-version selection falls
+        # back to arbitrary tie-breaking within a group in this bootstrap-only
+        # path. Rare in practice: it only runs before the episodes DB exists.
+        crc32_to_pubdate = {}
 
     print(f"Found {len(crc32_to_link)} episodes from Nyaa.")
 
@@ -1865,7 +2392,9 @@ def _calculate_and_find_missing(folder, conn, args, last_run):
     debug_print(f"DEBUG: Folder scanned: {folder}")
 
     # Calculate missing episodes (only those with magnet links can be downloaded)
-    missing = _calculate_missing_episodes(crc32_to_link, local_crc32s)
+    missing = _calculate_missing_episodes(
+        crc32_to_link, crc32_to_text, crc32_to_magnet, crc32_to_pubdate, local_crc32s
+    )
     # Filter to only missing episodes that have magnet links (redundant check removed)
     missing = [crc32 for crc32 in missing if crc32_to_magnet.get(crc32)]
 
@@ -1889,10 +2418,20 @@ def _report_new_missing_episodes(missing, crc32_to_text):
                 debug_print(f"Missing: {title}")
 
 
+def _print_missing_report_summary(total, present, missing_count, unrecognized_local_count):
+    """Print the final missing-report summary table (Part H2)."""
+    print("\n=== Missing Report Summary ===")
+    print(f"Total on Nyaa: {total}")
+    print(f"Present locally: {present}")
+    print(f"Missing: {missing_count}")
+    if unrecognized_local_count:
+        print(f"Unrecognized local files: {unrecognized_local_count}")
+
+
 def _generate_missing_episodes_report(conn, folder, args):
     """Generate and save missing episodes report."""
     last_run = _print_report_header(conn, folder, args)
-    
+
     missing, crc32_to_text, crc32_to_link, crc32_to_magnet, last_checked_page = (
         _calculate_and_find_missing(folder, conn, args, last_run)
     )
@@ -1904,9 +2443,14 @@ def _generate_missing_episodes_report(conn, folder, args):
     set_metadata(conn, "last_checked_page", str(last_checked_page))
     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     set_metadata(conn, "last_missing_export", now_str)
-    
+
     # Print missing count prominently
     print(f"Missing episodes: {len(missing)}")
+
+    total_on_nyaa = len(crc32_to_link)
+    _print_missing_report_summary(
+        total_on_nyaa, total_on_nyaa - len(missing), len(missing), 0
+    )
 
     return missing, crc32_to_text
 
@@ -1947,7 +2491,29 @@ AVAILABLE COMMANDS:
     --dry-run               Test connection to BitTorrent client without adding torrents
                             Validates magnet links and checks existing torrents but
                             does not add any downloads. Useful for verifying configuration.
-                            Only effective when used with --download.
+                            Also makes --rename report its plan without touching the filesystem.
+
+    --undo                  Undo the last real --rename run
+                            Reverses the moves/renames journaled during the most recent
+                            non-dry-run --rename, and reverts the crc32 cache's recorded
+                            file paths. Only the last run is journaled (not full history).
+
+    --doctor                Run diagnostics and exit
+                            Checks: media folder readable, reference data present/fresh,
+                            episodes_index.db has rows, torrent client connectivity (if
+                            configured), and SQLite file integrity. Exit code is non-zero
+                            if any hard check fails.
+
+  Rename Options:
+    --version {normal,extended}
+                            Which episode version is canonical for rename/missing lookups
+                            Default: normal (env: VERSION). "extended" prefers the
+                            extended/alternate cut of an episode when both exist.
+
+  Output Options:
+    --quiet                 Suppress non-essential output (errors and final summaries still print)
+
+    --verbose               Enable debug logging (equivalent to DEBUG=true)
 
   BitTorrent Client Options (for --download):
     --client {transmission,qbittorrent}
@@ -1980,6 +2546,15 @@ AVAILABLE COMMANDS:
     --folder PATH           Folder containing local video files
                             If not specified, will prompt for input
                             In Docker mode, defaults to /media
+
+ENVIRONMENT VARIABLES:
+  Most flags above have an equivalent env var (CLI flag > env var > acepace.toml
+  > built-in default). Notably:
+    VERSION                 "normal" or "extended" (see --version above)
+    RENAME_FORCE            In Docker, must be "true" for --rename to perform real
+                            (non-dry-run) moves; otherwise Docker runs are dry-run-only.
+    REFERENCE_UPDATE        Refresh vendored one-pace-for-plex reference data at startup.
+  See acepace.toml.example for the full list of config-file/env-var keys.
 
 EXAMPLES:
 
@@ -2068,6 +2643,33 @@ Use --help for detailed command descriptions.
         action="store_true",
         help="Download: test client without adding torrents. Rename: show rename plan without renaming.",
     )
+    parser.add_argument(
+        "--version",
+        choices=["normal", "extended"],
+        default=os.getenv("VERSION", "normal"),
+        help="Which episode version to treat as canonical for rename/missing-detection: "
+             "'normal' (default) or 'extended'. Also settable via VERSION env var.",
+    )
+    parser.add_argument(
+        "--undo",
+        action="store_true",
+        help="Undo the most recent --rename run (reverses file moves and DB paths).",
+    )
+    parser.add_argument(
+        "--quiet",
+        action="store_true",
+        help="Suppress non-essential output (errors and final summaries are still printed).",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Equivalent to DEBUG=true: print detailed debug information.",
+    )
+    parser.add_argument(
+        "--doctor",
+        action="store_true",
+        help="Run diagnostics (folder, reference data, databases, torrent client) and exit.",
+    )
     return parser.parse_args()
 
 
@@ -2092,6 +2694,133 @@ def _show_episodes_metadata_status():
     episodes_db_conn.close()
 
 
+def _doctor_check_folder(args):
+    """Doctor check: media folder exists and is readable (informational if unconfigured)."""
+    folder = getattr(args, "folder", None) or _get_default_media_dir()
+    if not folder:
+        print("[WARN] Media folder: not configured (no --folder given); skipping.")
+        return True
+    if os.path.isdir(folder) and os.access(folder, os.R_OK):
+        print(f"[PASS] Media folder: '{folder}' exists and is readable.")
+        return True
+    print(f"[FAIL] Media folder: '{folder}' does not exist or is not readable.")
+    return False
+
+
+def _doctor_check_reference_data():
+    """Doctor check: vendored reference data is present and reports its freshness."""
+    index_path = os.path.join(str(REFERENCE_BASE_DIR), "episodes_index.json")
+    if not os.path.isfile(index_path) or os.path.getsize(index_path) == 0:
+        print(f"[FAIL] Reference data: '{index_path}' missing or empty.")
+        return False
+    print(f"[PASS] Reference data: '{index_path}' present.")
+    _doctor_report_reference_data_age(os.path.join(str(REFERENCE_BASE_DIR), "metadata.json"))
+    return True
+
+
+def _doctor_report_reference_data_age(metadata_path):
+    """Print an informational pass/warn line about reference data staleness."""
+    if not os.path.isfile(metadata_path):
+        return
+    try:
+        with open(metadata_path, "r", encoding="utf-8") as f:
+            metadata = json.load(f)
+        last_refresh = metadata.get("last_refresh")
+        if not last_refresh:
+            return
+        refreshed_at = datetime.fromisoformat(last_refresh)
+        now = datetime.now(refreshed_at.tzinfo) if refreshed_at.tzinfo else datetime.now()
+        age_days = (now - refreshed_at).days
+        if age_days > 30:
+            print(f"[WARN] Reference data last refreshed {age_days} day(s) ago ({last_refresh}).")
+        else:
+            print(f"[PASS] Reference data last refreshed {age_days} day(s) ago ({last_refresh}).")
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f"[WARN] Reference data: could not read metadata.json: {e}")
+
+
+def _doctor_check_episodes_db():
+    """Doctor check: episodes_index.db exists and has rows."""
+    db_path = get_config_path(EPISODES_DB_NAME)
+    if not os.path.isfile(db_path):
+        print(f"[FAIL] Episodes DB: '{db_path}' does not exist.")
+        return False
+    try:
+        conn = sqlite3.connect(db_path)
+        count = conn.execute("SELECT COUNT(*) FROM episodes_index").fetchone()[0]
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"[FAIL] Episodes DB: '{db_path}' could not be read: {e}")
+        return False
+    if count == 0:
+        print(f"[WARN] Episodes DB: '{db_path}' exists but has no rows yet.")
+    else:
+        print(f"[PASS] Episodes DB: '{db_path}' has {count} row(s).")
+    return True
+
+
+def _doctor_check_sqlite_integrity(db_name):
+    """Doctor check: SQLite file opens and passes PRAGMA integrity_check."""
+    db_path = get_config_path(db_name)
+    if not os.path.isfile(db_path):
+        print(f"[WARN] {db_name}: not created yet, skipping integrity check.")
+        return True
+    try:
+        conn = sqlite3.connect(db_path)
+        result = conn.execute("PRAGMA integrity_check").fetchone()
+        conn.close()
+    except sqlite3.Error as e:
+        print(f"[FAIL] {db_name}: could not open/check: {e}")
+        return False
+    if result and result[0] == "ok":
+        print(f"[PASS] {db_name}: integrity check ok.")
+        return True
+    print(f"[FAIL] {db_name}: integrity check failed: {result}")
+    return False
+
+
+def _doctor_check_torrent_client(args):
+    """Doctor check: attempt a lightweight connection to the configured torrent client."""
+    client = _get_client_from_args_or_env(args) or os.getenv("TORRENT_CLIENT")
+    if not client:
+        print("[SKIP] Torrent client: not configured.")
+        return True
+    host = os.getenv("TORRENT_HOST") or getattr(args, "host", None) or "localhost"
+    port_env = os.getenv("TORRENT_PORT")
+    port = int(port_env) if port_env else (getattr(args, "port", None) or _get_default_port(client))
+    username = os.getenv("TORRENT_USER") or getattr(args, "username", None) or ""
+    password = os.getenv("TORRENT_PASSWORD") or getattr(args, "password", None) or ""
+    try:
+        get_client(client, host, port, username, password)
+        print(f"[PASS] Torrent client: connected to {client} at {host}:{port}.")
+        return True
+    except Exception as e:
+        print(f"[FAIL] Torrent client: could not connect to {client} at {host}:{port}: {e}")
+        return False
+
+
+def handle_doctor_command(args):
+    """Run --doctor diagnostics; each check prints a pass/fail/warn/skip line.
+    Returns the process exit code: 0 if all hard checks pass (informational
+    warnings/skips don't fail the run), non-zero if any hard check fails."""
+    print("Ace-Pace Doctor")
+    print("=" * 60)
+    results = [
+        _doctor_check_folder(args),
+        _doctor_check_reference_data(),
+        _doctor_check_episodes_db(),
+        _doctor_check_torrent_client(args),
+        _doctor_check_sqlite_integrity(DB_NAME),
+        _doctor_check_sqlite_integrity(EPISODES_DB_NAME),
+    ]
+    print("=" * 60)
+    if all(results):
+        print("Doctor: all checks passed (or informational only).")
+        return 0
+    print("Doctor: one or more checks failed.")
+    return 1
+
+
 def _handle_main_commands(args, conn, folder):
     """Handle main command execution."""
     if args.download:
@@ -2099,7 +2828,8 @@ def _handle_main_commands(args, conn, folder):
         return
 
     if args.rename:
-        _handle_rename_command(conn, args.url, dry_run=args.dry_run, folder=folder)
+        extended_mode = _is_extended_mode(getattr(args, "version", None))
+        _handle_rename_command(conn, args.url, dry_run=args.dry_run, folder=folder, extended_mode=extended_mode)
         return
 
     if not folder:
@@ -2134,13 +2864,34 @@ def main():
     # Register signal handlers for graceful shutdown
     signal.signal(signal.SIGTERM, _signal_handler)
     signal.signal(signal.SIGINT, _signal_handler)
-    
+
+    # Load acepace.toml (Part H4) before argparse so its values become the
+    # defaults argparse reads via os.getenv(...); real env vars / CLI flags
+    # still take precedence (see load_toml_config docstring).
+    load_toml_config()
+    _refresh_debug_mode_from_env()
+
     try:
         args = _parse_arguments()
 
         # Show detailed help if requested
         if args.help:
             _print_help()
+            sys.exit(0)
+
+        # --doctor runs diagnostics and exits before any folder/DB requirement.
+        if getattr(args, "doctor", False) is True:
+            sys.exit(handle_doctor_command(args))
+
+        if getattr(args, "verbose", False) is True:
+            set_debug_mode(True)
+        if getattr(args, "quiet", False) is True:
+            set_quiet_mode(True)
+
+        # --undo reverses the most recent --rename run; no folder required.
+        if getattr(args, "undo", False) is True:
+            conn = init_db(suppress_messages=True)
+            undo_last_rename(conn)
             sys.exit(0)
 
         # Print header only for main command (not for --db or --episodes_update)
