@@ -7,10 +7,15 @@ However, managing your One-Pace episodes, ensuring you have all the latest relea
 
 ## 🚀 How to Install
 
-To get started with Ace-Pace, you'll need to have Python installed on your system. We recommend using Python 3.6 or higher. You can download Python from the [official website](https://www.python.org/downloads/).
+To get started with Ace-Pace, you'll need Python 3.11+ (the `--doctor` command and `acepace.toml` config file support use `tomllib`, stdlib since 3.11). You can download Python from the [official website](https://www.python.org/downloads/).
 
-Once Python is installed, you need to install the required Python libraries.
-Run this command in the Ace-Pace directory:
+Recommended: install with [uv](https://docs.astral.sh/uv/) (also used for tests/CI):
+
+```
+uv sync
+```
+
+Or plain pip, in the Ace-Pace directory:
 
 ```
 pip install -r requirements.txt
@@ -75,9 +80,16 @@ The following environment variables can be used to configure Ace-Pace in Docker:
 - `DB` - Set to `true` to generate CSV database export on container start (default: `false`)
 - `EPISODES_UPDATE` - Set to `true` to update episodes metadata from Nyaa on container start (default: `false`)
 - `DOWNLOAD` - Set to `true` to automatically download missing episodes after generating report (default: `false`)
-- `RENAME` - Set to `true` to rename local files in the media folder to match One-Pace episode titles from the episodes index (default: `false`)
+  - Missing/present detection is version-aware: episodes are grouped by canonical (season, episode, version), and an episode counts as "present" if any of its versions' releases is local. When missing, the newest-dated release of that episode is selected for download.
+- `RENAME` - Set to `true` to rename local files in the media folder to the canonical Plex naming (default: `false`)
+  - Target format: `One Pace - S{season}E{episode} - {Title}.ext` (season/episode/title sourced from the [one-pace-for-plex](https://github.com/SpykerNZ/one-pace-for-plex) reference index), with the matching `.nfo`/poster copied alongside
   - Non-interactive: no confirmation prompt; use `DRY_RUN=true` to simulate renaming without changing files
   - Before renaming, ensures CRC32 cache is complete for the media folder (calculates missing CRC32s if needed)
+  - In Docker, real (non-dry-run) moves only happen when `RENAME_FORCE=true` — otherwise `RENAME=true` alone runs as dry-run-only
+  - Every real rename is journaled; run `--undo` (local CLI) to reverse the last run
+- `RENAME_FORCE` - Must be `true` for `RENAME=true` to perform real (non-dry-run) file moves in Docker (default: `false`). Without it, Docker rename runs print the plan only, regardless of `DRY_RUN`.
+- `VERSION` - Which episode cut is canonical for rename and missing/download detection: `normal` or `extended` (default: `normal`). `extended` prefers the extended/alternate cut of an episode when both exist, falling back to normal if there isn't one.
+- `REFERENCE_UPDATE` - Set to `true` to refresh the vendored one-pace-for-plex reference data (seasons/exceptions/episode list) from GitHub on container start (default: `false`). Falls back to the vendored snapshot shipped in the image on fetch failure, so rename works fully offline without this.
 - `ACEPACE_MEDIA_DIR_DOCKER` - Media/library folder in Docker (default: `"/media"`). Entrypoint passes this as `--folder`.
 - `ACEPACE_CONFIG_DIR_DOCKER` - Config/data directory in Docker (default: `"/config"`). Not set in entrypoint; override if you mount config elsewhere.
 - `DRY_RUN` - When `DOWNLOAD=true`: test BitTorrent client without adding torrents. When `RENAME=true`: show rename plan without renaming (default: `false`)
@@ -129,9 +141,21 @@ If you're running Ace-Pace through a VPN container (such as Gluetun), you may en
 
 **Recommendation:** It's perfectly fine to run Ace-Pace without a VPN. Instead, keep your BitTorrent client behind the VPN to protect your downloads while allowing Ace-Pace to query Nyaa.si directly without rate limiting issues.
 
+## ⚙️ Config File (`acepace.toml`)
+
+Instead of exporting environment variables every time, copy `acepace.toml.example` to `acepace.toml` (next to `acepace.py`, or in the config dir used by `--folder`/`ACEPACE_CONFIG_DIR_DOCKER`) and set defaults there. Precedence is: CLI flag > environment variable > `acepace.toml` > built-in default. Keys map 1:1 to the environment variables described above (`VERSION`, `RENAME`, `RENAME_FORCE`, `REFERENCE_UPDATE`, `TORRENT_*`, etc.). Requires Python 3.11+ (uses stdlib `tomllib`); if unavailable, the file is silently ignored.
+
 ## 🧪 Running Tests
 
-To run the test suite with coverage:
+With `uv` (matches CI):
+
+```bash
+make install   # uv sync --extra dev
+make test      # uv run pytest
+make coverage  # uv run pytest --cov=. --cov-report=xml:coverage.xml
+```
+
+Or with plain pip/pytest:
 
 ```bash
 # Install test dependencies
@@ -210,10 +234,27 @@ python acepace.py [-h] [--url URL] [--folder FOLDER] [--db] [--client {transmiss
   Create a CSV file with the existing local file paths and CRC32 checksums. Useful to check what's detected and debugging.
 
 - `--rename` (standalone flag)
-  Rename local files based on matching titles from One-Pace episodes index. Requires `--folder` to be specified. Optionally use `--url` to specify a custom Nyaa.si search URL.
+  Rename local files to the canonical Plex naming (`One Pace - S{season}E{episode} - {Title}.ext`, sourced from the [one-pace-for-plex](https://github.com/SpykerNZ/one-pace-for-plex) reference index), copying the matching `.nfo`/poster alongside. Requires `--folder`. Optionally use `--url` for a custom Nyaa.si search URL, and `--version {normal,extended}` to pick which cut is canonical. Prompts for confirmation before touching the filesystem (unless `--dry-run`).
+
+- `--undo` (standalone flag)
+  Undo the most recent real (non-dry-run) `--rename` run: reverses the file moves/renames and reverts the recorded CRC32-cache paths. Only the last run is journaled.
+
+- `--doctor` (standalone flag)
+  Run diagnostics and exit: media folder readable, reference data present/fresh, `episodes_index.db` has rows, torrent client connectivity (if configured), and SQLite file integrity. Exits non-zero if any hard check fails. Doesn't scrape or touch files.
 
 - `--episodes_update` (standalone flag)
   Update the episodes metadata database from Nyaa.si. Optionally use `--url` to specify a custom Nyaa.si search URL. This command forces an update even if episodes were recently updated (within the last 10 minutes).
+
+### 🔧 Rename & output options
+
+- `--version {normal,extended}`
+  Which episode cut is canonical for `--rename` and missing/download detection (default: `normal`, env: `VERSION`). `extended` prefers the extended/alternate cut when both exist.
+
+- `--quiet` (standalone flag)
+  Suppress non-essential output; errors and final summaries still print.
+
+- `--verbose` (standalone flag)
+  Equivalent to `DEBUG=true`.
 
 ### 📥 Download commands
 
@@ -259,6 +300,10 @@ python acepace.py --client transmission --download --dry-run
 python acepace.py --client qbittorrent --download --dry-run --host 192.168.1.100 --port 8080
 python acepace.py --db
 python acepace.py --folder "/volume42/media/One Piece/" --rename
+python acepace.py --folder "/volume42/media/One Piece/" --rename --version extended
+python acepace.py --folder "/volume42/media/One Piece/" --rename --dry-run
+python acepace.py --undo
+python acepace.py --doctor
 python acepace.py --episodes_update --url https://nyaa.si/?f=0&c=0_0&q=one+pace+1080p&o=asc
 ```
 
@@ -266,11 +311,13 @@ python acepace.py --episodes_update --url https://nyaa.si/?f=0&c=0_0&q=one+pace+
 
 1. **Scanning:** Ace-Pace begins by scanning your specified folder, computing CRC32 checksums for each video file to build an accurate inventory of your current collection and store it locally.
 
-2. **Missing Detection:** It then queries the One-Pace website to retrieve the latest episode list and compares it against your local inventory using the stored checksums and metadata.
+2. **Missing Detection:** It then queries the One-Pace website to retrieve the latest episode list and compares it against your local inventory using the stored checksums and metadata. Episodes are grouped by canonical (season, episode, version) so re-encodes/re-uploads of the same episode don't count as missing, and the newest release is preferred for download.
 
 3. **Reporting:** A detailed report is generated, highlighting which episodes you already have, which are missing, and any discrepancies.
 
 4. **Optional Downloading:** After that, Ace-Pace will propose to download any missing episodes directly on your BitTorrent client.
+
+5. **Optional Renaming:** `--rename` renames local files to the canonical Plex naming and copies the matching `.nfo`/poster alongside, using [one-pace-for-plex](https://github.com/SpykerNZ/one-pace-for-plex) as the reference. Every real rename is journaled so it can be undone with `--undo`.
 
 ## 🙏 Credits
 
